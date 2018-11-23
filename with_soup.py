@@ -16,12 +16,14 @@ just fine, but maybe not or not in all cases.
 However, adding newlines is still useful as they allow for easy splitting of
 data within each div when creating the JSON file.
 """
-os.chdir(DESKTOP_PATH)
+# todo make sure everything works correctly after changing dirs
+dir_path = G_PYTON_PATH + r'\youtube_watched_data'
+os.chdir(dir_path)
 
-original_html = DESKTOP_PATH + r'\watch-history.html'
-newline_html = DESKTOP_PATH + r'\watch-history-newlined.html'
-indented_html = DESKTOP_PATH + r'\watch-history-indented.html'
-jsonified = DESKTOP_PATH + r'\divs.json'
+original_html = dir_path + r'\watch-history.html'
+newline_html = dir_path + r'\watch-history-newlined.html'
+indented_html = dir_path + r'\watch-history-indented.html'
+jsonified = dir_path + r'\divs.json'
 pat = re.compile(r'</[a-zA-Z0-9]+?>')
 
 

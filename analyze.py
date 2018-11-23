@@ -16,17 +16,16 @@ def refine(x: np.array, y: np.array, fine: int, kind: str='cubic'):
 
 
 def load_data(start=2014, end=2018, period_length='year', silent=True):
-    json_path = DESKTOP_PATH + r'\divs.json'
+    json_path = G_PYTON_PATH + r'\youtube_watched_data\divs.json'
     with open(json_path, 'r') as file:
         data = json.load(file)
     prepped_data = {}
     date_range = [*range(start, end+1)]
-    count = 0
-    print(len(data['divs']))
+    removed_videos_count = 0
 
     for i in data['divs']:
         if len(i) < 2:
-            count += 1
+            removed_videos_count += 1
         index = datetime.strptime(i[-1][:-4], '%b %d, %Y, %I:%M:%S %p')
         if index.year not in date_range:
             continue
@@ -44,11 +43,13 @@ def load_data(start=2014, end=2018, period_length='year', silent=True):
             key = index.month
         prepped_data.setdefault(key, 0)
         prepped_data[key] += 1
-        if not silent:
-            for k, v in prepped_data.items():
-                print(f'|||||||{k}:||||||')
-                pprint(v)
-    print(count)
+    if not silent:
+        for k, v in prepped_data.items():
+            print(f'|||||||{k}:||||||')
+            pprint(v)
+        print('-'*50)
+        print('Total videos opened/watched:', len(data['divs']))
+        print('Videos removed:', removed_videos_count)
     return prepped_data
 
 
@@ -65,6 +66,27 @@ def plot_data(data: dict):
     pprint(data)
 
 
+def load_full_data(start=2014, end=2018):
+    json_path = G_PYTON_PATH + r'\youtube_watched_data\original_divs.json'
+    with open(json_path, 'r') as file:
+        data = json.load(file)
+    story_count = 0
+    removed_count = 0
+    prepped_data = {}
+    for div in data['divs']:
+        from_ = div[1].split('from')[0]
+        prepped_data.setdefault(from_, 0)
+        prepped_data[from_] += 1
+        if 'Watched story from' in div[1]:
+            # print(div[1:])
+            story_count += 1
+        elif 'removed' in div[1]:
+            removed_count += 1
+    pprint(prepped_data)
+    print('Stories watched:', story_count)
+    print('Videos removed:', removed_count)
+
+
 def count_removed_in_original_file():
     path = r'D:\Downloads\takeout-20181120T163352Z-001\Takeout\YouTube\history'
     file = r'\watch-history.html'
@@ -73,8 +95,9 @@ def count_removed_in_original_file():
     print(count)
 
 
-count_removed_in_original_file()
-yt_data = load_data(start=2014, end=2018, period_length='month')
+# count_removed_in_original_file()
+# yt_data = load_data(start=2017, end=2017, period_length='month', silent=False)
+load_full_data()
 # plot_data(yt_data)
 # Nov 19, 2018, 11:07:59 PM EST
 # %b  %d,   %Y, %I:%M:%S %p  %Z
