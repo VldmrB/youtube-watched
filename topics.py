@@ -141,3 +141,28 @@ topics_flat = {
     '/m/06bvp': 'Religion',
     '/m/01k8wb': 'Knowledge'
 }
+
+
+"""
+Relevant keys:
+
+items:
+    id
+    snippet:
+        publishedAt
+        channelId
+        title
+    channelTitle
+    tags[]
+    categoryId
+    contentDetails:
+        duration
+    statistics:
+        viewCount
+        likeCount
+        dislikeCount
+        commentCount
+    topicDetails:
+        relevantTopicIds[]
+    topicCategories[]
+    """
