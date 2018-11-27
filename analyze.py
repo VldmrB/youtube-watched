@@ -1,9 +1,7 @@
 import os
 import json
-from calendar import month_abbr
 from datetime import datetime
 from pprint import pprint
-
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.interpolate import interp1d
@@ -15,7 +13,7 @@ from config import DB_PATH, WORK_DIR
 # %b  %d,   %Y, %I:%M:%S %p  %Z
 
 
-def refine(x: np.array, y: np.array, fine: int, kind: str='cubic'):
+def refine(x: np.array, y: np.array, fine: int, kind: str='quadratic'):
     x_refined = np.linspace(x.min(), x.max(), fine)
     func = interp1d(x, y, kind=kind)
     y_refined = func(x_refined)
@@ -60,18 +58,18 @@ def load_takeout_data(start=2014, end=2018, period_length='year', silent=True):
     return prepped_data
 
 
-def plot_data(data: dict):
+def plot_data(data: dict, save_path=None):
 
     data = sorted([[k, v] for k, v in data.items()], key=lambda entry: entry[0])
-    pprint(data)
-    x_orig = np.array([i[0] for i in data])
+    x_ticks = [i[0] for i in data]
+    x_orig = np.array(x_ticks)
     y_orig = np.array([i[1] for i in data])
-    # raise SystemExit
     x, y = refine(x_orig, y_orig, len(x_orig)*20)
     plt.plot(x, y)
-    plt.xticks([*range(1, len(x_orig)+1)], month_abbr[1:])
+    plt.xticks([*range(x_ticks[0], x_ticks[-1]+1)])
+    if save_path:
+        plt.savefig(os.path.join(WORK_DIR, save_path))
     plt.show()
-    # plt.imsave()
 
 
 def sort_by_watched_type():
@@ -133,4 +131,5 @@ def plot_tags():
 
 
 # plot_tags()
-# plot_data(load_takeout_data(2015, 2017, period_length='month', silent=False))
+plot_data(load_takeout_data(2015, 2017, period_length='month', silent=False))
+# plot_data(load_takeout_data(2015, 2017))
