@@ -106,4 +106,14 @@ def get_all_videos_info():
     logger.info(f'Total fails: {count}')
 
 
-get_all_videos_info()
+def get_categories_info():
+    from pprint import pprint
+    categories_json = get_api_auth().videoCategories().list(
+        part='snippet', regionCode='US').execute()
+    categories_json_path = os.path.join(WORK_DIR, 'categories.json')
+    try:
+        with open(categories_json_path, 'w') as file:
+            json.dump(categories_json, file, indent=4)
+        os.startfile(categories_json_path)
+    except Exception:
+        pprint(categories_json)
