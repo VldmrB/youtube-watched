@@ -1,12 +1,9 @@
 import os
 import json
-import sqlite3
-import time
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
-from config import DEVELOPER_KEY, WORK_DIR, DB_PATH
-from ktools import utils
-from ktools import fs
+from config import DEVELOPER_KEY, WORK_DIR
+from ktools import utils, fs
 
 logger = fs.logger_obj(os.path.join(WORK_DIR, 'logs', 'fail.log'))
 
@@ -43,67 +40,11 @@ def get_video_info(video_id, api_auth):
     try:
         results = api_auth.videos().list(id=video_id, part=get).execute()
         return results
-    except:
+    except Exception:
         error = utils.err_display()
         logger.error(f'failed to retrieve video under ID {video_id}; '
                      f'error {error.err}')
         return
-
-
-def populate_video_ids_in_sqlite():
-    conn = sqlite3.connect(DB_PATH)
-
-    # watch_url = 'https://www.youtube.com/watch?v='
-
-    with open('video_ids.txt', 'r', newline='\r\n') as file:
-        file = file.readlines()
-    count = 0
-    for line in file:
-        count += 1
-        stripped_line = line.strip()
-        equal_index = stripped_line.find('=')
-        video_id = stripped_line[equal_index+1:]
-        duration_index = video_id.find('&t=')
-        if duration_index > 1:
-            video_id = video_id[:duration_index]
-        cur = conn.cursor()
-        cur.execute("""INSERT INTO youtube_video_ids values (?)""", (video_id,))
-        conn.commit()
-        cur.close()
-    conn.close()
-    print(count)
-
-
-def get_all_videos_info():
-    api_auth = get_api_auth()
-    conn = sqlite3.connect(DB_PATH)
-    # conn.row_factory = sqlite3.Row
-
-    # watch_url = 'https://www.youtube.com/watch?v='
-    count = 0
-    logger.info('-'*10 + 'Starting video info retrieval' + '-'*10)
-    cur = conn.cursor()
-    cur.execute("""SELECT * FROM youtube_video_ids""")
-    ids = cur.fetchall()
-    cur.close()
-    for row in ids:
-        video_id = row[0]
-        print(video_id)
-        result = get_video_info(video_id, api_auth)
-        if result:
-            cur = conn.cursor()
-            json_string = json.dumps(result)
-            cur.execute("""INSERT INTO youtube_videos_info values (?, ?)""",
-                        (video_id, json_string))
-            conn.commit()
-            cur.close()
-        else:
-            count += 1
-        time.sleep(0.01)
-
-    conn.close()
-    logger.info('-'*10 + 'Video info retrieval finished' + '-'*10)
-    logger.info(f'Total fails: {count}')
 
 
 def get_categories_info():

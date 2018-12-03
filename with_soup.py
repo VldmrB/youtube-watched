@@ -81,11 +81,3 @@ def from_divs_to_json(path=indented_html, write_to_path=jsonified):
 
     with open(write_to_path, 'w') as file:
         json.dump({'divs': div_list}, file, indent=4)
-
-
-# by_char()
-# print('Added newlines...')
-# by_line()
-# print('Indented...')
-from_divs_to_json(path=indented_html, write_to_path='original_divs_2.json')
-print('Created the JSON file!')
