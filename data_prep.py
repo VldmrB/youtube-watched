@@ -62,20 +62,19 @@ Video table
 'title text',
 'description text',
 'category_id text',
-'default_audio_language text',
-'duration integer',  # needs conversion before passing
-'view_count integer',  # needs conversion before passing
-'like_count integer',  # needs conversion before passing
-'dislike_count integer',  # needs conversion before passing
-'comment_count integer'  # needs conversion before passing
-'watched_on timestamp'  # 
-Tags table
+'default_audio_language text',  # not always present
+'duration integer',  # convert?
+'view_count integer',  # convert; not always present
+'like_count integer',  # convert; not always present
+'dislike_count integer',  # convert; not always present
+'comment_count integer'  # convert; not always present
+'watched_on timestamp'  # added from takeout data where present
 
+Tags table
 'tag text'
 
-Relevant Topics table
-
-'relevant_topic_id'
+Topics and subtopics' tables
+'relevant_topic_id'  # not always present
 """
 
 
@@ -193,3 +192,6 @@ def get_videos_info_from_db():
     cur.close()
     conn.close()
     return good_records
+
+
+get_videos_info_from_db()

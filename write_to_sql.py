@@ -33,7 +33,9 @@ def populate_video_ids_in_sqlite():
     print(count)
 
 
-def get_all_videos_info():
+def populate_videos_info_into_sql():
+    """Sends API requests for all the videos found via JS scrolling;
+    inserts them into the DB"""
     from main import get_api_auth, get_video_info
     api_auth = get_api_auth()
     conn = sqlite3.connect(DB_PATH)
@@ -99,6 +101,7 @@ def add_datetimes_where_possible():
                     matches += 1
                     del js[row]
                     takeout_found.append(takeout[takeout_row])
+
                     break
 
     takeout_found = [row[0] for row in takeout_found]
@@ -176,3 +179,10 @@ def populate_sub_topics_into_sql():
             conn.commit()
             cur.close()
     conn.close()
+
+
+def populate_tags_into_sql():
+    pass
+
+
+add_datetimes_where_possible()
