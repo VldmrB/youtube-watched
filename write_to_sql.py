@@ -1,10 +1,8 @@
 import os
 import json
 import sqlite3
-import data_prep
 import time
 from ktools import fs
-from main import get_api_auth, get_video_info
 from config import DB_PATH, WORK_DIR
 
 
@@ -36,6 +34,7 @@ def populate_video_ids_in_sqlite():
 
 
 def get_all_videos_info():
+    from main import get_api_auth, get_video_info
     api_auth = get_api_auth()
     conn = sqlite3.connect(DB_PATH)
     # conn.row_factory = sqlite3.Row
@@ -68,6 +67,7 @@ def get_all_videos_info():
 
 
 def add_datetimes_where_possible():
+    import data_prep
     takeout = data_prep.get_data_and_basic_stats_from_takeout(silent=True)
     takeout_found = []
     js = [list(row) for row in data_prep.get_videos_info_from_db()]
@@ -109,23 +109,6 @@ def add_datetimes_where_possible():
     print('Total matches:', matches)
 
 
-def test_1():
-    from datetime import datetime
-    import sqlite3
-    conn = sqlite3.connect(
-        ':memory:',
-        detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
-    cur = conn.cursor()
-    cur.execute('create table oi (ay timestamp);')
-    conn.commit()
-    cur.execute('insert into oi values (?)', (datetime.now(),))
-    conn.commit()
-    cur.execute('select ay from oi')
-    a = cur.fetchone()
-    print(type(a[0]), a[0])
-    conn.close()
-
-
 def populate_categories_into_sql():
     def bool_adapt(bool_value: bool): return str(bool_value)
 
@@ -150,4 +133,46 @@ def populate_categories_into_sql():
         conn.commit()
         cur.close()
 
+    conn.close()
+
+
+def populate_parent_topics_into_sql():
+    from topics import topics_by_category
+
+    conn = sqlite3.connect(DB_PATH)
+
+    for topic_dict in topics_by_category.values():
+        for k, v in topic_dict.items():
+            parent_topic_str = ' (parent topic)'
+            if parent_topic_str in v:
+                v = v.replace(parent_topic_str, '')
+                print(k + ':', v)
+                cur = conn.cursor()
+                cur.execute('INSERT INTO parent_topics VALUES (?, ?)',
+                            (k, v))
+                conn.commit()
+                cur.close()
+            break
+    conn.close()
+
+
+def populate_sub_topics_into_sql():
+    from topics import topics_by_category
+
+    conn = sqlite3.connect(DB_PATH)
+
+    for topic_dict in topics_by_category.values():
+        parent_topic_str = ' (parent topic)'
+        parent_topic_name = None
+        for k, v in topic_dict.items():
+            if parent_topic_str in v:
+                parent_topic_name = k
+                continue
+            insert_tuple = (k, v, parent_topic_name)
+            print(insert_tuple)
+            cur = conn.cursor()
+            cur.execute('INSERT INTO sub_topics VALUES (?, ?, ?)',
+                        insert_tuple)
+            conn.commit()
+            cur.close()
     conn.close()
