@@ -167,7 +167,7 @@ def get_videos_info_from_db():
             assert json.loads(row[1])['items']
             jsonified = json.loads(row[1])['items'][0]
             good_records.append(row)
-            tags_missing = utils.get_missing_keys_from_dict(
+            tags_missing = utils.get_missing_keys(
                 jsonified, video_tags)
             for tag in tags_missing:
                 most_commonly_missing_tags.setdefault(tag, 0)
