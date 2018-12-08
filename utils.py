@@ -7,9 +7,9 @@ def check_if_url(candidate_str: str):
 
 def get_final_keys(
         obj_to_check: Union[dict, list, tuple], final_keys: list = None):
-    """Returns all the final, terminating keys that don't contain dict values
-    further down the line. Any duplicates (they're possible since the
-    object may have nested dictionaries) are eliminated via sets"""
+    """Returns all the final, terminating keys.
+    Any duplicates (they're possible since the object may have
+    nested dictionaries) are eliminated via sets"""
     if final_keys is None:
         final_keys = []
     if isinstance(obj_to_check, dict):
