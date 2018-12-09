@@ -109,7 +109,7 @@ def get_videos_info_from_db():
         try:
             assert json.loads(row[1])['items']
             jsonified = json.loads(row[1])['items'][0]
-            good_records.append(row)
+            good_records.append(jsonified)
             tags_missing = ktools.dict_exploration.get_missing_keys(
                 jsonified, video_tags)
             for tag in tags_missing:
