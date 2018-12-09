@@ -5,13 +5,15 @@ import time
 from ktools import fs
 from config import DB_PATH, WORK_DIR, video_tags
 from ktools.dict_exploration import get_final_key_paths
+from utils import convert_duration
+
 
 logger = fs.logger_obj(os.path.join(WORK_DIR, 'logs', 'fail.log'))
 
 main_table_cols = [
     'id text primary key',  # not using a separate integer as a PK
     'published_at timestamp',  # pass detect_types when creating connection
-    'watched_on timestamp',
+    'watched_at timestamp',
     'channel_id text',
     'title text',
     'description text',
@@ -60,20 +62,31 @@ def construct_create_video_table_statement():
 
 
 def construct_videos_entry_from_json_obj(json_obj: dict):
-    # todo finish this, commit and document everything
+    # todo finish this, currently setting up conversion for some values
     entry_dict = {}
     found_keys_and_paths = []
     for path in get_final_key_paths(json_obj, '',
                                     True, black_list=['localized']):
         last_bracket = path[0].rfind('[\'')
         key = path[0][last_bracket+2:path[0].rfind('\'')]
-        # print(key)
+        value = path[1]
         if key in video_tags:
-            found_keys_and_paths.append([path[0], key, path[1]])
+            new_key = ''
+            for letter in key:
+                if letter.isupper():
+                    new_key += '_' + letter.lower()
+                else:
+                    new_key += letter
+            key = new_key
+            if key == 'relevant_topic_ids':
+                value = list(set(value))  # duplicate topic ids, google f/u
+            elif key == 'duration':
+                value = convert_duration(value)
+            entry_dict[key] = value
 
-    for entry in found_keys_and_paths:
-        print(entry[0], entry[1], entry[2])
-    print(len(found_keys_and_paths))
+    for entry in entry_dict.items():
+        print(entry)
+    print(len(entry_dict))
 
 
 def populate_video_ids_in_sqlite():
@@ -277,3 +290,4 @@ if __name__ == '__main__':
         file = json.load(file)
 
     construct_videos_entry_from_json_obj(file)
+    # construct_create_video_table_statement()
