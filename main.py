@@ -2,7 +2,8 @@ import os
 import json
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
-from config import DEVELOPER_KEY, WORK_DIR
+from config import WORK_DIR
+from confidential import DEVELOPER_KEY
 from ktools import utils, fs
 
 logger = fs.logger_obj(os.path.join(WORK_DIR, 'logs', 'fail.log'))
