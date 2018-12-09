@@ -3,7 +3,8 @@ import json
 from datetime import datetime
 from pprint import pprint
 import utils
-from config import WORK_DIR, DB_PATH
+import ktools.dict_exploration
+from config import WORK_DIR, DB_PATH, video_tags
 
 duplicate_tags = {
     'pewdiepie': ['pdp', 'pewds', 'pewdiepie', 'pewdie'],
@@ -19,36 +20,26 @@ duplicate_tags = {
     'wow': ['world of warcraft', 'wow', 'world'],
 }
 
-video_tags = ['id', 'publishedAt',
-              'channelId', 'title',
-              'description',
-              'channelTitle', 'tags',
-              'categoryId',
-              'defaultAudioLanguage',
-              'duration',
-              'viewCount',
-              'likeCount',
-              'dislikeCount',
-              'commentCount',
-              'relevantTopicIds']
-
 main_table_cols = [
-    'id text',
-    'published_at timestamp',  # pass detect_types when creating connection
+    'id text primary key',  # not using a separate integer as a PK
+    'published_on timestamp',  # pass detect_types when creating connection
+    'watched_on timestamp',
     'channel_id text',
     'title text',
     'description text',
-    'channel_title text',
     'category_id text',
     'default_audio_language text',
     'duration integer',  # needs conversion before passing
     'view_count integer',  # needs conversion before passing
     'like_count integer',  # needs conversion before passing
     'dislike_count integer',  # needs conversion before passing
-    'comment_count integer'  # needs conversion before passing
+    'comment_count integer',  # needs conversion before passing
+    ('foreign key (channel_id) references channels (id) on update cascade on '
+     'delete cascade'),
+
 ]
-# print('CREATE TABLE youtube_videos_info_2 (' + ',\n'.join(main_table_cols)
-#       + ');')
+print('CREATE TABLE videos (\n' + ',\n'.join(main_table_cols)
+      + '\n);')
 
 """
 Channel table
@@ -167,7 +158,7 @@ def get_videos_info_from_db():
             assert json.loads(row[1])['items']
             jsonified = json.loads(row[1])['items'][0]
             good_records.append(row)
-            tags_missing = utils.get_missing_keys(
+            tags_missing = ktools.dict_exploration.get_missing_keys(
                 jsonified, video_tags)
             for tag in tags_missing:
                 most_commonly_missing_tags.setdefault(tag, 0)
@@ -192,6 +183,3 @@ def get_videos_info_from_db():
     cur.close()
     conn.close()
     return good_records
-
-
-get_videos_info_from_db()

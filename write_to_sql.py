@@ -3,10 +3,27 @@ import json
 import sqlite3
 import time
 from ktools import fs
-from config import DB_PATH, WORK_DIR
-
+from config import DB_PATH, WORK_DIR, video_tags
+from ktools.dict_exploration import get_final_key_paths
 
 logger = fs.logger_obj(os.path.join(WORK_DIR, 'logs', 'fail.log'))
+
+
+def construct_videos_entry_from_json_obj(json_obj: dict):
+    # todo finish this, commit and document everything
+    entry_dict = {}
+    found_keys_and_paths = []
+    for path in get_final_key_paths(json_obj, '',
+                                    True, black_list=['localized']):
+        last_bracket = path[0].rfind('[\'')
+        key = path[0][last_bracket+2:path[0].rfind('\'')]
+        # print(key)
+        if key in video_tags:
+            found_keys_and_paths.append([path[0], key, path[1]])
+
+    for entry in found_keys_and_paths:
+        print(entry[0], entry[1], entry[2])
+    print(len(found_keys_and_paths))
 
 
 def populate_video_ids_in_sqlite():
@@ -98,6 +115,7 @@ def add_datetimes_where_possible():
                     comparison = (js[row][1], video_id)
                 do_compare = comparison[0] == comparison[1]
                 if do_compare:
+
                     matches += 1
                     del js[row]
                     takeout_found.append(takeout[takeout_row])
@@ -140,6 +158,7 @@ def populate_categories_into_sql():
 
 
 def populate_parent_topics_into_sql():
+    """Hard-coded table name/structure"""
     from topics import topics_by_category
 
     conn = sqlite3.connect(DB_PATH)
@@ -160,6 +179,7 @@ def populate_parent_topics_into_sql():
 
 
 def populate_sub_topics_into_sql():
+    """Hard-coded table name/structure"""
     from topics import topics_by_category
 
     conn = sqlite3.connect(DB_PATH)
@@ -185,4 +205,25 @@ def populate_tags_into_sql():
     pass
 
 
-add_datetimes_where_possible()
+def populate_videos_info_into_proper_table():
+    pass
+
+
+def time_test():
+    conn = sqlite3.connect(':memory:',
+                           detect_types=sqlite3.PARSE_DECLTYPES)
+    cur = conn.cursor()
+    from datetime import datetime
+    cur.execute('create table b (a timestamp)')
+    cur.execute('insert into b values (?)', (datetime.now(),))
+    cur.execute('select a from b')
+    conn.commit()
+    print(cur.fetchone()[0])
+
+
+if __name__ == '__main__':
+    from os.path import join
+    with open(join(WORK_DIR, 'video_info.json'), 'r') as file:
+        file = json.load(file)
+
+    construct_videos_entry_from_json_obj(file)
