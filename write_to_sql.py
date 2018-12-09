@@ -64,12 +64,11 @@ def construct_create_video_table_statement():
 def construct_videos_entry_from_json_obj(json_obj: dict):
     # todo finish this, currently setting up conversion for some values
     entry_dict = {}
-    found_keys_and_paths = []
     for path in get_final_key_paths(json_obj, '',
                                     True, black_list=['localized']):
         last_bracket = path[0].rfind('[\'')
-        key = path[0][last_bracket+2:path[0].rfind('\'')]
-        value = path[1]
+        key = path[0][last_bracket+2:path[0].rfind('\'')]  # last key
+        value = path[1]  # value of the above key
         if key in video_tags:
             new_key = ''
             for letter in key:
@@ -79,14 +78,17 @@ def construct_videos_entry_from_json_obj(json_obj: dict):
                     new_key += letter
             key = new_key
             if key == 'relevant_topic_ids':
-                value = list(set(value))  # duplicate topic ids, google f/u
+                value = list(set(value))  # duplicate topic ids
             elif key == 'duration':
                 value = convert_duration(value)
+            elif key == 'published_at':
+                value = value.replace('T', ' ')[:value.find('.')]
+            elif key in ['view_count', 'dislike_count', 'like_count',
+                         'comment_count']:
+                value = int(value)
             entry_dict[key] = value
 
-    for entry in entry_dict.items():
-        print(entry)
-    print(len(entry_dict))
+    return entry_dict
 
 
 def populate_video_ids_in_sqlite():
@@ -281,7 +283,9 @@ def time_test():
     cur.execute('insert into b values (?)', (datetime.now(),))
     cur.execute('select a from b')
     conn.commit()
-    print(cur.fetchone()[0])
+    fetchone_ = cur.fetchone()[0]
+    print(fetchone_)
+    print(type(fetchone_))
 
 
 if __name__ == '__main__':
@@ -289,5 +293,7 @@ if __name__ == '__main__':
     with open(join(WORK_DIR, 'video_info.json'), 'r') as file:
         file = json.load(file)
 
-    construct_videos_entry_from_json_obj(file)
+    for entry in construct_videos_entry_from_json_obj(file).items():
+        print(entry)
     # construct_create_video_table_statement()
+    # time_test()
