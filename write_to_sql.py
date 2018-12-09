@@ -8,6 +8,56 @@ from ktools.dict_exploration import get_final_key_paths
 
 logger = fs.logger_obj(os.path.join(WORK_DIR, 'logs', 'fail.log'))
 
+main_table_cols = [
+    'id text primary key',  # not using a separate integer as a PK
+    'published_at timestamp',  # pass detect_types when creating connection
+    'watched_on timestamp',
+    'channel_id text',
+    'title text',
+    'description text',
+    'category_id text',
+    'default_audio_language text',
+    'duration integer',  # needs conversion before passing
+    'view_count integer',  # needs conversion before passing
+    'like_count integer',  # needs conversion before passing
+    'dislike_count integer',  # needs conversion before passing
+    'comment_count integer',  # needs conversion before passing
+    ('foreign key (channel_id) references channels (id) on update cascade on '
+     'delete cascade'),
+]
+
+"""
+Channel table
+'channel_id text',
+'channel_title text',
+
+Video table
+
+'id text',
+'published_at timestamp',  # pass detect_types when creating connection
+'title text',
+'description text',
+'category_id text',
+'default_audio_language text',  # not always present
+'duration integer',  # convert?
+'view_count integer',  # convert; not always present
+'like_count integer',  # convert; not always present
+'dislike_count integer',  # convert; not always present
+'comment_count integer'  # convert; not always present
+'watched_on timestamp'  # added from takeout data where present
+
+Tags table
+'tag text'
+
+Topics and subtopics' tables
+'relevant_topic_id'  # not always present
+"""
+
+
+def construct_create_video_table_statement():
+    print('CREATE TABLE videos (\n' + ',\n'.join(main_table_cols)
+          + '\n);')
+
 
 def construct_videos_entry_from_json_obj(json_obj: dict):
     # todo finish this, commit and document everything

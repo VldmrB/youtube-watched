@@ -20,54 +20,6 @@ duplicate_tags = {
     'wow': ['world of warcraft', 'wow', 'world'],
 }
 
-main_table_cols = [
-    'id text primary key',  # not using a separate integer as a PK
-    'published_on timestamp',  # pass detect_types when creating connection
-    'watched_on timestamp',
-    'channel_id text',
-    'title text',
-    'description text',
-    'category_id text',
-    'default_audio_language text',
-    'duration integer',  # needs conversion before passing
-    'view_count integer',  # needs conversion before passing
-    'like_count integer',  # needs conversion before passing
-    'dislike_count integer',  # needs conversion before passing
-    'comment_count integer',  # needs conversion before passing
-    ('foreign key (channel_id) references channels (id) on update cascade on '
-     'delete cascade'),
-
-]
-print('CREATE TABLE videos (\n' + ',\n'.join(main_table_cols)
-      + '\n);')
-
-"""
-Channel table
-'channel_id text',
-'channel_title text',
-
-Video table
-
-'id text',
-'published_at timestamp',  # pass detect_types when creating connection
-'title text',
-'description text',
-'category_id text',
-'default_audio_language text',  # not always present
-'duration integer',  # convert?
-'view_count integer',  # convert; not always present
-'like_count integer',  # convert; not always present
-'dislike_count integer',  # convert; not always present
-'comment_count integer'  # convert; not always present
-'watched_on timestamp'  # added from takeout data where present
-
-Tags table
-'tag text'
-
-Topics and subtopics' tables
-'relevant_topic_id'  # not always present
-"""
-
 
 def get_data_and_basic_stats_from_takeout(silent=False):
     json_path = os.path.join(WORK_DIR, 'divs.json')
