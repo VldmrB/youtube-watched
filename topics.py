@@ -76,3 +76,87 @@ topics_by_category = {
         '/m/01k8wb': 'Knowledge'
     }
 }
+
+children_topics = {
+    '/m/018jz': 'Baseball',
+    '/m/018w8': 'Basketball',
+    '/m/01cgz': 'Boxing',
+    '/m/01h6rj': 'Military',
+    '/m/01h7lh': 'Mixed martial arts',
+    '/m/01k8wb': 'Knowledge',
+    '/m/01lyv': 'Country',
+    '/m/01sjng': 'Racing video game',
+    '/m/021bp2': 'Simulation video game',
+    '/m/022dc6': 'Sports game',
+    '/m/025zzc': 'Action game',
+    '/m/027x7n': 'Fitness',
+    '/m/028sqc': 'Music of Asia',
+    '/m/02hygl': 'Music video game',
+    '/m/02lkt': 'Electronic music',
+    '/m/02mscn': 'Christian music',
+    '/m/02ntfj': 'Action-adventure game',
+    '/m/02vx4': 'Football',
+    '/m/02vxn': 'Movies',
+    '/m/02wbm': 'Food',
+    '/m/032tl': 'Fashion',
+    '/m/037hz': 'Golf',
+    '/m/03_d0': 'Jazz',
+    '/m/03glg': 'Hobby',
+    '/m/03hf_rm': 'Strategy video game',
+    '/m/03tmr': 'Ice hockey',
+    '/m/0403l3g': 'Role-playing video game',
+    '/m/0410tth': 'Motorsport',
+    '/m/041xxh': 'Physical attractiveness [Beauty]',
+    '/m/04q1x3q': 'Puzzle video game',
+    '/m/05qjc': 'Performing arts',
+    '/m/05qt0': 'Politics',
+    '/m/05rwpb': 'Independent music',
+    '/m/064t9': 'Pop music',
+    '/m/066wd': 'Professional wrestling',
+    '/m/068hy': 'Pets',
+    '/m/06bvp': 'Religion',
+    '/m/06by7': 'Rock music',
+    '/m/06cqb': 'Reggae',
+    '/m/06j6l': 'Rhythm and blues',
+    '/m/07_53': 'Volleyball',
+    '/m/07bs0': 'Tennis',
+    '/m/07bxq': 'Tourism',
+    '/m/07c1v': 'Technology',
+    '/m/07yv9': 'Vehicles',
+    '/m/09kqc': 'Humor',
+    '/m/09s1f': 'Business',
+    '/m/09xp_': 'Cricket',
+    '/m/0b1vjn': 'Casual game',
+    '/m/0f2f9': 'TV shows',
+    '/m/0g293': 'Music of Latin America',
+    '/m/0ggq0m': 'Classical music',
+    '/m/0glt670': 'Hip hop music',
+    '/m/0gywn': 'Soul music',
+    '/m/0jm_': 'American football',
+    '/m/0kt51': 'Health'
+                 }
+parent_topics = {
+    '/m/019_rr': 'Lifestyle (parent topic)',
+    '/m/02jjt': 'Entertainment (parent topic)',
+    '/m/04rlf': 'Music (parent topic)',
+    '/m/06ntj': 'Sports (parent topic)',
+    '/m/098wr': 'Society (parent topic)',
+    '/m/0bzvm2': 'Gaming (parent topic)'
+}
+
+
+def generate_topics_from_category_list():
+    topics_by_parent = {}
+    for topic_set in topics_by_category.values():
+        for key, topic in topic_set.items():
+            if 'parent topic' in topic:
+                topics_by_parent[key] = []
+                # todo continue here
+                parent_topics[key] = topic
+            else:
+                children_topics[key] = topic
+
+    from pprint import pprint
+    pprint(parent_topics)
+    print('-'*100)
+    pprint(children_topics)
