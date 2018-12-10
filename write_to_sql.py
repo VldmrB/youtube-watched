@@ -133,6 +133,7 @@ def repopulate_videos_info_properly():
     count = 0
     matches = 0
     sql_fails = 0
+    success_count = 0
     decl_types = sqlite3.PARSE_DECLTYPES
     decl_colnames = sqlite3.PARSE_COLNAMES
     conn = db.sqlite_connection(DB_PATH,
@@ -141,6 +142,7 @@ def repopulate_videos_info_properly():
                 f'\nStarting records\' insertion...\n' + '-'*150)
 
     for takeout_row in range(len(takeout)):
+        success = True
         if len(takeout[takeout_row]) > 1:  # row contains url or title, in
             # addition to a watch timestamp
             count += 1
@@ -181,7 +183,8 @@ def repopulate_videos_info_properly():
                     continue
 
                 channel_title = js_row.pop('channel_title')
-                if channel_title not in channels_inserted:
+                channel_id = js_row['channel_id']
+                if channel_id not in channels_inserted:
                     insert_result = execute_insert_query(
                         conn,
                         """INSERT INTO channels (id, title)
@@ -189,9 +192,9 @@ def repopulate_videos_info_properly():
                     if not insert_result:
                         sql_fails += 1
                     else:
-                        channels_inserted.append(channel_title)
+                        channels_inserted.append(js_row['channel_id'])
 
-                if 'tags' in js_row and js_row['tags']:
+                if 'tags' in js_row:
                     tags = js_row.pop('tags')
                 else:
                     tags = None
@@ -210,6 +213,7 @@ def repopulate_videos_info_properly():
                     values=[*js_row.values()])
                 if not insert_result:
                     sql_fails += 1
+                    success = False
                 else:
                     videos_inserted.append(js_row['id'])
 
@@ -221,12 +225,13 @@ def repopulate_videos_info_properly():
                                 "INSERT INTO tags (tag) values (?)", tag)
                             if not insert_result:
                                 sql_fails += 1
+                                success = False
                             else:
                                 tags_inserted.append(tag)
                         cur = conn.cursor()
                         try:
                             cur.execute(
-                                f'SELECT id FROM tags WHERE tag = {tag!r}')
+                                f'SELECT id FROM tags WHERE tag = "{tag}"')
                             try:
                                 tag_id = cur.fetchone()[0]
 
@@ -241,6 +246,7 @@ def repopulate_videos_info_properly():
                                              f'\nvalues = {tag!r}')
                             if not insert_result:
                                 sql_fails += 1
+                                success = False
                         except sqlite3.Error:
                             err_inf = err_display(True)
                             logger.error(f'{err_inf.err}\n'
@@ -258,6 +264,10 @@ def repopulate_videos_info_properly():
                             values (?, ?)""", (js_row['id'], topic))
                             if not insert_result:
                                 sql_fails += 1
+                                success = False
+                if success:
+                    success_count += 1
+                    print('Successful attempts:', success_count)
 
                 if used:
                     break
@@ -297,6 +307,12 @@ def retrieve_test():
     fetchone_ = cur.fetchone()[0]
     print(fetchone_)
     print(type(fetchone_))
+
+
+def empty_tables():
+    conn = db.sqlite_connection(DB_PATH)
+    cur = conn.cursor()
+    cur.close()
 
 
 if __name__ == '__main__':
