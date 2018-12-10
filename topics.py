@@ -144,19 +144,56 @@ parent_topics = {
     '/m/0bzvm2': 'Gaming (parent topic)'
 }
 
+topics_by_parents = {
+    '/m/019_rr':
+        ['/m/032tl', '/m/027x7n', '/m/02wbm', '/m/03glg', '/m/068hy',
+         '/m/041xxh', '/m/07c1v', '/m/07bxq', '/m/07yv9'],
+
+    '/m/02jjt':
+        ['/m/09kqc', '/m/02vxn', '/m/05qjc', '/m/066wd', '/m/0f2f9'],
+
+    '/m/04rlf':
+        ['/m/02mscn', '/m/0ggq0m', '/m/01lyv', '/m/02lkt', '/m/0glt670',
+         '/m/05rwpb', '/m/03_d0', '/m/028sqc', '/m/0g293', '/m/064t9',
+         '/m/06cqb', '/m/06j6l', '/m/06by7', '/m/0gywn'],
+
+    '/m/06ntj': ['/m/0jm_', '/m/018jz', '/m/018w8', '/m/01cgz', '/m/09xp_',
+                 '/m/02vx4', '/m/037hz', '/m/03tmr', '/m/01h7lh', '/m/0410tth',
+                 '/m/07bs0', '/m/07_53'],
+
+    '/m/098wr': ['/m/09s1f', '/m/0kt51', '/m/01h6rj', '/m/05qt0', '/m/06bvp'],
+
+    '/m/0bzvm2': ['/m/025zzc', '/m/02ntfj', '/m/0b1vjn', '/m/02hygl',
+                  '/m/04q1x3q', '/m/01sjng', '/m/0403l3g', '/m/021bp2',
+                  '/m/022dc6', '/m/03hf_rm'],
+
+    'orphaned': ['/m/01k8wb']}
+
 
 def generate_topics_from_category_list():
-    topics_by_parent = {}
+    ts_by_parent = {}
+    children_ts = {}
+    parent_ts = {}
     for topic_set in topics_by_category.values():
+        parent_topic = 'orphaned'
         for key, topic in topic_set.items():
             if 'parent topic' in topic:
-                topics_by_parent[key] = []
-                # todo continue here
-                parent_topics[key] = topic
+                ts_by_parent.setdefault(key, [])
+                parent_topic = key
+                parent_ts[key] = topic
             else:
-                children_topics[key] = topic
+                ts_by_parent.setdefault(parent_topic, [])
+                children_ts[key] = topic
+                ts_by_parent[parent_topic].append(key)
 
     from pprint import pprint
-    pprint(parent_topics)
-    print('-'*100)
-    pprint(children_topics)
+    print('\nParent topics', '-'*100 + '\n')
+    pprint(parent_ts)
+    print('\nChildren topics', '-'*100 + '\n')
+    pprint(children_ts)
+    print('\nTopics by parent', '-'*100 + '\n')
+    pprint(ts_by_parent)
+
+
+if __name__ == '__main__':
+    generate_topics_from_category_list()
