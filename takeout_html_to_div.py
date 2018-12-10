@@ -14,7 +14,7 @@ Turns out the reason for the above was an out-of-place tag instead of
 indentation and newlines.. Thought BeautifulSoup was supposed to handle that 
 just fine, but maybe not or not in all cases. 
 However, adding newlines is still useful as they allow for easy splitting of
-data within each div when creating the JSON file.
+data within each div when creating the JSON js_file.
 """
 # todo make sure everything works correctly after changing dirs
 dir_path = G_PYTON_PATH + r'\youtube_watched_data'
@@ -42,7 +42,7 @@ def by_char(path=original_html, write_to_path=newline_html):
 
 
 def by_line(path=newline_html, write_to_path=indented_html):
-    """Indents where necessary to make the file more readable, only works on a
+    """Indents where necessary to make the js_file more readable, only works on a
     product of the by_char function"""
     count = 0
     with open(path, 'r') as file, open(write_to_path, 'w') as new_file:
