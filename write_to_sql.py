@@ -1,4 +1,3 @@
-import json
 import os
 import sqlite3
 
@@ -130,6 +129,7 @@ def repopulate_videos_info_properly():
     tags_inserted = []
     js = [construct_videos_entry_from_json_obj(record) for record in
           data_prep.get_videos_info_from_db()]
+    new_js = []
     count = 0
     matches = 0
     sql_fails = 0
@@ -142,7 +142,6 @@ def repopulate_videos_info_properly():
                 f'\nStarting records\' insertion...\n' + '-'*150)
 
     for takeout_row in range(len(takeout)):
-        success = True
         if len(takeout[takeout_row]) > 1:  # row contains url or title, in
             # addition to a watch timestamp
             count += 1
@@ -168,111 +167,108 @@ def repopulate_videos_info_properly():
                     matches += 1
                     js_row['watched_on'] = takeout[takeout_row][-1]
                     takeout_found.append(takeout[takeout_row])
-                    used = True  # row no longer necessary, gets deleted after
-                    # being inserted into the table further down in this loop
-                    # to save time for further matches above
+                    new_js.append(js_row)
                     del js[row]
-                else:
-                    used = False
+                    break
+    print('-'*150 + '\nDone with sorting')
+    for table in js, new_js:
+        for js_row in table:
+            success = True
+            # everything that doesn't go into the videos table gets popped
+            # so the video table insert query can be constructed
+            # automatically with the remaining items, since their amount
+            # will vary from row to row
+            if js_row['id'] in videos_inserted:
+                continue
 
-                # everything that doesn't go into the videos table gets popped
-                # so the video table insert query can be constructed
-                # automatically with the remaining items, since their amount
-                # will vary from row to row
-                if js_row['id'] in videos_inserted:
-                    continue
-
-                channel_title = js_row.pop('channel_title')
-                channel_id = js_row['channel_id']
-                if channel_id not in channels_inserted:
-                    insert_result = execute_insert_query(
-                        conn,
-                        """INSERT INTO channels (id, title)
-                        values (?, ?)""", (js_row['channel_id'], channel_title))
-                    if not insert_result:
-                        sql_fails += 1
-                    else:
-                        channels_inserted.append(js_row['channel_id'])
-
-                if 'tags' in js_row:
-                    tags = js_row.pop('tags')
-                else:
-                    tags = None
-                if 'relevant_topic_ids' in js_row:
-                    topics = js_row.pop('relevant_topic_ids')
-                else:
-                    topics = None
-
-                question_marks = ', '.join(
-                    ['?' for i in range(len(js_row.keys()))])
+            channel_title = js_row.pop('channel_title')
+            channel_id = js_row['channel_id']
+            if channel_id not in channels_inserted:
                 insert_result = execute_insert_query(
                     conn,
-                    ('INSERT INTO videos (\n' +
-                     ', '.join([f'\'{key}\'' for key in js_row.keys()]) +
-                     '\n)\nvalues (\n' + question_marks + '\n);'),
-                    values=[*js_row.values()])
+                    """INSERT INTO channels (id, title)
+                    values (?, ?)""", (js_row['channel_id'], channel_title))
                 if not insert_result:
                     sql_fails += 1
-                    success = False
                 else:
-                    videos_inserted.append(js_row['id'])
+                    channels_inserted.append(js_row['channel_id'])
 
-                if tags:
-                    for tag in tags:
-                        if tag not in tags_inserted:  # tag not in tags table
-                            insert_result = execute_insert_query(
-                                conn,
-                                "INSERT INTO tags (tag) values (?)", tag)
-                            if not insert_result:
-                                sql_fails += 1
-                                success = False
-                            else:
-                                tags_inserted.append(tag)
-                        cur = conn.cursor()
+            if 'tags' in js_row:
+                tags = js_row.pop('tags')
+            else:
+                tags = None
+            if 'relevant_topic_ids' in js_row:
+                topics = js_row.pop('relevant_topic_ids')
+            else:
+                topics = None
+
+            question_marks = ', '.join(
+                ['?' for i in range(len(js_row.keys()))])
+            insert_result = execute_insert_query(
+                conn,
+                ('INSERT INTO videos (\n' +
+                 ', '.join([f'\'{key}\'' for key in js_row.keys()]) +
+                 '\n)\nvalues (\n' + question_marks + '\n);'),
+                values=[*js_row.values()])
+            if not insert_result:
+                sql_fails += 1
+                success = False
+            else:
+                videos_inserted.append(js_row['id'])
+
+            if tags:
+                for tag in tags:
+                    if tag not in tags_inserted:  # tag not in tags table
+                        insert_result = execute_insert_query(
+                            conn,
+                            "INSERT INTO tags (tag) values (?)", tag)
+                        if not insert_result:
+                            sql_fails += 1
+                            success = False
+                        else:
+                            tags_inserted.append(tag)
+                    cur = conn.cursor()
+                    try:
+                        cur.execute(
+                            f'SELECT id FROM tags WHERE tag = "{tag}"')
                         try:
-                            cur.execute(
-                                f'SELECT id FROM tags WHERE tag = "{tag}"')
-                            try:
-                                tag_id = cur.fetchone()[0]
+                            tag_id = cur.fetchone()[0]
 
-                                insert_result = execute_insert_query(
-                                    conn,
-                                    """INSERT INTO videos_tags (video_id, tag_id)
-                                    values (?, ?)""",
-                                    (js_row['id'], tag_id))
-                            except TypeError:
-                                err_inf = err_display(True)
-                                logger.error(f'{err_inf}'
-                                             f'\nvalues = {tag!r}')
-                            if not insert_result:
-                                sql_fails += 1
-                                success = False
-                        except sqlite3.Error:
-                            err_inf = err_display(True)
-                            logger.error(f'{err_inf.err}\n'
-                                         f'values = {tag!r}')
-                        finally:
-                            cur.close()
-
-                if topics:
-                    for topic in topics:
-                        if topic in children_topics:
                             insert_result = execute_insert_query(
                                 conn,
-                                """INSERT INTO videos_topics
-                            (video_id, topic_id)
-                            values (?, ?)""", (js_row['id'], topic))
-                            if not insert_result:
-                                sql_fails += 1
-                                success = False
-                if success:
-                    success_count += 1
-                    print('Successful attempts:', success_count)
+                                """INSERT INTO videos_tags (video_id, tag_id)
+                                values (?, ?)""",
+                                (js_row['id'], tag_id))
+                        except TypeError:
+                            err_inf = err_display(True)
+                            logger.error(f'{err_inf}'
+                                         f'\nvalues = {tag!r}')
+                        if not insert_result:
+                            sql_fails += 1
+                            success = False
+                    except sqlite3.Error:
+                        err_inf = err_display(True)
+                        logger.error(f'{err_inf.err}\n'
+                                     f'values = {tag!r}')
+                    finally:
+                        cur.close()
 
-                if used:
-                    break
+            if topics:
+                for topic in topics:
+                    if topic in children_topics:
+                        insert_result = execute_insert_query(
+                            conn,
+                            """INSERT INTO videos_topics
+                        (video_id, topic_id)
+                        values (?, ?)""", (js_row['id'], topic))
+                        if not insert_result:
+                            sql_fails += 1
+                            success = False
+            if success:
+                success_count += 1
+                print('Successful attempts:', success_count)
 
-    logger.info('-'*150 + f'Populating finished'
+    logger.info('-'*150 + f'\nPopulating finished'
                 f'\nTotal fails: {sql_fails}')
     takeout_found = [row[0] for row in takeout_found]
     takeout_orphans = [row for row in takeout
@@ -307,30 +303,3 @@ def retrieve_test():
     fetchone_ = cur.fetchone()[0]
     print(fetchone_)
     print(type(fetchone_))
-
-
-def empty_tables():
-    conn = db.sqlite_connection(DB_PATH)
-    cur = conn.cursor()
-    cur.close()
-
-
-if __name__ == '__main__':
-    from os.path import join
-    with open(join(WORK_DIR, 'video_info.json'), 'r') as js_file:
-        js_file = json.load(js_file)
-
-    # trial = construct_videos_entry_from_json_obj(js_file)
-    # trial.pop('tags')
-    # trial.pop('relevant_topic_ids')
-    # trial.pop('description')
-    # print('INSERT INTO videos (\n' +
-    #       ', '.join([f'\'{key}\'' for key in trial.keys()]) +
-    #       '\n)\nvalues (\n' + ', '.join([f'\'{val}\''
-    #                                      for val in trial.values()]) + '\n);')
-    # time_test()
-    repopulate_videos_info_properly()
-
-
-# todo make sure videos_tags only get inserted into once per record
-# make sure to properly enclose tags (double quotes)?
