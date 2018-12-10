@@ -150,15 +150,20 @@ def populate_videos_info_into_sql():
     logger.info(f'Total fails: {count}')
 
 
-def add_datetimes_where_possible():
+def repopulate_videos_info_properly():
     import data_prep
+    from pprint import pprint
+    from topics import parent_topics, children_topics
     takeout = data_prep.get_data_and_basic_stats_from_takeout(silent=True)
     takeout_found = []
-    js = [list(row) for row in data_prep.get_videos_info_from_db()]
-    for row in range(len(js)):
-        js[row][1] = json.loads(js[row][1])['items'][0]['snippet']['title']
+    js = [construct_videos_entry_from_json_obj(record) for record in
+          data_prep.get_videos_info_from_db()]
     count = 0
     matches = 0
+    decl_types = sqlite3.PARSE_DECLTYPES
+    decl_colnames = sqlite3.PARSE_COLNAMES
+    conn = sqlite3.connect(DB_PATH, detect_types=decl_types | decl_colnames)
+    inserted_tags = []
     for takeout_row in range(len(takeout)):
         if len(takeout[takeout_row]) > 1:
             count += 1
@@ -174,17 +179,78 @@ def add_datetimes_where_possible():
                 video_id = strip
                 compare_to = 'title'
             for row in range(len(js)):
+                js_row = js[row]
                 if compare_to == 'id':
-                    comparison = (js[row][0], video_id)
+                    comparison = (js_row['id'], video_id)
                 else:
-                    comparison = (js[row][1], video_id)
+                    comparison = (js_row['title'], video_id)
                 do_compare = comparison[0] == comparison[1]
                 if do_compare:
-
                     matches += 1
-                    del js[row]
+                    js_row['watched_on'] = takeout[takeout_row][-1]
                     takeout_found.append(takeout[takeout_row])
+                    used = True
+                else:
+                    used = False
 
+                channel_title = js_row.pop('channel_title')
+                cur = conn.cursor()
+                cur.execute(
+                    """INSERT INTO channels (id, title)
+                    values (?, ?)""", (js_row['id'], channel_title))
+                conn.commit()
+                cur.close()
+
+                if 'tags' in js_row:
+                    tags = js_row.pop('tags')
+                else:
+                    tags = None
+                if topics:
+                    topics = js_row.pop('relevant_topic_ids')
+                else:
+                    topics = None
+
+                cur = conn.cursor()
+                question_marks = ', '.join(
+                    ['?' for i in range(len(js_row.keys()))])
+                print(question_marks, question_marks.count('?'))
+                cur.execute('INSERT INTO videos (\n' +
+                            ', '.join([f'\'{key}\'' for key in js_row.keys()]) +
+                            '\n)\nvalues (\n' + question_marks + '\n);',
+                            tuple([*js_row.values()]))
+                conn.commit()
+                cur.close()
+
+                if tags:
+                    for tag in tags:
+                        if tag not in inserted_tags:
+                            cur = conn.cursor()
+                            cur.execute(
+                                """INSERT INTO tags (tag) values (?)""", (tag,)
+                            )
+                            conn.commit()
+                            cur.close()
+                            inserted_tags.append(tag)
+                        cur = conn.cursor()
+                        cur.execute("""SELECT id FROM tags WHERE tag = ?""",
+                                    (tag,))
+                        tag_id = cur.fetchone()[0]
+
+                        cur.execute(
+                            """INSERT INTO videos_tags (video_id, tag_id) 
+                            values (?, ?)""", (js_row['id'], tag_id))
+                        conn.commit()
+                        cur.close()
+
+                if topics:
+                    for topic in topics:
+                        if topic not in parent_topics:
+                            pass
+                            # todo continue here
+                if used:
+                    # pprint(js_row.keys())
+                    del js[row]
+                    raise SystemExit
                     break
 
     takeout_found = [row[0] for row in takeout_found]
@@ -288,12 +354,29 @@ def time_test():
     print(type(fetchone_))
 
 
+def retrieve_test():
+    conn = sqlite3.connect(':memory:')
+    cur = conn.cursor()
+    cur.execute('create table b (a int)')
+    cur.execute('insert into b values (?)', (1,))
+    cur.execute('select a from b')
+    conn.commit()
+    fetchone_ = cur.fetchone()[0]
+    print(fetchone_)
+    print(type(fetchone_))
+
+
 if __name__ == '__main__':
     from os.path import join
     with open(join(WORK_DIR, 'video_info.json'), 'r') as file:
         file = json.load(file)
 
-    for entry in construct_videos_entry_from_json_obj(file).items():
-        print(entry)
-    # construct_create_video_table_statement()
+    # trial = construct_videos_entry_from_json_obj(file)
+    # trial.pop('tags')
+    # trial.pop('relevant_topic_ids')
+    # trial.pop('description')
+    # print('INSERT INTO videos (\n' +
+    #       ', '.join([f'\'{key}\'' for key in trial.keys()]) +
+    #       '\n)\nvalues (\n' + ', '.join([f'\'{val}\'' for val in trial.values()]) + '\n);')
     # time_test()
+    repopulate_videos_info_properly()
