@@ -135,3 +135,21 @@ def get_videos_info_from_db():
     cur.close()
     conn.close()
     return good_records
+
+
+def retrieve_records_via_alchemy():
+    from sqlalchemy import create_engine
+    from alchemy import Video
+    from sqlalchemy.orm import sessionmaker
+    db_path = DB_PATH
+    engine = create_engine(
+        'sqlite:///' + db_path, echo=True)
+    Session = sessionmaker()
+    Session.configure(bind=engine)
+    session = Session()
+    results = session.query(Video).filter_by(category_id='24')
+    for result in results:
+        print(result.title)
+
+
+retrieve_records_via_alchemy()
