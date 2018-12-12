@@ -147,9 +147,11 @@ def retrieve_records_via_alchemy():
     Session = sessionmaker()
     Session.configure(bind=engine)
     session = Session()
-    results = session.query(Video).filter_by(category_id='24')
+    results = session.query(
+        Video.title).filter(Video.watched_on.isnot(None)).all()
     for result in results:
         print(result.title)
+    print(len(results))
 
 
 retrieve_records_via_alchemy()
