@@ -4,6 +4,8 @@ import re
 import json
 from ktools.fn import extract_num_from_filename
 from config import WORK_DIR
+from ktools.utils import timer
+
 
 """
 Turns out the reason for BS not seeing all/any divs was an extra,
@@ -11,12 +13,22 @@ out-of-place tag - <div class="mdl-grid"> (right after <body>) instead of
 indentation and newlines. Thought BeautifulSoup was supposed to handle that 
 just fine, but maybe not or not in all cases. 
 """
-
+join = os.path.join
 WORK_DIR = os.path.join(WORK_DIR, 'takeout_data')
 os.chdir(WORK_DIR)
 watch_url = re.compile(r'watch\?v=')
 
 
+def get_video_id(url):
+    video_id = url['href'][url['href'].find('=') + 1:]
+    id_end = video_id.find('&t=')
+    if id_end > 0:
+        video_id = video_id[:id_end]
+
+    return video_id
+
+
+@timer
 def from_divs_to_dict(path, silent=False):
     """Retrieves video ids and timestamps (when they were watched) and
     returns them in a dict"""
@@ -26,8 +38,7 @@ def from_divs_to_dict(path, silent=False):
     occ_dict = {}
     divs = soup.find_all(
         'div',
-        class_='content-cell mdl-cell mdl-cell--6-col mdl-typography--body-1')
-
+        class_='awesome_class')
     last_watched_now = None
     last_watched = None
     for str_ in divs[0].stripped_strings:
@@ -49,10 +60,7 @@ def from_divs_to_dict(path, silent=False):
 
         url = div.find(href=watch_url)
         if url:
-            video_id = url['href'][url['href'].find('=') + 1:]
-            id_end = video_id.find('&t=')
-            if id_end > 0:
-                video_id = video_id[:id_end]
+            video_id = get_video_id(url)
             occ_dict.setdefault(video_id, [])
             watched_on = ''
             for str_ in div.stripped_strings:
@@ -67,6 +75,7 @@ def from_divs_to_dict(path, silent=False):
     pprint(sorted([[k, v] for k, v in occ_dict.items()],
                   key=lambda entry: len(entry[1]))[-1])
     if not silent:
+        print('Total videos watched:', len(divs))
         print('Total videos watched:', sum(
             [len(vals) for vals in occ_dict.values()]))
         print('Unique, new videos watched:', len(occ_dict))
@@ -75,48 +84,39 @@ def from_divs_to_dict(path, silent=False):
     return occ_dict
 
 
-def clean_up_tags(path: str, new_path: str):
-    """Removes the erroneous tag which stops BS from parsing properly as
-    well as removing some of the unnecessary data and tags"""
-    with open(path, 'r') as file, open(new_path, 'w') as new_file:
-        start = '<div class="mdl-grid">'
-        end = '</body>'
-        start_done = False
-        ind = 0
-        new_str = ''
-        while True:  # skips everything up to and including, start
-            piece = file.read(1)
-            if not piece:
-                break
-            if piece == start[ind]:
-                if not start_done:
-                    new_str += start[ind]
-                    ind += 1
-                    if new_str == start:
-                        new_str = ''
-                        ind = 0
-                        break
-            else:
-                new_str = ''
-                ind = 0
+@timer
+def keep_the_divs(path: str):
+    with open(path, 'r') as file:
+        file = file.read()
+    done_ = '<span id="Done">'
+    if file.startswith(done_):
+        return
+    file = file[file.find('<body>')+6:file.find('</body>')-6]
+    fluff = [  # the order should not be changed
+        ('<div class="mdl-grid">', ''),
+        ('<div class="outer-cell mdl-cell mdl-cell--12-col mdl-shadow--2dp">',
+         ''),
+        ('<div class="header-cell mdl-cell mdl-cell--12-col">'
+         '<p class="mdl-typograp'
+         'hy--title">YouTube<br></p></div>', ''),
+        ('"content-cell mdl-cell mdl-cell--6-col mdl-typography--body-1"',
+         '"awesome_class"'),
+        (('<div class="content-cell mdl-cell mdl-cell--6-col mdl-typography--bo'
+          'dy-1' ' mdl-typography--text-right"></div><div class="content-cell m'
+          'dl-cell mdl' '-cell--12-col mdl-typography--caption"><b>Products:</b'
+          '><br>&emsp;YouTube'
+          '<br></div></div></div>'), ''),
+        ('<br>', ''),
+        ('<', '\n<'),
+        ('>', '>\n')
+    ]
 
-        while True:  # writes up to, but not including, end
-            piece = file.read(1)
-            if not piece:
-                break
-            if piece == end[ind]:
-                new_str += end[ind]
-                if new_str == end:
-                    break
-                ind += 1
-            else:
-                if new_str:
-                    new_file.write(new_str)
-                    new_str = ''
-                    ind = 0
-                new_file.write(piece)
-    os.remove(path)
-    os.rename(new_path, path)
+    for piece in fluff:
+        file = file.replace(piece[0], piece[1])
+    file = done_ + '\n' + file
+    with open(path, 'w') as new_file:
+        new_file.write(file)
+
 
 # todo convert this to work on multiple files? Populate into DB
 # adapt functions using this
@@ -124,24 +124,6 @@ def clean_up_tags(path: str, new_path: str):
 # (number of # times)
 # create a table that lists all times watched for each video (one-to-many)
 
-
-def add_newlines(path: str):
-    with open(path, 'rb') as file, open(
-            path[:path.find('.')] + '_newlined.html', 'wb') as new_file:
-        while True:
-            read_piece = file.read(1)
-            if not read_piece:
-                break
-            # if read_piece == b'<':
-            #     new_file.write(b'\n')
-            #     new_file.write(read_piece)
-            new_file.write(read_piece)
-            if read_piece == b'>':
-                new_file.write(b'\n')
-
-
 if __name__ == '__main__':
-    # from_divs_to_dict(os.path.join(WORK_DIR, 'watch-history_001.html'))
-    # from_divs_to_dict(os.path.join(WORK_DIR, 'watch-history_002.html'))
-    pass
-    add_newlines(os.path.join(WORK_DIR, 'watch-history_002.html'))
+    keep_the_divs('watch-history_001.html')
+    from_divs_to_dict(os.path.join(WORK_DIR, 'watch-history_001.html'))
