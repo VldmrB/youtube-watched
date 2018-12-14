@@ -4,6 +4,11 @@ import re
 
 
 """
+Only get_all_records should be used directly. Other functions exist separately 
+for easier code management and potential future changes.
+
+-----
+
 Turns out the reason for BS not seeing all/any divs was an extra,
 out-of-place tag - <div class="mdl-grid"> (right after <body>) instead of 
 indentation and newlines. Thought BeautifulSoup was supposed to handle that 
@@ -185,9 +190,3 @@ def get_all_records(takeout_path: str = None,
               'more YouTube channels instead.')
 
     return occ_dict['videos']
-
-
-if __name__ == '__main__':
-    from config import WORK_DIR
-    dir_ = os.path.join(WORK_DIR, 'takeout_data')
-    get_all_records(r'.')
