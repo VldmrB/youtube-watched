@@ -1,10 +1,6 @@
 from bs4 import BeautifulSoup as BSoup
 import os
 import re
-import json
-from ktools.fn import extract_num_from_filename
-from config import WORK_DIR
-from ktools.utils import timer
 
 
 """
@@ -19,8 +15,58 @@ out-of-place </div> at the every end of the file. Its presence still doesn't
 make sense as divs with the same class also wrap every video entry individually.
 """
 
-os.chdir(os.path.join(WORK_DIR, 'takeout_data'))
 watch_url = re.compile(r'watch\?v=')
+
+
+def get_watch_history_files(takeout_path: str = None):
+    os.chdir(takeout_path)
+    dir_contents = os.listdir(takeout_path)
+    dir_list = ('Takeout', 'YouTube', 'history', 'watch-history.html')
+    watch_histories = []
+    for path in dir_contents:
+        if path in ['Takeout', 'YouTube']:
+            if path == 'Takeout':
+                full_path = os.path.join(*dir_list)
+            else:
+                full_path = os.path.join(*dir_list[1:])
+            if os.path.exists(full_path):
+                watch_histories.append(full_path)
+                return watch_histories  # assumes only one folder
+        if path.startswith('watch-history'):
+            watch_histories.append(path)
+
+    if watch_histories:
+        return watch_histories  # assumes only one watch-history.html file is
+    # present or there's multiple ones (with nums appended to their ends) in
+    # the same directory
+
+    for path in dir_contents:
+        if path.startswith('takeout-2') and path[-5:-3] == 'Z-':
+            full_path = os.path.join(path, 'Takeout', 'YouTube',
+                                     'history', 'watch-history.html')
+            if os.path.exists(full_path):
+                watch_histories.append(full_path)
+
+    if not watch_histories:
+        raise SystemExit(
+            'No watch-history.html files found.\n' +
+            '-'*79 + '\n' +
+            'This only locates watch-history.html files if any of the '
+            'following is in the provided directory:\n\n - watch-history '
+            'file(s) (numbers may be appended at the end)\n'
+            ' - Takeout directory, extracted from the archive downloaded from '
+            'Google Takeout\n'
+            ' - Directory of the download archive, extracted with the same '
+            'name as the archive e.g. "takeout-20181120T163352Z-001"\n\n'
+            'The search will become confined to one of these types after the '
+            'first match, i.e. if a watch-history file is found, it\'ll '
+            'continue looking for those within the same directory, '
+            'but not in Takeout directories.\n\n'
+            'If you have or plan to have multiple watch-history files, the '
+            'best thing to do is manually move them into one directory while '
+            'adding a number to the end of each name, e.g. '
+            'watch-history_001.html, from oldest to newest.\n' + '-'*79)
+    return watch_histories
 
 
 def get_video_id(url):
@@ -32,111 +78,116 @@ def get_video_id(url):
     return video_id
 
 
-@timer
-def from_divs_to_dict(path, silent=False, occ_dict=None):
-    """Retrieves video ids and timestamps (when they were watched) and
-    returns them in a dict"""
+def _from_divs_to_dict(path: str, write_changes=False, occ_dict: dict = None):
+    """
+    Retrieves timestamps and video ids (if present); returns them in a dict
+    If multiple watch-history.html files are present, get_all_records should be
+    used instead.
+    """
+    with open(path, 'r') as file:
+        content = file.read()
+    done_ = '<span id="Done">'
+    if not content.startswith(done_):  # cleans out all the junk for faster
+        # BSoup processing, in addition to fixing an out-of-place-tag which
+        # stops BSoup from working completely
 
-    last_watched_timestamp_now = None
-    last_watched_timestamp = None
-    cur_file_num = extract_num_from_filename(path, True)
+        content = content[content.find('<body>')+6:content.find('</body>')-6]
+        fluff = [  # the order should not be changed
+            ('<div class="mdl-grid">', ''),
+            ('<div class="outer-cell mdl-cell mdl-cell--12-col '
+             'mdl-shadow--2dp">', ''),
+            ('<div class="header-cell mdl-cell mdl-cell--12-col">'
+             '<p class="mdl-typography--title">YouTube<br></p></div>', ''),
+            ('"content-cell mdl-cell mdl-cell--6-col mdl-typography--body-1"',
+             '"awesome_class"'),
+            (('<div class="content-cell mdl-cell mdl-cell--6-col '
+              'mdl-typography--body-1 mdl-typography--text-right"></div><div '
+              'class="content-cell mdl-cell mdl' '-cell--12-col mdl-typography'
+              '--caption"><b>Products:</b><br>&emsp;YouTube'
+              '<br></div></div></div>'), ''),
+            ('<br>', ''),
+            ('<', '\n<'),
+            ('>', '>\n')
+        ]
 
-    with open('first_videos_in_list.json', 'r') as json_watched:
-        json_watched = json_watched.read()
-        if json_watched != '':
-            last_watched_dict = json.loads(json_watched)
-            if str(cur_file_num-1) in last_watched_dict:
-                last_watched_timestamp = last_watched_dict[str(cur_file_num-1)]
-        else:
-            last_watched_dict = {}
-    content = clean_and_trim_html(path)
-    if last_watched_timestamp:
-        content = content[:content.find(last_watched_timestamp)]
+        for piece in fluff:
+            content = content.replace(piece[0], piece[1])
+        content = done_ + '\n' + content
+        if write_changes:
+            print('Rewrote', path, '(trimmed junk HTML).')
+            with open(path, 'w') as new_file:
+                new_file.write(content)
+
+    last_record_found = occ_dict['last_record_found']
+    last_record_found_now = None
+    if last_record_found:
+        content = content[:content.find(last_record_found)]
         content = content[:content.rfind('<div')]  # since the previous
         # find includes half a div from the previous watch-history.html
     soup = BSoup(content, 'lxml')
-    count = 0
     if occ_dict is None:
         occ_dict = {}
+    occ_dict.setdefault('videos', {})
+    occ_dict.setdefault('total_count', 0)
     divs = soup.find_all(
         'div',
         class_='awesome_class')
+    if len(divs) == 0:
+        return
+    removed_string = 'Watched a video that has been removed'
+    removed_string_len = len(removed_string)
+    story_string = 'Watched story'
     for str_ in divs[0].stripped_strings:
-        last_watched_timestamp_now = str_.strip()
-    with open('first_videos_in_list.json', 'w') as new_json_watched:
-        last_watched_dict[str(cur_file_num)] = last_watched_timestamp_now
-        json.dump(last_watched_dict, new_json_watched, indent=4)
+        last_record_found_now = str_.strip()
+        if last_record_found_now.startswith(removed_string):
+            last_record_found_now = last_record_found_now[removed_string_len:]
+    occ_dict['last_record_found'] = last_record_found_now
     for div in divs:
-        url = div.find(href=watch_url)
-        if url:
+        all_text = div.get_text(strip=True)
+        if all_text.startswith(removed_string):
+            video_id = 'removed'
+            watched_on = all_text[removed_string_len:]
+        elif all_text.startswith(story_string):
+            video_id = 'story'
+            watched_on = all_text.splitlines()[-1].strip()
+        else:
+            url = div.find(href=watch_url)
             video_id = get_video_id(url['href'])
-            occ_dict.setdefault(video_id, [])
-            watched_on = ''  # simply so PyCharm doesn't freak out,
-            # as if a video has a url, it'll also have a timestamp
-            for str_ in div.stripped_strings:
-                watched_on = str_
+            watched_on = all_text.splitlines()[-1].strip()
 
-            occ_dict[video_id].append(watched_on)
-        count += 1
-
-    if not silent:
-        print('Total videos watched:', count)
-        print('Videos watched, with urls:', sum(
-            [len(vals) for vals in occ_dict.values()]))
-        print('Unique videos watched:', len(occ_dict))
+        occ_dict['videos'].setdefault(video_id, [])
+        occ_dict['videos'][video_id].append(watched_on)
+        occ_dict['total_count'] += 1
 
     return occ_dict
 
 
-def clean_and_trim_html(path: str):
-    with open(path, 'r') as file:
-        file = file.read()
-    done_ = '<span id="Done">'
-    if file.startswith(done_):
-        return file
-    file = file[file.find('<body>')+6:file.find('</body>')-6]
-    fluff = [  # the order should not be changed
-        ('<div class="mdl-grid">', ''),
-        ('<div class="outer-cell mdl-cell mdl-cell--12-col mdl-shadow--2dp">',
-         ''),
-        ('<div class="header-cell mdl-cell mdl-cell--12-col">'
-         '<p class="mdl-typograp'
-         'hy--title">YouTube<br></p></div>', ''),
-        ('"content-cell mdl-cell mdl-cell--6-col mdl-typography--body-1"',
-         '"awesome_class"'),
-        (('<div class="content-cell mdl-cell mdl-cell--6-col mdl-typography--bo'
-          'dy-1' ' mdl-typography--text-right"></div><div class="content-cell m'
-          'dl-cell mdl' '-cell--12-col mdl-typography--caption"><b>Products:</b'
-          '><br>&emsp;YouTube'
-          '<br></div></div></div>'), ''),
-        ('<br>', ''),
-        ('<', '\n<'),
-        ('>', '>\n')
-    ]
-
-    for piece in fluff:
-        file = file.replace(piece[0], piece[1])
-    file = done_ + '\n' + file
-    with open(path, 'w') as new_file:
-        new_file.write(file)
-
-    return file
-
-
-def get_all_vids():
-    watch_files = [file for file in os.listdir('.')
-                   if file.startswith('watch-history_')]
-    o_dict = {}
+def get_all_records(takeout_path: str = None,
+                    write_changes=False, silent=False):
+    """Should be used instead of other functions in practically any case;
+    The others are mostly kept separately in case of future changes"""
+    if not takeout_path:
+        takeout_path = '.'
+    os.chdir(takeout_path)
+    watch_files = get_watch_history_files(takeout_path)
+    occ_dict = {}
+    occ_dict.setdefault('last_record_found', None)
     for file in watch_files:
-        from_divs_to_dict(file, occ_dict=o_dict)
+        _from_divs_to_dict(file, write_changes=write_changes,
+                           occ_dict=occ_dict)
 
+    if not silent:
+        print('Total videos:', occ_dict['total_count'])
+        print('Unique videos with ids:', len(occ_dict['videos']) - 2)
+        # ^ minus two for removed and story keys
+        print('A video won\'t have an ID if it\'s been taken down, or if it '
+              'was watched as a "story", in which case it will list one or '
+              'more YouTube channels instead.')
 
-# todo Populate into DB?
-# adapt functions using this
-# remove watched_on column from videos table, replace with watched
-# (number of # times)
-# create a table that lists all times watched for each video (one-to-many)
+    return occ_dict['videos']
+
 
 if __name__ == '__main__':
-    pass
-    get_all_vids()
+    from config import WORK_DIR
+    dir_ = os.path.join(WORK_DIR, 'takeout_data')
+    get_all_records(r'.')
