@@ -148,13 +148,16 @@ def _from_divs_to_dict(path: str, write_changes=False, occ_dict: dict = None):
             last_record_found_now = last_record_found_now[removed_string_len:]
     occ_dict['last_record_found'] = last_record_found_now
     for div in divs:
-        all_text = div.get_text(strip=True)
+        all_text = div.get_text().strip()
         if all_text.startswith(removed_string):
             video_id = 'removed'
             watched_on = all_text[removed_string_len:]
         elif all_text.startswith(story_string):
             video_id = 'story'
             watched_on = all_text.splitlines()[-1].strip()
+            if '/watch?v=' in watched_on:
+                watched_on = watched_on[57:]
+
         else:
             url = div.find(href=watch_url)
             video_id = get_video_id(url['href'])
@@ -167,8 +170,8 @@ def _from_divs_to_dict(path: str, write_changes=False, occ_dict: dict = None):
     return occ_dict
 
 
-def get_all_records(takeout_path: str = None,
-                    write_changes=False, silent=False):
+def get_all_records(takeout_path: str = None, write_changes=False,
+                    dump_json=False, silent=False):
     """Should be used instead of other functions in practically any case;
     The others are mostly kept separately in case of future changes"""
     if not takeout_path:
@@ -188,5 +191,9 @@ def get_all_records(takeout_path: str = None,
         print('A video won\'t have an ID if it\'s been taken down, or if it '
               'was watched as a "story", in which case it will list one or '
               'more YouTube channels instead.')
+    if dump_json:
+        import json
+        with open('watch-history.json', 'w') as file:
+            json.dump(occ_dict['videos'], file, indent=4)
 
     return occ_dict['videos']
