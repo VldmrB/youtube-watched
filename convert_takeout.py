@@ -10,6 +10,14 @@ for easier code management and potential future changes.
 
 -----
 
+In addition to seemingly only returning an oddly even number of records 
+(20300 the first time, 18300 the second), Takeout also seems to only return 
+about 4 years worth of videos. In addition to that, when compared to the list 
+you'd get from scraping your YouTube History web page directly (which seems to 
+go back to the very start of your account), it's missing a number of videos for 
+every year, even the current. The current one is only missing 15, but the 
+number increases the further back you go in years, ending up in hundreds.
+
 Turns out the reason for BS not seeing all/any divs was an extra,
 out-of-place tag - <div class="mdl-grid"> (right after <body>) instead of 
 indentation and newlines. Thought BeautifulSoup was supposed to handle that 
