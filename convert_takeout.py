@@ -1,6 +1,7 @@
 from bs4 import BeautifulSoup as BSoup
 import os
 import re
+from utils import get_video_id
 
 
 """
@@ -72,15 +73,6 @@ def get_watch_history_files(takeout_path: str = None):
             'adding a number to the end of each name, e.g. '
             'watch-history_001.html, from oldest to newest.\n' + '-'*79)
     return watch_histories
-
-
-def get_video_id(url):
-    video_id = url[url.find('=') + 1:]
-    id_end = video_id.find('&t=')
-    if id_end > 0:
-        video_id = video_id[:id_end]
-
-    return video_id
 
 
 def _from_divs_to_dict(path: str, write_changes=False, occ_dict: dict = None):

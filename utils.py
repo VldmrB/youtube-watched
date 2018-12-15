@@ -1,5 +1,14 @@
-def check_if_url(candidate_str: str):
-    return True if 'youtube.com' in candidate_str else False
+def is_video_url(candidate_str: str):
+    return True if 'youtube.com/watch?' in candidate_str else False
+
+
+def get_video_id(url):
+    video_id = url[url.find('=') + 1:]
+    id_end = video_id.find('&t=')
+    if id_end > 0:
+        video_id = video_id[:id_end]
+
+    return video_id
 
 
 def convert_duration(duration_iso8601: str):
