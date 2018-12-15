@@ -4,6 +4,7 @@ from datetime import datetime
 from pprint import pprint
 import utils
 import ktools.dict_exploration
+from convert_takeout import get_all_records
 from config import WORK_DIR, DB_PATH, video_tags
 
 duplicate_tags = {
@@ -19,12 +20,17 @@ duplicate_tags = {
     'neebs': ['neebs', 'neebs gaming'],
     'wow': ['world of warcraft', 'wow', 'world'],
 }
+watch_history = 'watch-history.json'
 
 
 def get_data_and_basic_stats_from_takeout(silent=False):
-    json_path = os.path.join(WORK_DIR, 'divs.json')
-    with open(json_path, 'r') as file:
-        data = json.load(file)
+    takeout_data_path = os.path.join(WORK_DIR, 'takeout_data')
+    if os.path.exists(os.path.join(takeout_data_path, watch_history)):
+        with open(takeout_data_path, 'r') as file:
+            data = json.load(file)
+    else:
+        data = get_all_records(takeout_data_path, write_changes=True,
+                               dump_json=True, silent=True)
     pure_data = []
     removed_videos_count, new_video_check, new_videos_without_urls = 0, 0, []
     for i in data['divs']:
@@ -33,7 +39,7 @@ def get_data_and_basic_stats_from_takeout(silent=False):
             removed_videos_count += 1
         if new_video_check < 300:
             for element in i:
-                if utils.check_if_url(element):
+                if utils.is_video_url(element):
                     new_videos_without_urls.append(i)
             new_video_check += 1
         index = datetime.strptime(i[-1][:-4], '%b %d, %Y, %I:%M:%S %p')
@@ -56,8 +62,8 @@ def get_data_and_basic_stats_from_takeout(silent=False):
 
 def get_time_data_from_takeout(start=2014, end=2018, period_length='year',
                                silent=True):
-    json_path = os.path.join(WORK_DIR, 'divs.json')
-    with open(json_path, 'r') as file:
+    takeout_data_path = os.path.join(WORK_DIR, 'takeout_data')
+    with open(takeout_data_path, 'r') as file:
         data = json.load(file)
     prepped_data = {}
     date_range = [*range(start, end+1)]
@@ -69,7 +75,7 @@ def get_time_data_from_takeout(start=2014, end=2018, period_length='year',
             removed_videos_count += 1
         if new_video_check < 300:
             for element in i:
-                if utils.check_if_url(element):
+                if utils.is_video_url(element):
                     new_videos_without_urls.append(i)
             new_video_check += 1
         index = datetime.strptime(i[-1][:-4], '%b %d, %Y, %I:%M:%S %p')
@@ -152,6 +158,3 @@ def retrieve_records_via_alchemy():
     for result in results:
         print(result.title)
     print(len(results))
-
-
-retrieve_records_via_alchemy()
