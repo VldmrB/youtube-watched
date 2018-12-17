@@ -18,6 +18,10 @@ go back to the very start of your account), it's missing a number of videos for
 every year, even the current. The current one is only missing 15, but the 
 number increases the further back you go in years, ending up in hundreds.
 
+If a video has its url as the title, that usually means the account which had 
+the video was terminated, though sometimes the video is still up. That's 9 out 
+of 1350, however.
+
 Turns out the reason for BS not seeing all/any divs was an extra,
 out-of-place tag - <div class="mdl-grid"> (right after <body>) instead of 
 indentation and newlines. Thought BeautifulSoup was supposed to handle that 
