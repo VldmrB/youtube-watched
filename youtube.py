@@ -51,4 +51,3 @@ def get_categories_info(api_auth):
     except HttpError as e:
         print('Couldn\'t retrieve categories\' info:')
         pprint(json.loads(e.resp)['error'])
-
