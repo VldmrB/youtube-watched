@@ -1,12 +1,8 @@
-import os
 import json
 from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
 from google_auth_oauthlib.flow import InstalledAppFlow
-from config import WORK_DIR
-from confidential import DEVELOPER_KEY
-from ktools import utils, fs
-
-logger = fs.logger_obj(os.path.join(WORK_DIR, 'logs', 'fail.log'))
+from pprint import pprint
 
 CLIENT_SECRETS_FILE = "client_secret.json"
 SCOPES = ['https://www.googleapis.com/auth/youtube.readonly']
@@ -32,30 +28,27 @@ def get_oauth():
     return build(API_SERVICE_NAME, API_VERSION, credentials=credentials)
 
 
-def get_api_auth():
+def get_api_auth(developer_key):
     return build(YOUTUBE_API_SERVICE_NAME, YOUTUBE_API_VERSION,
-                 developerKey=DEVELOPER_KEY)
+                 developerKey=developer_key)
 
 
 def get_video_info(video_id, api_auth):
     try:
-        results = api_auth.videos().list(id=video_id, part=get).execute()
+        results = api_auth.videos().list(id=video_id, part=get,
+                                         chart='mostPopular').execute()
         return results
-    except Exception:
-        error = utils.err_display()
-        logger.error(f'failed to retrieve video under ID {video_id}; '
-                     f'error {error.err}')
-        return
+    except HttpError as e:
+        error_info = json.loads(e.content)
+        return error_info
 
 
-def get_categories_info():
-    from pprint import pprint
-    categories_json = get_api_auth().videoCategories().list(
-        part='snippet', regionCode='US').execute()
-    categories_json_path = os.path.join(WORK_DIR, 'categories.json')
+def get_categories_info(api_auth):
     try:
-        with open(categories_json_path, 'w') as file:
-            json.dump(categories_json, file, indent=4)
-        os.startfile(categories_json_path)
-    except Exception:
-        pprint(categories_json)
+        categories_json = api_auth.videoCategories().list(
+            part='snippet', regionCode='US').execute()
+        return categories_json
+    except HttpError as e:
+        print('Couldn\'t retrieve categories\' info:')
+        pprint(json.loads(e.resp)['error'])
+
