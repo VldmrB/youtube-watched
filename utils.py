@@ -1,3 +1,8 @@
+import sys
+import logging
+from logging import handlers
+
+
 def is_video_url(candidate_str: str):
     return True if 'youtube.com/watch?' in candidate_str else False
 
@@ -43,3 +48,28 @@ def convert_duration(duration_iso8601: str):
                 int_value += int(val[:-1])
 
     return int_value
+
+
+def logging_config(log_file_path: str,
+                   file_level: int = logging.DEBUG,
+                   console_level: int = logging.WARNING):
+    """    Sets basicConfig - formatting, levels, adds a file and stream
+    handlers.
+
+    :param log_file_path: path to the log file
+    :param file_level: logging threshold for the file handler
+    :param console_level: logging threshold for the console handler
+    :return:
+    """
+    msg_format = logging.Formatter('%(asctime)s {%(name)s %(funcName)s} '
+                                   '%(levelname)s: %(message)s',
+                                   datefmt='%Y-%m-%d %H:%M:%S')
+    file_handler = handlers.RotatingFileHandler(log_file_path, 'a',
+                                                (1024**2)*3, 5)
+    file_handler.setLevel(file_level)
+    file_handler.setFormatter(msg_format)
+    console_out = logging.StreamHandler(stream=sys.stdout)
+    console_out.setLevel(console_level)
+    console_out.setFormatter(msg_format)
+    logging.basicConfig(format=msg_format, level=file_level,
+                        handlers=[file_handler, console_out])

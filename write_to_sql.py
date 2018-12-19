@@ -1,21 +1,21 @@
-import os
 import sqlite3
+import logging
 
 from typing import Union, Optional
 from ktools import db
-from ktools import fs
 from ktools.dict_exploration import get_final_key_paths
-from ktools.utils import err_display, timer
+from ktools.utils import timer
+from config import video_keys_and_columns
+from utils import convert_duration, logging_config
 
-from config import DB_PATH, WORK_DIR, video_keys_and_columns
-from utils import convert_duration
+logging_config(r'C:\Users\Vladimir\Desktop\sql_fails.log')
+logger = logging.getLogger(__name__)
 
-logger = fs.logger_obj(os.path.join(WORK_DIR, 'logs', 'fail_populate.log'))
-
-main_table_cols = [
+MAIN_TABLE_COLUMNS = [column.split()[0] for column in
+                      [
     'id text primary key',  # not using a separate integer as a PK
     'published_at timestamp',  # pass detect_types when creating connection
-    'watched_at timestamp',
+    'times_watched integer',
     'channel_id text',
     'title text',
     'description text',
@@ -26,36 +26,18 @@ main_table_cols = [
     'like_count integer',  # needs conversion before passing
     'dislike_count integer',  # needs conversion before passing
     'comment_count integer',  # needs conversion before passing
-    ('foreign key (channel_id) references channels (id) on update cascade on '
-     'delete cascade'),
-]
+                   ]
+                      ]
+CHANNEL_COLUMNS = ['id', 'title']
+TAG_COLUMNS = ['tag']  # id column (1st one) value is added implicitly by SQL
+VIDEOS_TAGS_COLUMNS = ['video_id', 'tag_id']
+VIDEOS_TOPICS_COLUMNS = ['video_id', 'topic_id']
 
-"""
-Channel table
-'channel_id text',
-'channel_title text',
 
-Video table
-
-'id text',
-'published_at timestamp',  # pass detect_types when creating connection
-'title text',
-'description text',
-'category_id text',
-'default_audio_language text',  # not always present
-'duration integer',  # convert?
-'view_count integer',  # convert; not always present
-'like_count integer',  # convert; not always present
-'dislike_count integer',  # convert; not always present
-'comment_count integer'  # convert; not always present
-'watched_on timestamp'  # added from takeout data where present
-
-Tags table
-'tag text'
-
-Topics and subtopics' tables
-'relevant_topic_id'  # not always present
-"""
+def log_query_error(error, query_string: str, values):
+    logger.error(f'Error: {error}\n'
+                 f'query = \'{query_string}\'\n'
+                 f'values = [{values}]')
 
 
 def generate_insert_query(table: str,
@@ -103,12 +85,49 @@ def execute_insert_query(conn: sqlite3.Connection,
     except sqlite3.Error as e:
         if values:
             values = f'{list(values)}'
-        logger.error(f'Error: {e}\n'
-                     f'query = \'{query}\'\n'
-                     f'values = {values}')
-
+            log_query_error(e, query, values)
+        return False
     finally:
         cur.close()
+
+
+def add_channel(conn: sqlite3.Connection,
+                channel_id: str, channel_name: str = None) -> bool:
+    values = [channel_id]
+    if channel_name:
+        values.append(channel_name)
+    query_string = generate_insert_query('channels',
+                                         columns=CHANNEL_COLUMNS[:len(values)])
+    return execute_insert_query(conn, query_string, values)
+
+
+def add_tag(conn: sqlite3.Connection, tag: str):
+    query_string = generate_insert_query('tags', columns=TAG_COLUMNS)
+    return execute_insert_query(conn, query_string, tag)
+
+
+def add_video(conn: sqlite3.Connection, cols_vals: dict):
+    query_string = generate_insert_query('videos', cols_vals)
+    values = cols_vals.values()
+    return execute_insert_query(conn, query_string, tuple(values))
+
+
+def add_tag_to_video(conn: sqlite3.Connection, tag_id, video_id):
+    values = video_id, tag_id
+    query_string = generate_insert_query('videos_tags',
+                                         columns=VIDEOS_TAGS_COLUMNS)
+    try:
+        return execute_insert_query(conn, query_string, values)
+    except sqlite3.Error as e:
+        log_query_error(e, query_string, values)
+        return False
+
+
+def add_topic(conn: sqlite3.Connection, topic, video_id):
+    query_string = generate_insert_query('videos_topics',
+                                         columns=VIDEOS_TOPICS_COLUMNS)
+    values = video_id, topic
+    return execute_insert_query(conn, query_string, values)
 
 
 def wrangle_video_record_for_sql(json_obj: dict):
@@ -142,141 +161,93 @@ def wrangle_video_record_for_sql(json_obj: dict):
 
 
 @timer
-def repopulate_videos_info_properly():
+def populate_videos(db_path='db.sqlite'):
     import data_prep
     from topics import children_topics
-    # from pprint import pprint
-    videos_inserted = []
-    channels_inserted = []
-    tags_inserted = []
-    js = [wrangle_video_record_for_sql(record) for record in
-          data_prep.get_videos_info_from_db('temp_test')]
-
+    records = [wrangle_video_record_for_sql(record) for record in
+               data_prep.get_videos_info_from_db(
+                   r'G:\pyton\db.latestbackup', 'youtube_videos_info')]
+    rows_passed = 0
     sql_fails = 0
-    success_count = 0
     decl_types = sqlite3.PARSE_DECLTYPES
     decl_colnames = sqlite3.PARSE_COLNAMES
-    conn = db.sqlite_connection(DB_PATH,
+    conn = db.sqlite_connection(db_path,
                                 detect_types=decl_types | decl_colnames)
     cur = conn.cursor()
     cur.execute("""SELECT id FROM videos;""")
-    videos_ids = [row[0] for row in cur.fetchall()]
-    cur.close()
-    cur = conn.cursor()
+    video_ids = [row[0] for row in cur.fetchall()]
     cur.execute("""SELECT id FROM channels;""")
     channels = [row[0] for row in cur.fetchall()]
+    cur.execute("""SELECT * FROM tags;""")
+    existing_tags = {v: k for k, v in cur.fetchall()}
     cur.close()
-    cur = conn.cursor()
-    cur.execute("""SELECT tag FROM tags;""")
-    existing_tags = [row[0] for row in cur.fetchall()]
-    cur.close()
-    logger.info(f'Connected to DB: {DB_PATH}'
-                f'\nStarting records\' insertion...\n' + '-'*150)
+    logger.info(f'\nStarting records\' insertion...\n' + '-'*100)
 
-    for js_row in js:
-        success = True
+    for video_record in records:
+        rows_passed += 1
         # everything that doesn't go into the videos table gets popped
         # so the video table insert query can be constructed
         # automatically with the remaining items, since their amount
         # will vary from row to row
-        if js_row['id'] in videos_ids:
+        if video_record['id'] in video_ids:
             continue
-        channel_id = js_row['channel_id']
-        if channel_id not in channels:
-            if 'channel_title' in js_row:
-                channel_title = js_row.pop('channel_title')
-                insert_result = execute_insert_query(
-                    conn,
-                    """INSERT INTO channels (id, title)
-                    values (?, ?)""", (js_row['channel_id'], channel_title))
-            else:
-                insert_result = execute_insert_query(
-                    conn,
-                    """INSERT INTO channels (id)
-                    values (?)""", (js_row['channel_id']))
-            if not insert_result:
-                sql_fails += 1
-            else:
-                channels_inserted.append(js_row['channel_id'])
 
-        if 'tags' in js_row:
-            tags = js_row.pop('tags')
+        if 'channel_title' in video_record:
+            channel_title = video_record.pop('channel_title')
         else:
-            tags = None
-        if 'relevant_topic_ids' in js_row:
-            topics = js_row.pop('relevant_topic_ids')
+            channel_title = None
+        channel_id = video_record['channel_id']
+
+        if channel_id not in channels:
+            if add_channel(conn, channel_id, channel_title):
+                channels.append(video_record['channel_id'])
+            else:
+                sql_fails += 1
+
+        if 'relevant_topic_ids' in video_record:
+            topics = video_record.pop('relevant_topic_ids')
         else:
             topics = None
-
-        question_marks = ', '.join(
-            ['?' for i in range(len(js_row.keys()))])
-        insert_result = execute_insert_query(
-            conn,
-            ('INSERT INTO videos (\n' +
-             ', '.join([f'\'{key}\'' for key in js_row.keys()]) +
-             '\n)\nvalues (\n' + question_marks + '\n);'),
-            values=[*js_row.values()])
-        if not insert_result:
-            sql_fails += 1
-            success = False
+        if 'tags' in video_record:
+            tags = video_record.pop('tags')
         else:
-            videos_inserted.append(js_row['id'])
+            tags = None
 
+        # presence of this video gets checked at the very start of the loop
+        if not add_video(conn, video_record):
+            sql_fails += 1
+        else:
+            video_ids.append(video_record['id'])
         if tags:
             for tag in tags:
                 if tag not in existing_tags:  # tag not in tags table
-                    insert_result = execute_insert_query(
-                        conn,
-                        "INSERT INTO tags (tag) values (?)", tag)
-                    if not insert_result:
-                        sql_fails += 1
-                        success = False
+                    tag_id = None
+                    if add_tag(conn, tag):
+                        query_str = f'SELECT id FROM tags WHERE tag = "{tag}"'
+                        cur = conn.cursor()
+                        try:
+                            cur.execute(query_str)
+                            tag_id = cur.fetchone()[0]
+                            existing_tags[tag] = tag_id
+                            cur.close()
+                        except (TypeError, sqlite3.Error) as e:
+                            log_query_error(e, query_str, tag)
                     else:
-                        tags_inserted.append(tag)
-                cur = conn.cursor()
-                try:
-                    cur.execute(
-                        f'SELECT id FROM tags WHERE tag = "{tag}"')
-                    try:
-                        tag_id = cur.fetchone()[0]
-
-                        insert_result = execute_insert_query(
-                            conn,
-                            """INSERT INTO videos_tags (video_id, tag_id)
-                            values (?, ?)""",
-                            (js_row['id'], tag_id))
-                    except TypeError:
-                        err_inf = err_display(True)
-                        logger.error(f'{err_inf}'
-                                     f'\nvalues = {tag!r}')
-                    if not insert_result:
                         sql_fails += 1
-                        success = False
-                except sqlite3.Error:
-                    err_inf = err_display(True)
-                    logger.error(f'{err_inf.err}\n'
-                                 f'values = {tag!r}')
-                finally:
-                    cur.close()
+                else:
+                    tag_id = existing_tags[tag]
+                if tag_id:
+                    if not add_tag_to_video(conn, tag_id, video_record['id']):
+                        sql_fails += 1
 
         if topics:
             for topic in topics:
                 if topic in children_topics:
-                    insert_result = execute_insert_query(
-                        conn,
-                        """INSERT INTO videos_topics
-                    (video_id, topic_id)
-                    values (?, ?)""", (js_row['id'], topic))
-                    if not insert_result:
+                    if not add_topic(conn, topic, video_record['id']):
                         sql_fails += 1
-                        success = False
-        if success:
-            success_count += 1
-            print('Successful attempts:', success_count)
-
-    logger.info('-'*150 + f'\nPopulating finished'
+        print(rows_passed)
+    logger.info('-'*100 + f'\nPopulating finished'
                 f'\nTotal fails: {sql_fails}')
-    print('Total fails', sql_fails)
 
 
 def time_test():
@@ -303,3 +274,8 @@ def retrieve_test():
     fetchone_ = cur.fetchone()[0]
     print(fetchone_)
     print(type(fetchone_))
+
+
+if __name__ == '__main__':
+    import cProfile
+    cProfile.run("populate_videos('G:\\pyton\\db.latestbackup')")

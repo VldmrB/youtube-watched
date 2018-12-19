@@ -1,7 +1,6 @@
 import os
 import sqlite3
 import json
-import time
 from config import DB_PATH, WORK_DIR
 from ktools import fs
 
@@ -31,41 +30,6 @@ def populate_video_ids_in_sqlite():
         cur.close()
     conn.close()
     print(count)
-
-
-def populate_videos_info_into_sql():
-    """Sends API requests for all the videos found via JS scrolling;
-    inserts them into the DB"""
-    from main import get_api_auth, get_video_info
-    api_auth = get_api_auth()
-    conn = sqlite3.connect(DB_PATH)
-    # conn.row_factory = sqlite3.Row
-
-    # watch_url = 'https://www.youtube.com/watch?v='
-    count = 0
-    logger.info('-'*10 + 'Starting video info retrieval' + '-'*10)
-    cur = conn.cursor()
-    cur.execute("""SELECT * FROM youtube_video_ids""")
-    ids = cur.fetchall()
-    cur.close()
-    for row in ids:
-        video_id = row[0]
-        print(video_id)
-        result = get_video_info(video_id, api_auth)
-        if result:
-            cur = conn.cursor()
-            json_string = json.dumps(result)
-            cur.execute("""INSERT INTO youtube_videos_info values (?, ?)""",
-                        (video_id, json_string))
-            conn.commit()
-            cur.close()
-        else:
-            count += 1
-        time.sleep(0.01)
-
-    conn.close()
-    logger.info('-'*10 + 'Video info retrieval finished' + '-'*10)
-    logger.info(f'Total fails: {count}')
 
 
 def populate_categories_into_sql():

@@ -5,7 +5,7 @@ from pprint import pprint
 import utils
 import ktools.dict_exploration
 from convert_takeout import get_all_records
-from config import WORK_DIR, DB_PATH, video_tags
+from config import WORK_DIR, video_keys_and_columns
 
 duplicate_tags = {
     'pewdiepie': ['pdp', 'pewds', 'pewdiepie', 'pewdie'],
@@ -100,15 +100,15 @@ def get_time_data_from_takeout(start=2014, end=2018, period_length='year',
     return prepped_data
 
 
-def get_videos_info_from_db():
+def get_videos_info_from_db(db_path, table_name: str):
     """Returns a list of records for videos which have not been deleted"""
     from ktools import db
 
     most_commonly_missing_tags = {}
-    conn = db.sqlite_connection(DB_PATH)
+    conn = db.sqlite_connection(db_path)
     cur = conn.cursor()
     no_tags_dict, removed_videos_count = {}, 0
-    cur.execute("""SELECT * from youtube_videos_info;""")
+    cur.execute(f"""SELECT * from {table_name} group by video_id""")
     all_records = cur.fetchall()
     good_records = []
     for row in all_records:
@@ -117,7 +117,7 @@ def get_videos_info_from_db():
             jsonified = json.loads(row[1])['items'][0]
             good_records.append(jsonified)
             tags_missing = ktools.dict_exploration.get_missing_keys(
-                jsonified, video_tags)
+                jsonified, video_keys_and_columns)
             for tag in tags_missing:
                 most_commonly_missing_tags.setdefault(tag, 0)
                 most_commonly_missing_tags[tag] += 1
@@ -133,7 +133,7 @@ def get_videos_info_from_db():
             most_commonly_missing_tags.items()),
             key=lambda entry: entry[1], reverse=True))
 
-    tags_always_found = [tag for tag in video_tags if tag not
+    tags_always_found = [tag for tag in video_keys_and_columns if tag not
                          in most_commonly_missing_tags.keys()]
 
     print('Tags found in all the records:')
@@ -141,20 +141,3 @@ def get_videos_info_from_db():
     cur.close()
     conn.close()
     return good_records
-
-
-def retrieve_records_via_alchemy():
-    from sqlalchemy import create_engine
-    from alchemy import Video
-    from sqlalchemy.orm import sessionmaker
-    db_path = DB_PATH
-    engine = create_engine(
-        'sqlite:///' + db_path, echo=True)
-    Session = sessionmaker()
-    Session.configure(bind=engine)
-    session = Session()
-    results = session.query(
-        Video.title).filter(Video.watched_on.isnot(None)).all()
-    for result in results:
-        print(result.title)
-    print(len(results))
