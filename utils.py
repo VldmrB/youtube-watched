@@ -1,4 +1,5 @@
 import sys
+import sqlite3
 import logging
 from logging import handlers
 
@@ -73,3 +74,12 @@ def logging_config(log_file_path: str,
     console_out.setFormatter(msg_format)
     logging.basicConfig(format=msg_format, level=file_level,
                         handlers=[file_handler, console_out])
+
+
+def sqlite_connection(db_path: str, **kwargs) -> sqlite3.Connection:
+    conn = sqlite3.connect(db_path, **kwargs)
+    cur = conn.cursor()
+    cur.execute('PRAGMA foreign_keys=ON;')
+    conn.commit()
+    cur.close()
+    return conn
