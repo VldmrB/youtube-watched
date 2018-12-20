@@ -22,6 +22,11 @@ If a video has its url as the title, that usually means the account which had
 the video was terminated, though sometimes the video is still up. That's 9 out 
 of 1350, however.
 
+There's also 3 videos which have titles, but not channel info. They're no 
+longer up on YouTube.
+
+-----
+
 Turns out the reason for BS not seeing all/any divs was an extra,
 out-of-place tag - <div class="mdl-grid"> (right after <body>) instead of 
 indentation and newlines. Thought BeautifulSoup was supposed to handle that 
@@ -33,7 +38,8 @@ out-of-place </div> at the every end of the file. Its presence still doesn't
 make sense as divs with the same class also wrap every video entry individually.
 """
 
-watch_url = re.compile(r'watch\?v=')
+watch_url_re = re.compile(r'watch\?v=')
+channel_url_re = re.compile(r'youtube\.com/channel')
 
 
 def get_watch_history_files(takeout_path: str = None):
@@ -99,6 +105,7 @@ def _from_divs_to_dict(path: str, write_changes=False, occ_dict: dict = None):
     if not content.startswith(done_):  # cleans out all the junk for faster
         # BSoup processing, in addition to fixing an out-of-place-tag which
         # stops BSoup from working completely
+        print(path)
 
         content = content[content.find('<body>')+6:content.find('</body>')-6]
         fluff = [  # the order should not be changed
@@ -152,23 +159,36 @@ def _from_divs_to_dict(path: str, write_changes=False, occ_dict: dict = None):
             last_record_found_now = last_record_found_now[removed_string_len:]
     occ_dict['last_record_found'] = last_record_found_now
     for div in divs:
+        default_values = {'times_watched': []}
+        video_id = 'unknown'
         all_text = div.get_text().strip()
         if all_text.startswith(removed_string):
-            video_id = 'removed'
             watched_on = all_text[removed_string_len:]
         elif all_text.startswith(story_string):
-            video_id = 'story'
             watched_on = all_text.splitlines()[-1].strip()
             if '/watch?v=' in watched_on:
                 watched_on = watched_on[57:]
-
         else:
-            url = div.find(href=watch_url)
+            url = div.find(href=watch_url_re)
             video_id = get_video_id(url['href'])
+            video_title = url.get_text(strip=True)
+            if url['href'] != video_title:
+                try:
+                    default_values['title'] = video_title
+                    channel = div.find(href=channel_url_re)
+                    channel_url = channel['href']
+                    channel_id = channel_url[channel_url.rfind('/') + 1:]
+                    channel_title = channel.get_text(strip=True)
+                    default_values['channel_id'] = channel_id
+                    default_values['channel_title'] = channel_title
+                    # print(channel_id, '\n', channel_title)
+                    # print('-'*25)
+                except TypeError:
+                    pass
             watched_on = all_text.splitlines()[-1].strip()
 
-        occ_dict['videos'].setdefault(video_id, [])
-        occ_dict['videos'][video_id].append(watched_on)
+        occ_dict['videos'].setdefault(video_id, default_values)
+        occ_dict['videos'][video_id]['times_watched'].append(watched_on)
         occ_dict['total_count'] += 1
 
     return occ_dict
@@ -197,7 +217,7 @@ def get_all_records(takeout_path: str = None, write_changes=False,
               'more YouTube channels instead.')
     if dump_json:
         import json
-        with open('watch-history.json', 'w') as file:
+        with open('all_records.json', 'w') as file:
             json.dump(occ_dict['videos'], file, indent=4)
 
     return occ_dict['videos']

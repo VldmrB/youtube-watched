@@ -2,7 +2,9 @@ import os
 import logging
 # from pprint import pprint
 from confidential import DEVELOPER_KEY
+from convert_takeout import get_all_records
 import youtube
+
 from utils import logging_config
 
 developer_key = DEVELOPER_KEY
@@ -11,29 +13,8 @@ if not developer_key:
         'An API key must be assigned to developer_key in execute.py '
         'to retrieve video info.')
 
-if __name__ == '__main__':
-    log_path = r'C:\Users\Vladimir\Desktop\fails.log'
-    logging_config(log_path, __name__)
-    logger = logging.getLogger(__name__)
-    logger.info('Start logging...')
-    res = youtube.get_video_info('___________',
-                                 api_auth=youtube.get_api_auth(DEVELOPER_KEY))
-    logger.info('End logging...')
-    os.startfile(log_path)
 
-
-def insert_video_into_sql():
-    pass
-    """
-    A somewhat adapted version of a combo the current construct SQL insert 
-    query and actually inserting the record into the videos table.
-    This would be stored in another module.
-    """
-
-
-def insert_videos_into_sql():
-    pass
-
+def insert_videos_into_sql(path: str = None):
     """
     Start logging
     
@@ -52,6 +33,7 @@ def insert_videos_into_sql():
             insert ID into a separate table for failed requests
     
     """
+    records = get_all_records(path, True, True)
 
 
 def attempt_insert_failed_videos_into_sql():
@@ -77,4 +59,13 @@ def create_project_dir(path: str):
     dirs_to_make = ['logs', 'graphs', 'takeout']
     for dir_ in dirs_to_make:
         os.mkdir(dir_)
+
+
+if __name__ == '__main__':
+    log_path = r'C:\Users\Vladimir\Desktop\fails.log'
+    logging_config(log_path)
+    logger = logging.getLogger(__name__)
+    takeout_path = r'G:\pyton\youtube_watched_data\takeout_data'
+    insert_videos_into_sql(takeout_path)
+
 
