@@ -5,19 +5,19 @@ LOG_DIR = os.path.join(WORK_DIR, 'logs')
 DB_PATH = os.path.join(WORK_DIR, 'db.sqlite')
 
 video_keys_and_columns = ['id', 'publishedAt',
-              'channelId', 'title',
-              'description',
-              'channelTitle', 'tags',
-              'categoryId',
-              'defaultAudioLanguage',
-              'duration',
-              'viewCount',
-              'likeCount',
-              'dislikeCount',
-              'commentCount',
-              'relevantTopicIds']
+                          'channelId', 'title',
+                          'description',
+                          'channelTitle', 'tags',
+                          'categoryId',
+                          'defaultAudioLanguage',
+                          'duration',
+                          'viewCount',
+                          'likeCount',
+                          'dislikeCount',
+                          'commentCount',
+                          'relevantTopicIds']
 
-parts_to_get = ','.join(
+video_parts_to_get = ','.join(
     list(
         {  # integers are query costs, as of Nov 2018
             "contentDetails": 2,

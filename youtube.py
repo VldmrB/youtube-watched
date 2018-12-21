@@ -3,17 +3,17 @@ import logging
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from google_auth_oauthlib.flow import InstalledAppFlow
-from config import parts_to_get
+from config import video_parts_to_get
 
 logger = logging.getLogger(__name__)
 logger.addFilter(logging.Filter(__name__))
-disable_loggers = ['urllib', 'rsa', 'requests', 'pyasnl', 'oauthlib', 'google']
-
+loggers_to_disable = ['urllib', 'rsa', 'requests',
+                      'pyasnl', 'oauthlib', 'google']
 logging.Logger.manager: logging.Manager
-for lgr in logging.Logger.manager.loggerDict:
-    for disable_lgr in disable_loggers:
-        if lgr.startswith(disable_lgr):
-            logging.getLogger(lgr).setLevel(100)
+for lgr_record in logging.Logger.manager.loggerDict:
+    for lgr in loggers_to_disable:
+        if lgr_record.startswith(lgr):
+            logging.getLogger(lgr_record).setLevel(100)
             break
 
 
@@ -38,14 +38,19 @@ def get_api_auth(developer_key):
 
 def get_video_info(video_id, api_auth):
     try:
-        results = api_auth.videos().list(id=video_id, part=parts_to_get,
-                                         chart='mostPopular').execute()
+        results = api_auth.videos().list(id=video_id,
+                                         part=video_parts_to_get).execute()
         return results
     except HttpError as e:
         err_inf = json.loads(e.content)['error']
+        reason = err_inf['errors'][0]['reason']
+        if reason == 'keyInvalid':
+            raise SystemExit('Invalid API key')
         logger.error(f'ID {video_id} retrieval failed,\n'
                      f'error code: ' + str(err_inf['code']) +
-                     '\ndescription: ' + err_inf['message'])
+                     '\ndescription: ' + err_inf['message'] +
+                     '\nreason: ' + reason)
+
         return err_inf
 
 
