@@ -33,31 +33,30 @@ indentation and newlines. Thought BeautifulSoup was supposed to handle that
 just fine, but maybe not or not in all cases. 
 
 Update:
-Perhaps the above tag is not out of place, but is paired with a seemingly 
-out-of-place </div> at the every end of the file. Its presence still doesn't 
-make sense as divs with the same class also wrap every video entry individually.
+Perhaps the above tag is not out of place, but is paired with a </div> at the 
+every end of the file. Its presence still doesn't make sense 
+as divs with the same class also wrap every video entry individually.
 """
 
 watch_url_re = re.compile(r'watch\?v=')
 channel_url_re = re.compile(r'youtube\.com/channel')
 
 
-def get_watch_history_files(takeout_path: str = None):
-    os.chdir(takeout_path)
+def get_watch_history_files(takeout_path: str = '.'):
     dir_contents = os.listdir(takeout_path)
     dir_list = ('Takeout', 'YouTube', 'history', 'watch-history.html')
     watch_histories = []
     for path in dir_contents:
         if path in ['Takeout', 'YouTube']:
             if path == 'Takeout':
-                full_path = os.path.join(*dir_list)
+                full_path = os.path.join(takeout_path, *dir_list)
             else:
-                full_path = os.path.join(*dir_list[1:])
+                full_path = os.path.join(takeout_path, *dir_list[1:])
             if os.path.exists(full_path):
                 watch_histories.append(full_path)
                 return watch_histories  # assumes only one folder
         if path.startswith('watch-history'):
-            watch_histories.append(path)
+            watch_histories.append(os.path.join(takeout_path, path))
 
     if watch_histories:
         return watch_histories  # assumes only one watch-history.html file is
@@ -66,10 +65,10 @@ def get_watch_history_files(takeout_path: str = None):
 
     for path in dir_contents:
         if path.startswith('takeout-2') and path[-5:-3] == 'Z-':
-            full_path = os.path.join(path, 'Takeout', 'YouTube',
+            full_path = os.path.join(takeout_path, path, 'Takeout', 'YouTube',
                                      'history', 'watch-history.html')
             if os.path.exists(full_path):
-                watch_histories.append(full_path)
+                watch_histories.append(os.path.join(takeout_path, full_path))
 
     if not watch_histories:
         raise SystemExit(
@@ -93,7 +92,7 @@ def get_watch_history_files(takeout_path: str = None):
     return watch_histories
 
 
-def _from_divs_to_dict(path: str, write_changes=False, occ_dict: dict = None):
+def from_divs_to_dict(path: str, occ_dict: dict = None, write_changes=False):
     """
     Retrieves timestamps and video ids (if present); returns them in a dict
     If multiple watch-history.html files are present, get_all_records should be
@@ -101,6 +100,7 @@ def _from_divs_to_dict(path: str, write_changes=False, occ_dict: dict = None):
     """
     with open(path, 'r') as file:
         content = file.read()
+        original_content = content
     done_ = '<span id="Done">'
     if not content.startswith(done_):  # cleans out all the junk for faster
         # BSoup processing, in addition to fixing an out-of-place-tag which
@@ -129,17 +129,19 @@ def _from_divs_to_dict(path: str, write_changes=False, occ_dict: dict = None):
         for piece in fluff:
             content = content.replace(piece[0], piece[1])
         content = done_ + '\n' + content
-        if write_changes:
-            print('Rewrote', path, '(trimmed junk HTML).')
-            with open(path, 'w') as new_file:
-                new_file.write(content)
 
     last_record_found = occ_dict['last_record_found']
     last_record_found_now = None
     if last_record_found:
-        content = content[:content.find(last_record_found)]
-        content = content[:content.rfind('<div')]  # since the previous
+        new_content_end = content.find(last_record_found)
+        if new_content_end > 0:
+            content = content[:new_content_end]
+            content = content[:content.rfind('<div')]  # since the previous
         # find includes half a div from the previous watch-history.html
+    if content != original_content and write_changes:
+        print('Rewrote', path, '(trimmed junk HTML).')
+        with open(path, 'w') as new_file:
+            new_file.write(content)
     soup = BSoup(content, 'lxml')
     if occ_dict is None:
         occ_dict = {}
@@ -194,24 +196,20 @@ def _from_divs_to_dict(path: str, write_changes=False, occ_dict: dict = None):
     return occ_dict
 
 
-def get_all_records(takeout_path: str = None, write_changes=False,
-                    dump_json=False, silent=False):
+def get_all_records(takeout_path: str = '.',
+                    dump_json=True, prune_html=False, silent=False) -> dict:
     """Should be used instead of other functions in practically any case;
     The others are mostly kept separately in case of future changes"""
-    if not takeout_path:
-        takeout_path = '.'
-    os.chdir(takeout_path)
     watch_files = get_watch_history_files(takeout_path)
     occ_dict = {}
     occ_dict.setdefault('last_record_found', None)
     for file in watch_files:
-        _from_divs_to_dict(file, write_changes=write_changes,
-                           occ_dict=occ_dict)
+        from_divs_to_dict(file, occ_dict=occ_dict, write_changes=prune_html)
 
     if not silent:
         print('Total videos:', occ_dict['total_count'])
-        print('Unique videos with ids:', len(occ_dict['videos']) - 2)
-        # ^ minus two for removed and story keys
+        print('Unique videos with ids:', len(occ_dict['videos']) - 1)
+        # ^ minus one for 'unknown' key
         print('A video won\'t have an ID if it\'s been taken down, or if it '
               'was watched as a "story", in which case it will list one or '
               'more YouTube channels instead.')
