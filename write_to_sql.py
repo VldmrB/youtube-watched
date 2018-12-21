@@ -91,6 +91,36 @@ def execute_insert_query(conn: sqlite3.Connection,
         cur.close()
 
 
+def wrangle_video_record(json_obj: dict):
+    entry_dict = {}
+    for key_value_pair in get_final_key_paths(
+            json_obj, '', True, black_list=['localized']):
+        last_bracket = key_value_pair[0].rfind('[\'')
+        key = key_value_pair[0][last_bracket+2:key_value_pair[0].rfind('\'')]
+        # ^ last key in each path
+        value = key_value_pair[1]  # value of the above key
+        if key in video_keys_and_columns:  # converting camelCase to underscore
+            new_key = []
+            for letter in key:
+                if letter.isupper():
+                    new_key.append('_' + letter.lower())
+                else:
+                    new_key.append(letter)
+            key = ''.join(new_key)
+            if key == 'relevant_topic_ids':
+                value = list(set(value))  # due to duplicate topic ids
+            elif key == 'duration':
+                value = convert_duration(value)
+            elif key == 'published_at':
+                value = value.replace('T', ' ')[:value.find('.')]
+            elif key in ['view_count', 'dislike_count', 'like_count',
+                         'comment_count']:
+                value = int(value)
+            entry_dict[key] = value
+
+    return entry_dict
+
+
 def add_channel(conn: sqlite3.Connection,
                 channel_id: str, channel_name: str = None) -> bool:
     values = [channel_id]
@@ -130,41 +160,11 @@ def add_topic(conn: sqlite3.Connection, topic, video_id):
     return execute_insert_query(conn, query_string, values)
 
 
-def wrangle_video_record_for_sql(json_obj: dict):
-    entry_dict = {}
-    for key_value_pair in get_final_key_paths(
-            json_obj, '', True, black_list=['localized']):
-        last_bracket = key_value_pair[0].rfind('[\'')
-        key = key_value_pair[0][last_bracket+2:key_value_pair[0].rfind('\'')]
-        # ^ last key in each path
-        value = key_value_pair[1]  # value of the above key
-        if key in video_keys_and_columns:  # converting camelCase to underscore
-            new_key = []
-            for letter in key:
-                if letter.isupper():
-                    new_key.append('_' + letter.lower())
-                else:
-                    new_key.append(letter)
-            key = ''.join(new_key)
-            if key == 'relevant_topic_ids':
-                value = list(set(value))  # due to duplicate topic ids
-            elif key == 'duration':
-                value = convert_duration(value)
-            elif key == 'published_at':
-                value = value.replace('T', ' ')[:value.find('.')]
-            elif key in ['view_count', 'dislike_count', 'like_count',
-                         'comment_count']:
-                value = int(value)
-            entry_dict[key] = value
-
-    return entry_dict
-
-
 @timer
-def populate_videos(db_path='db.sqlite'):
+def populate_videos_from_db(db_path='db.sqlite'):
     import data_prep
     from topics import children_topics
-    records = [wrangle_video_record_for_sql(record) for record in
+    records = [wrangle_video_record(record) for record in
                data_prep.get_videos_info_from_db(
                    r'G:\pyton\db.latestbackup', 'youtube_videos_info')]
     rows_passed = 0
@@ -220,7 +220,7 @@ def populate_videos(db_path='db.sqlite'):
             video_ids.append(video_record['id'])
         if tags:
             for tag in tags:
-                if tag not in existing_tags:  # tag not in tags table
+                if tag not in existing_tags:
                     tag_id = None
                     if add_tag(conn, tag):
                         query_str = f'SELECT id FROM tags WHERE tag = "{tag}"'
@@ -248,20 +248,6 @@ def populate_videos(db_path='db.sqlite'):
         print(rows_passed)
     logger.info('-'*100 + f'\nPopulating finished'
                 f'\nTotal fails: {sql_fails}')
-
-
-def time_test():
-    conn = db.sqlite_connection(':memory:',
-                                detect_types=sqlite3.PARSE_DECLTYPES)
-    cur = conn.cursor()
-    from datetime import datetime
-    cur.execute('create table b (a timestamp)')
-    cur.execute('insert into b values (?)', (datetime.now(),))
-    cur.execute('select a from b')
-    conn.commit()
-    fetchone_ = cur.fetchone()[0]
-    print(fetchone_)
-    print(type(fetchone_))
 
 
 def retrieve_test():
