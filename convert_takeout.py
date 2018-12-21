@@ -5,11 +5,6 @@ from utils import get_video_id
 
 
 """
-Only get_all_records should be used directly. Other functions exist separately 
-for easier code management and potential future changes.
-
------
-
 In addition to seemingly only returning an oddly even number of records 
 (20300 the first time, 18300 the second), Takeout also seems to only return 
 about 4 years worth of videos. In addition to that, when compared to the list 
@@ -82,9 +77,9 @@ def get_watch_history_files(takeout_path: str = '.'):
             ' - Directory of the download archive, extracted with the same '
             'name as the archive e.g. "takeout-20181120T163352Z-001"\n\n'
             'The search will become confined to one of these types after the '
-            'first match, i.e. if a watch-history file is found, it\'ll '
-            'continue looking for those within the same directory, '
-            'but not in Takeout directories.\n\n'
+            'first match, e.g. if a watch-history file is found in the very '
+            'directory that was passed, it\'ll continue looking for those '
+            'within the same directory, but not in Takeout directories.\n\n'
             'If you have or plan to have multiple watch-history files, the '
             'best thing to do is manually move them into one directory while '
             'adding a number to the end of each name, e.g. '
@@ -92,11 +87,24 @@ def get_watch_history_files(takeout_path: str = '.'):
     return watch_histories
 
 
-def from_divs_to_dict(path: str, occ_dict: dict = None, write_changes=False):
+def from_divs_to_dict(path: str, occ_dict: dict = None,
+                      write_changes=False) -> dict:
     """
-    Retrieves timestamps and video ids (if present); returns them in a dict
+    Retrieves all the available info from the passed watch-history.html file;
+    returns them in a dict
+
     If multiple watch-history.html files are present, get_all_records should be
     used instead.
+
+    :param path:
+    :param occ_dict:
+    :param write_changes: cuts out unnecessary HTML, reducing the size of the
+    file and making its processing faster, if used again. When used through
+    get_all_records, will also remove all the duplicate entries found in
+    previously processed watch-history.html files (provided the files are in
+    chronological order), for faster processing still. Performance improvement
+    is negligible, if there's only a few files.
+    :return:
     """
     with open(path, 'r') as file:
         content = file.read()
@@ -151,7 +159,10 @@ def from_divs_to_dict(path: str, occ_dict: dict = None, write_changes=False):
         'div',
         class_='awesome_class')
     if len(divs) == 0:
-        return
+        raise ValueError(f'Could not find any records in {path} while '
+                         f'processing Takeout data.\n'
+                         f'The file is either corrupt or its contents have'
+                         f' been changed.')
     removed_string = 'Watched a video that has been removed'
     removed_string_len = len(removed_string)
     story_string = 'Watched story'
@@ -175,16 +186,14 @@ def from_divs_to_dict(path: str, occ_dict: dict = None, write_changes=False):
             video_id = get_video_id(url['href'])
             video_title = url.get_text(strip=True)
             if url['href'] != video_title:
+                default_values['title'] = video_title
                 try:
-                    default_values['title'] = video_title
                     channel = div.find(href=channel_url_re)
                     channel_url = channel['href']
                     channel_id = channel_url[channel_url.rfind('/') + 1:]
                     channel_title = channel.get_text(strip=True)
                     default_values['channel_id'] = channel_id
                     default_values['channel_title'] = channel_title
-                    # print(channel_id, '\n', channel_title)
-                    # print('-'*25)
                 except TypeError:
                     pass
             watched_on = all_text.splitlines()[-1].strip()
@@ -198,8 +207,18 @@ def from_divs_to_dict(path: str, occ_dict: dict = None, write_changes=False):
 
 def get_all_records(takeout_path: str = '.',
                     dump_json=True, prune_html=False, silent=False) -> dict:
-    """Should be used instead of other functions in practically any case;
-    The others are mostly kept separately in case of future changes"""
+    """
+    Accumulates records from all found watch-history.html files and returns
+    them in a dict.
+
+    :param takeout_path: directory with watch-history.html file(s) or with
+    Takeout directories
+    :param dump_json: saves the dict with accumulated records to a json file
+    :param prune_html: prunes unnecessary HTML and records found in a
+    previously processed file, as long as they're passed in chronological order
+    :param silent: Prints out some stats, if False
+    :return:
+    """
     watch_files = get_watch_history_files(takeout_path)
     occ_dict = {}
     occ_dict.setdefault('last_record_found', None)
