@@ -50,8 +50,7 @@ def get_video_info(video_id, api_auth):
                      f'error code: ' + str(err_inf['code']) +
                      '\ndescription: ' + err_inf['message'] +
                      '\nreason: ' + reason)
-
-        return err_inf
+        return False
 
 
 def get_categories_info(api_auth):

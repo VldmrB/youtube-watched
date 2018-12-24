@@ -2,6 +2,7 @@ import sys
 import sqlite3
 import logging
 from logging import handlers
+from typing import Union
 
 
 def is_video_url(candidate_str: str):
@@ -49,6 +50,62 @@ def convert_duration(duration_iso8601: str):
                 int_value += int(val[:-1])
 
     return int_value
+
+
+def get_final_key_paths(
+        obj: Union[dict, list, tuple], cur_path: str = '',
+        append_values: bool = False,
+        paths: list = None, black_list: list = None):
+    """
+    Returns Python ready, full key paths as strings
+
+    :param obj:
+    :param cur_path: name of the variable that's being passed as the obj can be
+    passed here to create eval ready key paths
+    :param append_values: return corresponding key values along with the keys
+    :param paths: the list that will contain all the found key paths, no need
+    to pass anything
+    :param black_list: dictionary keys which will be ignored (not paths)
+    :return:
+    """
+    if paths is None:
+        paths = []
+
+    if isinstance(obj, (dict, list, tuple)):
+        if isinstance(obj, dict):
+            for key in obj:
+                new_path = cur_path + f'[\'{key}\']'
+                if isinstance(obj[key], dict):
+                    if black_list is not None and key in black_list:
+                        continue
+                    get_final_key_paths(
+                        obj[key], new_path, append_values, paths, black_list)
+                elif isinstance(obj[key], (list, tuple)):
+                    get_final_key_paths(obj[key], new_path,
+                                        append_values, paths, black_list)
+                else:
+                    if append_values:
+                        to_append = [new_path, obj[key]]
+                    else:
+                        to_append = new_path
+                    paths.append(to_append)
+        else:
+            key_added = False  # same as in get_final_keys function
+            for i in range(len(obj)):
+                if isinstance(obj[i], (dict, tuple, list)):
+                    get_final_key_paths(
+                        obj[i], cur_path + f'[{i}]', append_values,
+                        paths, black_list)
+                else:
+                    if not key_added:
+                        if append_values:
+                            to_append = [cur_path, obj]
+                        else:
+                            to_append = cur_path
+                        paths.append(to_append)
+                        key_added = True
+
+    return paths
 
 
 def logging_config(log_file_path: str,

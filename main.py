@@ -1,61 +1,9 @@
 import os
-import sqlite3
 import argparse
 import logging
-# from pprint import pprint
 from convert_takeout import get_all_records
-import youtube
+import write_to_sql
 from utils import logging_config
-from confidential import DEVELOPER_KEY
-
-
-def insert_videos_into_sql(path: str = None):
-    """
-    Start logging
-    
-    Loop over a provided list of ids (generated from Takeout data), 
-    passing each to a function responsible for retrieving an individual record 
-    
-    Then, depending on whether the request is successful or returns an error: 
-        if successful:
-            if not empty:
-                pass to a function responsible for constructing an SQL query 
-                and inserting the result into the DB (could be two functions)
-            else:
-                same as above, but set id to unknown (or removed?)
-        else:
-            log the error reason and ID of the video
-            insert ID into a separate table for failed requests
-    
-    """
-    from confidential import DEVELOPER_KEY
-    if not DEVELOPER_KEY:  # this and the line above must be removed once this
-        # is a library
-        if os.path.exists('api_key'):
-            with open('api_key', 'r') as file:
-                DEVELOPER_KEY = file.read().strip()
-        else:
-            raise SystemExit(
-                'An API key must be assigned to DEVELOPER_KEY'
-                'to retrieve video info.')
-    rows_passed = 0
-    sql_fails = 0
-    decl_types = sqlite3.PARSE_DECLTYPES
-    decl_colnames = sqlite3.PARSE_COLNAMES
-    # conn = utils.sqlite_connection(path,
-    #                                detect_types=decl_types | decl_colnames)
-    # cur = conn.cursor()
-    # cur.execute("""SELECT id FROM videos;""")
-    # video_ids = [row[0] for row in cur.fetchall()]
-    # cur.execute("""SELECT id FROM channels;""")
-    # channels = [row[0] for row in cur.fetchall()]
-    # cur.execute("""SELECT * FROM tags;""")
-    # existing_tags = {v: k for k, v in cur.fetchall()}
-    # cur.close()
-    # logger.info(f'\nStarting records\' insertion...\n' + '-'*100)
-    records = get_all_records(path)
-    if 'unknown' in records:
-        unknown = records.pop('unknown')
 
 
 def attempt_insert_failed_videos_into_sql():
@@ -111,6 +59,8 @@ if __name__ == '__main__':
     log_path = r'C:\Users\Vladimir\Desktop\fails.log'
     logging_config(log_path)
     logger = logging.getLogger(__name__)
-    # takeout_path = r'G:\pyton\youtube_watched_data\takeout_data'
-    # insert_videos_into_sql(takeout_path)
-    youtube.get_video_info('AgC4DM1EZ5A', youtube.get_api_auth(DEVELOPER_KEY))
+
+    tk_path = r'G:\pyton\youtube_watched_data\takeout_data'
+    test_db_path = r'G:\pyton\db_test.sqlite'
+
+    write_to_sql.create_all_tables(test_db_path)

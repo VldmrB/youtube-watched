@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 from scipy.interpolate import interp1d
 from ktools import utils
-from config import WORK_DIR
+from testing import WORK_DIR
 from data_prep import get_videos_info_from_db, duplicate_tags
 
 # Nov 19, 2018, 11:07:59 PM EST

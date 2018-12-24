@@ -1,10 +1,4 @@
-import os
-
-WORK_DIR = os.path.join(f'G:{os.sep}', 'pyton', 'youtube_watched_data')
-LOG_DIR = os.path.join(WORK_DIR, 'logs')
-DB_PATH = os.path.join(WORK_DIR, 'db.sqlite')
-
-video_keys_and_columns = ['id', 'publishedAt',
+video_keys_and_columns = ('id', 'publishedAt',
                           'channelId', 'title',
                           'description',
                           'channelTitle', 'tags',
@@ -15,7 +9,7 @@ video_keys_and_columns = ['id', 'publishedAt',
                           'likeCount',
                           'dislikeCount',
                           'commentCount',
-                          'relevantTopicIds']
+                          'relevantTopicIds')
 
 video_parts_to_get = ','.join(
     list(

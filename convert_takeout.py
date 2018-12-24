@@ -7,15 +7,15 @@ from utils import get_video_id
 """
 In addition to seemingly only returning an oddly even number of records 
 (20300 the first time, 18300 the second), Takeout also seems to only return 
-about 4 years worth of videos. In addition to that, when compared to the list 
-you'd get from scraping your YouTube History web page directly (which seems to 
-go back to the very start of your account), it's missing a number of videos for 
-every year, even the current. The current one is only missing 15, but the 
-number increases the further back you go in years, ending up in hundreds.
-
-If a video has its url as the title, that usually means the account which had 
-the video was terminated, though sometimes the video is still up. That's 9 out 
-of 1350, however.
+about 4 years worth of videos. 
+When compared to the list you'd get from scraping your YouTube History web page 
+directly (which seems to go back to the very start of your account), 
+it's missing a number of videos for every year, even the current. The current 
+one is only missing 15, but the number increases the further back you go in 
+years, ending up in hundreds.
+Inversely, Takeout has 1352 records which are not present on Youtube's 
+history page. Only 9 of them were still up when last checked, however. Most or 
+all of them had their urls listed as their titles.
 
 There's also 3 videos which have titles, but not channel info. They're no 
 longer up on YouTube.
@@ -172,7 +172,7 @@ def from_divs_to_dict(path: str, occ_dict: dict = None,
             last_record_found_now = last_record_found_now[removed_string_len:]
     occ_dict['last_record_found'] = last_record_found_now
     for div in divs:
-        default_values = {'times_watched': []}
+        default_values = {'timestamps': []}
         video_id = 'unknown'
         all_text = div.get_text().strip()
         if all_text.startswith(removed_string):
@@ -199,7 +199,7 @@ def from_divs_to_dict(path: str, occ_dict: dict = None,
             watched_on = all_text.splitlines()[-1].strip()
 
         occ_dict['videos'].setdefault(video_id, default_values)
-        occ_dict['videos'][video_id]['times_watched'].append(watched_on)
+        occ_dict['videos'][video_id]['timestamps'].append(watched_on)
         occ_dict['total_count'] += 1
 
     return occ_dict
@@ -232,9 +232,13 @@ def get_all_records(takeout_path: str = '.',
         print('A video won\'t have an ID if it\'s been taken down, or if it '
               'was watched as a "story", in which case it will list one or '
               'more YouTube channels instead.')
+    records = occ_dict['videos']
+    for entry in records:
+        records[entry]['times_watched'] = len(
+            records[entry]['timestamps'])
     if dump_json:
         import json
-        with open('all_records.json', 'w') as file:
+        with open(os.path.join(takeout_path, 'all_records.json'), 'w') as file:
             json.dump(occ_dict['videos'], file, indent=4)
 
     return occ_dict['videos']
