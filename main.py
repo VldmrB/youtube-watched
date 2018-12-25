@@ -2,21 +2,7 @@ import os
 import argparse
 import logging
 from convert_takeout import get_all_records
-import write_to_sql
 from utils import logging_config
-
-
-def attempt_insert_failed_videos_into_sql():
-    pass
-
-    """
-    Check if the table is not empty. If empty, return.
-    Recover list of IDs from the table with IDs which failed to be retrieved 
-    earlier for temporary reasons and pass them to insert_videos_into_sql for 
-    another attempt.
-    After 2-5 (TBD) unsuccessful attempts, those records would be purged from 
-    the table
-    """
 
 
 def setup_data_dir(path: str):
@@ -32,6 +18,11 @@ def setup_data_dir(path: str):
             os.mkdir(dir_)
         except FileExistsError:
             pass
+
+
+def setup_db(path: str = '.'):
+    import write_to_sql
+
 
 
 def argparse_func():
@@ -63,4 +54,4 @@ if __name__ == '__main__':
     tk_path = r'G:\pyton\youtube_watched_data\takeout_data'
     test_db_path = r'G:\pyton\db_test.sqlite'
 
-    write_to_sql.create_all_tables(test_db_path)
+    # write_to_sql.create_all_tables(test_db_path)

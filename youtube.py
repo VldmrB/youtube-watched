@@ -2,8 +2,8 @@ import json
 import logging
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
-from google_auth_oauthlib.flow import InstalledAppFlow
 from config import video_parts_to_get
+from config import DEVELOPER_KEY
 
 logger = logging.getLogger(__name__)
 logger.addFilter(logging.Filter(__name__))
@@ -17,21 +17,14 @@ for lgr_record in logging.Logger.manager.loggerDict:
             break
 
 
-CLIENT_SECRETS_FILE = "client_secret.json"
-SCOPES = ['https://www.googleapis.com/auth/youtube.readonly']
 API_SERVICE_NAME = 'youtube'
 YOUTUBE_API_VERSION = API_VERSION = 'v3'
 YOUTUBE_API_SERVICE_NAME = 'youtube'
 
 
-def get_oauth():
-    flow = InstalledAppFlow.from_client_secrets_file(CLIENT_SECRETS_FILE,
-                                                     SCOPES)
-    credentials = flow.run_console()
-    return build(API_SERVICE_NAME, API_VERSION, credentials=credentials)
-
-
-def get_api_auth(developer_key):
+def get_api_auth(developer_key=DEVELOPER_KEY):
+    if not DEVELOPER_KEY:
+        raise ValueError('Please provide an API key.')
     return build(YOUTUBE_API_SERVICE_NAME, YOUTUBE_API_VERSION,
                  developerKey=developer_key)
 
@@ -55,10 +48,22 @@ def get_video_info(video_id, api_auth):
 
 def get_categories_info(api_auth):
     try:
-        return api_auth.videoCategories().list(
-            part='snippet', regionCode='US').execute()
+        return api_auth.videoCategories().list(part='snippet',
+                                               regionCode='US').execute()
     except HttpError as e:
         err_inf = json.loads(e.content)['error']
-        logger.error(f'Categories\' info retrieval failed,\n'
+        reason = err_inf['errors'][0]['reason']
+        if reason == 'keyInvalid':
+            raise SystemExit('Invalid API key')
+        logger.error(f'Categories\' retrieval failed,\n'
                      f'error code: ' + str(err_inf['code']) +
-                     '\ndescription: ' + err_inf['message'])
+                     '\ndescription: ' + err_inf['message'] +
+                     '\nreason: ' + reason)
+        return False
+
+
+if __name__ == '__main__':
+    from confidential import DEVELOPER_KEY
+    result = get_categories_info(get_api_auth(DEVELOPER_KEY))
+    with open(r'G:\pyton\categories.json', 'w') as file:
+        json.dump(result, file, indent=4)

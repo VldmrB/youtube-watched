@@ -1,3 +1,13 @@
+import os
+
+if os.path.exists('api_key'):
+    with open('api_key', 'r') as file:
+        DEVELOPER_KEY = file.read()
+        if not DEVELOPER_KEY:
+            DEVELOPER_KEY = None
+else:
+    DEVELOPER_KEY = None
+
 video_keys_and_columns = ('id', 'publishedAt',
                           'channelId', 'title',
                           'description',
