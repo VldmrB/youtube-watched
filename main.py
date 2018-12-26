@@ -3,6 +3,7 @@ import argparse
 import logging
 from convert_takeout import get_all_records
 from utils import logging_config
+import write_to_sql
 
 
 def setup_data_dir(path: str):
@@ -18,11 +19,6 @@ def setup_data_dir(path: str):
             os.mkdir(dir_)
         except FileExistsError:
             pass
-
-
-def setup_db(path: str = '.'):
-    import write_to_sql
-
 
 
 def argparse_func():
@@ -47,11 +43,19 @@ def argparse_func():
 
 
 if __name__ == '__main__':
-    log_path = r'C:\Users\Vladimir\Desktop\fails.log'
+    test_db_path = r'G:\pyton\youtube_watched_data\test2'
+    # os.chdir(test_db_path)
+    setup_data_dir(test_db_path)
+    log_path = r'logs\sql_fails.log'
     logging_config(log_path)
     logger = logging.getLogger(__name__)
-
-    tk_path = r'G:\pyton\youtube_watched_data\takeout_data'
-    test_db_path = r'G:\pyton\db_test.sqlite'
+    write_to_sql.setup_db()
 
     # write_to_sql.create_all_tables(test_db_path)
+    # drop_dynamic_tables(sqlite3.Connection(test_db_path))
+    # create_all_tables(test_db_path)
+    # insert_categories(test_db_path, takeout_path[:takeout_path.rfind('\\')])
+    # insert_parent_topics(test_db_path)
+    # insert_sub_topics(test_db_path)
+    #
+    # write_to_sql.insert_videos()

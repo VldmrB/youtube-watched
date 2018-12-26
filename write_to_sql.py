@@ -1,16 +1,14 @@
-import os
-import json
 import sqlite3
 import logging
+import youtube
 from typing import Union, Optional
 from utils import get_final_key_paths, logging_config
 from utils import convert_duration, sqlite_connection
 from config import video_keys_and_columns
-from ktools.utils import timer
 
 logging_config(r'C:\Users\Vladimir\Desktop\sql_fails.log')
 logger = logging.getLogger(__name__)
-
+DB_NAME = 'yt.sqlite'
 TABLE_SCHEMAS = {
     'categories': '''categories (
     id text primary key,
@@ -35,7 +33,7 @@ TABLE_SCHEMAS = {
     topic text,
     parent_topic_id text,
     foreign key (parent_topic_id) references parent_topics(id)
-    on delete cascade on update cascade
+    on update cascade on delete cascade
     );''',
 
     'tags': '''tags (
@@ -75,11 +73,9 @@ TABLE_SCHEMAS = {
     video_id text,
     topic_id text,
     foreign key (video_id) references videos (id)
-    on update cascade on delete cascade,
-    foreign key (topic_id) references topics (id)
     on update cascade on delete cascade
     );''',
-
+    
     'videos_watched_at_timestamps': '''videos_watched_at_timestamps (
     video_id text,
     watched_at timestamp,
@@ -146,15 +142,15 @@ def generate_insert_query(table: str,
     return f'INSERT INTO {table} {columns_str} VALUES {values_placeholders_str}'
 
 
-# below are rigid insert queries, ones whose columns will not change
+# below are rigid insert queries, ones whose amount of columns will not change
 # between records
-# add_channel and add_video are not rigid and have to be compiled every run
+# add_channel and add_video are compiled every run due to dynamic col amount
 add_tag_query = generate_insert_query('tags', columns=TAGS_COLUMNS)
 add_tag_to_video_query = generate_insert_query('videos_tags',
                                                columns=VIDEOS_TAGS_COLUMNS)
-add_topic_query = generate_insert_query('videos_topics',
-                                        columns=VIDEOS_TOPICS_COLUMNS)
-add_time_query = generate_insert_query(
+add_topic_to_video_query = generate_insert_query('videos_topics',
+                                                 columns=VIDEOS_TOPICS_COLUMNS)
+add_time_to_video_query = generate_insert_query(
     'videos_watched_at_timestamps',
     columns=VIDEOS_WATCHED_AT_TIMESTAMPS_COLUMNS)
 add_failed_request_query = generate_insert_query(
@@ -175,7 +171,7 @@ def log_query_error(error, query_string: str, values=None):
 
 
 def execute_query(conn: sqlite3.Connection,
-                  query: str, values: Union[list, str, tuple] = None,
+                  query: str, values: Union[list, tuple] = None,
                   log_integrity_fail=True):
     """
     Executes the query with passed values (if any). If a SELECT query,
@@ -189,8 +185,8 @@ def execute_query(conn: sqlite3.Connection,
         if values is not None:
             if isinstance(values, list):
                 values = tuple(values)
-            elif isinstance(values, str):
-                values = (values,)
+            elif isinstance(values, tuple):
+                pass
             else:
                 raise ValueError('Expected str, tuple or list, got ' +
                                  values.__class__.__name__)
@@ -212,10 +208,11 @@ def execute_query(conn: sqlite3.Connection,
     except sqlite3.Error as e:
         if values:
             values = f'{list(values)}'
+            logger.error('FATAL ERROR:')
             log_query_error(e, query, values)
         else:
             log_query_error(e, query)
-        return False
+        raise
     finally:
         cur.close()
 
@@ -254,8 +251,8 @@ def wrangle_video_record(json_obj: dict):
     return entry_dict
 
 
-def create_all_tables(db_path: str):
-    conn = sqlite_connection(db_path)
+def create_tables():
+    conn = sqlite_connection(DB_NAME)
     cur = conn.cursor()
     for schema in TABLE_SCHEMAS:
         schema_ = 'CREATE TABLE IF NOT EXISTS ' + TABLE_SCHEMAS[schema]
@@ -265,6 +262,15 @@ def create_all_tables(db_path: str):
         except sqlite3.Error as e:
             print(e)
             print(schema_)
+
+
+def drop_dynamic_tables(conn):
+    for table in TABLE_SCHEMAS:
+        if table not in ['categories', 'topics', 'parent_topics',
+                         'dead_videos']:
+            execute_query(conn, '''DROP TABLE IF EXISTS ''' + table)
+    conn.commit()
+    conn.close()
 
 
 def add_channel(conn: sqlite3.Connection,
@@ -278,7 +284,7 @@ def add_channel(conn: sqlite3.Connection,
 
 
 def add_tag(conn: sqlite3.Connection, tag: str):
-    return execute_query(conn, add_tag_query, tag)
+    return execute_query(conn, add_tag_query, (tag,))
 
 
 def add_video(conn: sqlite3.Connection, cols_vals: dict):
@@ -293,14 +299,14 @@ def add_tag_to_video(conn: sqlite3.Connection, tag_id, video_id):
                          log_integrity_fail=False)
 
 
-def add_topic(conn: sqlite3.Connection, topic, video_id):
+def add_topic_to_video(conn: sqlite3.Connection, topic, video_id):
     values = video_id, topic
-    return execute_query(conn, add_topic_query, values)
+    return execute_query(conn, add_topic_to_video_query, values)
 
 
 def add_time(conn: sqlite3.Connection, watched_at, video_id):
     values = video_id, watched_at
-    return execute_query(conn, add_time_query, values)
+    return execute_query(conn, add_time_to_video_query, values)
 
 
 def add_failed_request(conn: sqlite3.Connection, video_id):
@@ -325,20 +331,82 @@ def add_dead_video(conn: sqlite3.Connection, video_id):
     return execute_query(conn, add_dead_video_query, (video_id,))
 
 
-@timer
-def insert_videos(db_path: str, takeout_path: str = 'takeout_data'):
+def insert_or_update_categories():
+    def bool_adapt(bool_value: bool): return str(bool_value)
+
+    sqlite3.register_adapter(bool, bool_adapt)
+    categories = youtube.get_categories()
+    query_string = generate_insert_query('categories',
+                                         columns=CATEGORIES_COLUMNS)
+    conn = sqlite_connection(DB_NAME, detect_types=sqlite3.PARSE_DECLTYPES)
+    if execute_query(conn, 'DELETE FROM categories;'):
+        for category_dict in categories['items']:
+            etag = category_dict['etag']
+            id_ = category_dict['id']
+            channel_id = category_dict['snippet']['channelId']
+            title = category_dict['snippet']['title']
+            assignable = category_dict['snippet']['assignable']
+            execute_query(conn, query_string,
+                          (id_, channel_id, title, assignable, etag),
+                          log_integrity_fail=False)
+        conn.commit()
+    conn.close()
+
+
+def insert_parent_topics():
+    from topics import topics_by_category
+
+    conn = sqlite_connection(DB_NAME)
+    query_string = generate_insert_query('parent_topics',
+                                         columns=PARENT_TOPICS_COLUMNS)
+
+    for topic_dict in topics_by_category.values():
+        for k, v in topic_dict.items():
+            parent_topic_str = ' (parent topic)'
+            if parent_topic_str in v:
+                v = v.replace(parent_topic_str, '')
+                execute_query(conn, query_string, (k, v),
+                              log_integrity_fail=False)
+            break
+
+    conn.commit()
+    conn.close()
+
+
+def insert_sub_topics():
+    from topics import topics_by_category
+
+    conn = sqlite_connection(DB_NAME)
+    query_string = generate_insert_query('topics',
+                                         columns=TOPICS_COLUMNS)
+
+    for topic_dict in topics_by_category.values():
+        parent_topic_str = ' (parent topic)'
+        parent_topic_name = None
+        for k, v in topic_dict.items():
+            if parent_topic_str in v:
+                parent_topic_name = k
+                continue
+            insert_tuple = (k, v, parent_topic_name)
+            execute_query(conn, query_string, insert_tuple,
+                          log_integrity_fail=False)
+
+    conn.commit()
+    conn.close()
+
+
+def insert_videos():
 
     from convert_takeout import get_all_records
     import time
-    import youtube
     from datetime import datetime
-    from topics import children_topics
+    from config import DEVELOPER_KEY
     rows_passed = 0
     sql_fails = 0
     api_requests_fails = 0
     decl_types = sqlite3.PARSE_DECLTYPES
     decl_colnames = sqlite3.PARSE_COLNAMES
-    conn = sqlite_connection(db_path, detect_types=decl_types | decl_colnames)
+    conn = sqlite_connection(DB_NAME, detect_types=decl_types | decl_colnames)
     cur = conn.cursor()
     cur.execute("""SELECT id FROM videos;""")
     video_ids = [row[0] for row in cur.fetchall()]
@@ -352,62 +420,73 @@ def insert_videos(db_path: str, takeout_path: str = 'takeout_data'):
     failed_requests_ids = {k: v for k, v in cur.fetchall()}
     cur.close()
     logger.info(f'\nStarting records\' insertion...\n' + '-'*100)
-    records = get_all_records(takeout_path)
+    records = get_all_records('takeout_data')
     unknown = ''
     if 'unknown' in records:
         # gets popped now, but added at the end because other videos which have
-        # IDs will also turn out to be unavailable and their timestamps will be
+        # IDs will also turn out to be unavailable and their timestamps
         # added to the unknown record so it could be inserted just once instead
-        # of inserting and then updating it every time an unavailable video is
-        # encountered.
+        # of inserting once and then updating it every time an unavailable
+        # video is encountered. Even more importantly, doing it the other way
+        # would make it difficult (impossible?) to track which last unknown was
+        # added, should some error interrupt the process.
         unknown: dict = records.pop('unknown')
         unknown.update({'id': 'unknown', 'channel_id': 'unknown'})
 
-    # when looping through records, if an empty one is returned, it's to be
-    # checked for any extra info present in its Takeout record and if none
-    # exists, have it added as unknown, along with updating times_watched and
-    # adding the timestamps of those times
-    yt_api = youtube.get_api_auth()
+    # when looping through returned API records, if an empty one is returned,
+    # it's to be checked for any extra info present in its Takeout record and
+    # if none exists, have it added as unknown, along with updating its
+    # times_watched and adding the timestamps of those times
+    yt_api = youtube.get_api_auth(DEVELOPER_KEY)
     for video_record in records:
         video_id = video_record
         rows_passed += 1
         video_record = records[video_record]
         video_record['id'] = video_id
-        if video_id in dead_videos:  # necessary because unknown record
+        if video_id in dead_videos:  # necessary because the unknown record
             # only gets added at the very end, after having been updated with
             # all the empty ones returned from API requests
             unknown['times_watched'] += video_record['times_watched']
             unknown['timestamps'].extend(video_record['timestamps'])
             continue
         if video_id in video_ids:
-            continue
-        print(rows_passed, 'entries processed')
-        if (video_id in failed_requests_ids
-                and failed_requests_ids[video_id] > 2):
-            # Trying to retrieve this has errored out more than twice and will
-            # now be added with whatever info was available from takeout
-            pass
-        else:
-            for attempt in range(1, 6):
-                api_response = youtube.get_video_info(video_id, yt_api)
-                time.sleep(0.01*attempt**attempt)
-                if api_response:
-                    if api_response['items']:
-                        api_response = wrangle_video_record(
-                            api_response['items'])
-                        video_record.update(api_response)
-                    break
-            else:
-                api_requests_fails += 1
-                add_failed_request(conn, video_id)
-                logger.error(
-                    f'Failed API request {rows_passed}, ID# {video_id}')
+            if (video_id in failed_requests_ids
+                    and failed_requests_ids[video_id] < 3):
+                pass
+            elif video_id in failed_requests_ids:
+                if not execute_query(conn,
+                                     '''DELETE FROM failed_requests_id
+                                     WHERE id = ?''', (video_id,)):
+                    sql_fails += 1
                 continue
+            else:
+                continue
+        print(rows_passed, 'entries processed')
+        for attempt in range(1, 6):
+            api_response = youtube.get_video_info(video_id, yt_api)
+            time.sleep(0.01*attempt**attempt)
+            if api_response:
+                if api_response['items']:
+                    api_response = wrangle_video_record(api_response['items'])
+                    video_record.update(api_response)
+                break
+        else:
+            failed_requests_ids.setdefault(video_id, 0)
+            failed_requests_ids[video_id] += 1
+            api_requests_fails += 1
+            add_failed_request(conn, video_id)
+            logger.error(
+                f'Failed API request {rows_passed}, ID# {video_id}')
+            # video is still inserted, as long as the minimum data necessary
+            # is present (title), otherwise, when this is run again,
+            # it will attempt to retrieve the data from API again and
+            # update the record accordingly
 
         if 'title' not in video_record:
             unknown['times_watched'] += video_record['times_watched']
             unknown['timestamps'].extend(video_record['timestamps'])
             add_dead_video(conn, video_id)
+            conn.commit()
             continue
         else:
             if 'channel_id' not in video_record:
@@ -483,9 +562,8 @@ def insert_videos(db_path: str, takeout_path: str = 'takeout_data'):
 
         if topics:
             for topic in topics:
-                if topic in children_topics:
-                    if not add_topic(conn, topic, video_id):
-                        sql_fails += 1
+                if not add_topic_to_video(conn, topic, video_id):
+                    sql_fails += 1
 
         conn.commit()  # committing after every record ensures all its info
         # is inserted, or not at all, in case of an unforeseen failure during
@@ -516,83 +594,11 @@ def insert_videos(db_path: str, takeout_path: str = 'takeout_data'):
                 f'\nTotal API fails: {api_requests_fails}')
 
 
-def insert_categories(db_path, project_path='.'):
-    def bool_adapt(bool_value: bool): return str(bool_value)
-
-    def bool_retrieve(bool_str): return eval(bool_str)
-
-    sqlite3.register_adapter(bool, bool_adapt)
-    sqlite3.register_converter('bool', bool_retrieve)
-    with open(os.path.join(project_path, 'categories.json'), 'r') as file:
-        cat_json = json.load(file)
-    query_string = generate_insert_query('categories',
-                                         columns=CATEGORIES_COLUMNS)
-    conn = sqlite_connection(db_path, detect_types=sqlite3.PARSE_DECLTYPES)
-    for category_dict in cat_json['items']:
-        etag = category_dict['etag']
-        id_ = category_dict['id']
-        channel_id = category_dict['snippet']['channelId']
-        title = category_dict['snippet']['title']
-        assignable = category_dict['snippet']['assignable']
-        cur = conn.cursor()
-        cur.execute(query_string, (id_, channel_id, title, assignable, etag))
-        cur.close()
-
-    conn.commit()
-    conn.close()
-    
-    
-def insert_parent_topics(db_path):
-    from topics import topics_by_category
-
-    conn = sqlite_connection(db_path)
-    query_string = generate_insert_query('parent_topics',
-                                         columns=PARENT_TOPICS_COLUMNS)
-
-    for topic_dict in topics_by_category.values():
-        for k, v in topic_dict.items():
-            parent_topic_str = ' (parent topic)'
-            if parent_topic_str in v:
-                v = v.replace(parent_topic_str, '')
-                cur = conn.cursor()
-                cur.execute(query_string, (k, v))
-                cur.close()
-            break
-
-    conn.commit()
-    conn.close()
-
-
-def insert_sub_topics(db_path: str):
-    from topics import topics_by_category
-
-    conn = sqlite_connection(db_path)
-    query_string = generate_insert_query('topics',
-                                         columns=TOPICS_COLUMNS)
-
-    for topic_dict in topics_by_category.values():
-        parent_topic_str = ' (parent topic)'
-        parent_topic_name = None
-        for k, v in topic_dict.items():
-            if parent_topic_str in v:
-                parent_topic_name = k
-                continue
-            insert_tuple = (k, v, parent_topic_name)
-            cur = conn.cursor()
-            cur.execute(query_string, insert_tuple)
-            cur.close()
-
-    conn.commit()
-    conn.close()
-
-
-def drop_dynamic_tables(conn):
-    for table in TABLE_SCHEMAS:
-        if table not in ['categories', 'topics', 'parent_topics',
-                         'dead_videos']:
-            execute_query(conn, '''DROP TABLE IF EXISTS ''' + table)
-    conn.commit()
-    conn.close()
+def setup_db():
+    create_tables()
+    insert_or_update_categories()
+    insert_parent_topics()
+    insert_sub_topics()
 
 
 def test_it():
@@ -601,16 +607,3 @@ def test_it():
     cur.execute('create table a (b text, c text);')
     cur.execute('select * from a')
     print(cur.fetchall())
-
-
-if __name__ == '__main__':
-    test_db_path = r'G:\pyton\second_test.sqlite'
-    takeout_path = r'G:\pyton\youtube_watched_data\takeout_data'
-    # drop_dynamic_tables(sqlite3.Connection(test_db_path))
-    # create_all_tables(test_db_path)
-    # insert_categories(test_db_path, takeout_path[:takeout_path.rfind('\\')])
-    # insert_parent_topics(test_db_path)
-    # insert_sub_topics(test_db_path)
-    #
-    insert_videos(test_db_path,
-                  r'G:\pyton\youtube_watched_data\takeout_data')

@@ -2,5 +2,4 @@
 venv
 __pycache__
 client_secret.json
-a.py
 confidential.py

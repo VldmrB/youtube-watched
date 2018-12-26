@@ -17,13 +17,12 @@ for lgr_record in logging.Logger.manager.loggerDict:
             break
 
 
-API_SERVICE_NAME = 'youtube'
-YOUTUBE_API_VERSION = API_VERSION = 'v3'
+YOUTUBE_API_VERSION = 'v3'
 YOUTUBE_API_SERVICE_NAME = 'youtube'
 
 
 def get_api_auth(developer_key=DEVELOPER_KEY):
-    if not DEVELOPER_KEY:
+    if not developer_key:
         raise ValueError('Please provide an API key.')
     return build(YOUTUBE_API_SERVICE_NAME, YOUTUBE_API_VERSION,
                  developerKey=developer_key)
@@ -46,7 +45,8 @@ def get_video_info(video_id, api_auth):
         return False
 
 
-def get_categories_info(api_auth):
+def get_categories():
+    api_auth = get_api_auth()
     try:
         return api_auth.videoCategories().list(part='snippet',
                                                regionCode='US').execute()
@@ -63,7 +63,8 @@ def get_categories_info(api_auth):
 
 
 if __name__ == '__main__':
+
     from confidential import DEVELOPER_KEY
-    result = get_categories_info(get_api_auth(DEVELOPER_KEY))
+    result = get_categories()
     with open(r'G:\pyton\categories.json', 'w') as file:
         json.dump(result, file, indent=4)
