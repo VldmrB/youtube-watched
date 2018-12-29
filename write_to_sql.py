@@ -331,7 +331,7 @@ def add_dead_video(conn: sqlite3.Connection, video_id):
     return execute_query(conn, add_dead_video_query, (video_id,))
 
 
-def insert_or_update_categories():
+def insert_or_refresh_categories():
     def bool_adapt(bool_value: bool): return str(bool_value)
 
     sqlite3.register_adapter(bool, bool_adapt)
@@ -476,7 +476,7 @@ def insert_videos():
             api_requests_fails += 1
             add_failed_request(conn, video_id)
             logger.error(
-                f'Failed API request {rows_passed}, ID# {video_id}')
+                f'Failed API request, ID# {video_id}')
             # video is still inserted, as long as the minimum data necessary
             # is present (title), otherwise, when this is run again,
             # it will attempt to retrieve the data from API again and
@@ -596,7 +596,7 @@ def insert_videos():
 
 def setup_db():
     create_tables()
-    insert_or_update_categories()
+    insert_or_refresh_categories()
     insert_parent_topics()
     insert_sub_topics()
 

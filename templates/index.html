@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+
+{% block favicon_stylesheet %} {{ super() }} {% endblock %}
+{% block title %} Main Page {% endblock %}
+
+{% block body %}
+    {% include "create_dir_form.html" %}
+{% endblock %}

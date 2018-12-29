@@ -1,0 +1,19 @@
+#data_dir_clarification {
+    padding-bottom: 0.85em;}
+
+input:focus::-moz-placeholder{
+    opacity: 0.1;
+    transition: opacity 3s;
+
+}
+input:hover::-moz-placeholder{
+    opacity: 0.1;
+    transition: opacity 3s;
+}
+input::-moz-placeholder{
+    opacity: 0.7;
+}
+
+#data_dir_path {
+    font-weight: bold;
+    }
