@@ -1,8 +1,10 @@
 {% extends "base.html" %}
 
 {% block favicon_stylesheet %} {{ super() }} {% endblock %}
-{% block title %} Main Page {% endblock %}
+{% block title %} {{ super() }} {% endblock %}
 
 {% block body %}
-    {% include "create_dir_form.html" %}
+    {% include "data_dir_form.html" %}
+    {% include "profile_list.html" %}
+    {% include "profile_dir_form.html" %}
 {% endblock %}

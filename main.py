@@ -1,26 +1,17 @@
 import os
-import argparse
-from convert_takeout import get_all_records
+import json
 # import logging
 # from utils import logging_config
 # import write_to_sql
-
+from os.path import join
 from flask import Flask, render_template, url_for
 from flask import request, redirect, make_response, flash
 
-UPLOAD_FOLDER = 'files'
-ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif'}
-
+PROFILES_JSON = 'profiles.json'
 app = Flask(__name__)
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.secret_key = '23lkjhv9z8y$!gffflsa1g4[p[p]'
 
 flash_err = '<strong>Error:</strong>'
-
-
-def allowed_file(filename):
-    return '.' in filename and \
-           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
 @app.route('/')
@@ -31,10 +22,16 @@ def index():
     if not os.path.exists(path):
         flash(f'{flash_err} could not find directory {path}')
         resp = make_response(render_template('index.html', path=None))
-        # resp.set_cookie('data_dir', max_age=0)
-        print('What!')
         return resp
-    return render_template('index.html', path=path)
+    if not os.path.exists(join(path, PROFILES_JSON)):
+        with open(join(path, PROFILES_JSON), 'w') as file:
+            json.dump({'profiles': []}, file)
+            profiles = None
+    else:
+        with open(join(path, PROFILES_JSON), 'r') as file:
+            profiles = json.load(file)['profiles']
+
+    return render_template('index.html', path=path, profiles=profiles)
 
 
 @app.route('/create_data_dir', methods=['GET', 'POST'])
@@ -45,46 +42,51 @@ def setup_data_dir():
             return redirect(url_for('index'))
         try:
             os.makedirs(path, exist_ok=True)
-            os.chdir(path)
-            dirs_to_make = ['logs', 'graphs']
-            for dir_ in dirs_to_make:
-                try:
-                    os.mkdir(dir_)
-                except FileExistsError:
-                    pass
-            resp = make_response(redirect(url_for('index')))
-            if path:
-                resp.set_cookie('data_dir', path, max_age=31_536_000)
-            return resp
-
         except FileNotFoundError:
             raise
         except OSError:
             flash(f'{flash_err} invalid path.')
             return redirect(url_for('index'))
-
+        resp = make_response(redirect(url_for('index')))
+        if path:
+            resp.set_cookie('data_dir', path, max_age=31_536_000)
+            return resp
     return redirect(url_for('index'))
 
 
-def argparse_func():
-    engine = argparse.ArgumentParser()
-    parsers = engine.add_subparsers(title='Statistics',
-                                    help='Generates basic stats from data in '
-                                         'located watch-history.html file(s)')
+@app.route('/setup_profile_dir', methods=['GET', 'POST'])
+def setup_profile_dir():
+    if request.method == 'POST':
+        data_dir_path = request.cookies.get('data_dir')
+        path = request.form['text']
+        if not path:
+            return redirect(url_for('index'))
+        if os.sep in path:
+            path = path[path.rfind(os.sep)+1:]
+        with open(join(data_dir_path, PROFILES_JSON), 'r') as file:
+            profiles = json.load(file)
+            if path in profiles['profiles']:
+                flash(f'{flash_err} Profile \'{path}\' already exists.')
+                return redirect(url_for('index'))
+            else:
+                dirs_to_make = ['logs', 'graphs']
+                try:
+                    os.mkdir(join(data_dir_path, path))
+                    profiles['profiles'].append(path)
+                    with open(join(data_dir_path, PROFILES_JSON), 'w') as file:
+                        json.dump(profiles, file)
 
-    stat_p = parsers.add_parser('stats')
-    stat_p.set_defaults(func=get_all_records)
+                    for dir_ in dirs_to_make:
+                        os.mkdir(join(data_dir_path, path, dir_))
+                except FileExistsError:
+                    pass
+                except OSError:
+                    flash(f'{flash_err} invalid profile name')
+                    return redirect(url_for('index'))
 
-    stat_p.add_argument('--dir',
-                        help='directory with the watch-history.html file(s)')
-    stat_p.add_argument('-i', '--in-place', default=False, dest='write_changes',
-                        help='Trim unnecessary HTML from the found files for '
-                             'faster processing next time (no data is lost)')
-
-    if __name__ == '__main__':
-        pass
-        # args = engine.parse_args()
-        # args.func(args.dir, args.write_changes)
+                resp = make_response(redirect(url_for('index')))
+                resp.set_cookie('current_profile', path, max_age=31_536_000)
+                return resp
 
 
 if __name__ == '__main__':
