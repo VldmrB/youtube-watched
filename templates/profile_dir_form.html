@@ -1,0 +1,28 @@
+<div id="profile_dir_setup">
+    {% if not profiles %}
+        <div class="dir_clarification">
+            Add a profile.
+            <br>
+            All the data and configuration is stored per profile.
+        </div>
+    {% endif %}
+    <button id="show_profile_form_button"
+            style="display:inline" onclick="showForm()">Add another profile...</button>
+<!--todo continue here-->
+    <form id="profile_form"
+          style="display:none;"
+          action="{{ url_for('setup_profile_dir') }}"
+          method=post>
+        <input id="profile_dir_input" name=text placeholder="Profile name...">
+        <input type=submit value="Add">
+        <script>
+            document.getElementById('profile_dir_input').focus();
+        </script>
+    </form>
+    {% if not profiles %}
+        <script>
+            document.getElementById('profile_form').style.display = 'block';
+            document.getElementById('show_profile_form_button').style.display = 'none';
+        </script>
+    {% endif %}
+</div>

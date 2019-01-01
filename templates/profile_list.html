@@ -1,0 +1,10 @@
+{% if profiles %}
+    <div id="profiles">
+        Profiles:
+        <ul>
+            {% for profile in profiles %}
+                <li>{{ profile }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+{% endif %}

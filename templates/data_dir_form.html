@@ -1,0 +1,34 @@
+<div id="data_dir_setup">
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+                {% for message in messages %}
+                    {{ message| safe}}<br>
+                {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    {% if path %}
+        Data directory: <span id="data_dir_path">{{ path }}</span>
+        <button id="show_form_button"
+                style="display:inline" onclick="showForm()">Change...</button>
+        <form id="change_form"
+              style="display:none;"
+              action="{{ url_for('setup_data_dir') }}"
+              method=post
+              onsubmit="return confirm('Create new directory?\n
+              (The old one and its data will still be there)');">
+            <input id="data_dir_input" name=text placeholder="Directory path...">
+            <input type=submit value="Submit">
+        </form>
+    {% else %}
+        <div class="dir_clarification">
+            Create a data directory (or enter a previously created one).
+            <br>
+            Individual profiles will be stored within.
+        </div>
+        <form action="{{ url_for('setup_data_dir') }}" method=post>
+            <input name=text placeholder="Directory path...">
+            <input type=submit value="Create">
+        </form>
+    {% endif %}
+</div>

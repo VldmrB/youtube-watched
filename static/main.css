@@ -1,5 +1,7 @@
-#data_dir_clarification {
-    padding-bottom: 0.85em;}
+.dir_clarification {
+    margin-top: 0.85em;
+    margin-bottom: 0.85em;
+    }
 
 input:focus::-moz-placeholder{
     opacity: 0.1;
@@ -11,7 +13,7 @@ input:hover::-moz-placeholder{
     transition: opacity 3s;
 }
 input::-moz-placeholder{
-    opacity: 0.7;
+    opacity: 0.5;
 }
 
 #data_dir_path {
