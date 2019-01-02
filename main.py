@@ -30,6 +30,13 @@ def index():
     else:
         with open(join(path, PROFILES_JSON), 'r') as file:
             profiles = json.load(file)['profiles']
+            new_profiles = []
+            for profile in profiles:
+                if os.path.exists(join(path, profile)):
+                    new_profiles.append(profile)
+            if profiles != new_profiles:
+                with open(join(path, PROFILES_JSON), 'w') as profiles_file:
+                    json.dump(new_profiles, profiles_file)
 
     return render_template('index.html', path=path, profiles=profiles)
 
@@ -65,28 +72,29 @@ def setup_profile_dir():
             path = path[path.rfind(os.sep)+1:]
         with open(join(data_dir_path, PROFILES_JSON), 'r') as file:
             profiles = json.load(file)
-            if path in profiles['profiles']:
-                flash(f'{flash_err} Profile \'{path}\' already exists.')
+        if path in profiles['profiles']:
+            flash(f'{flash_err} Profile \'{path}\' already exists.')
+            return redirect(url_for('index'))
+        else:
+            dirs_to_make = ['logs', 'graphs']
+            try:
+                os.mkdir(join(data_dir_path, path))
+                profiles['profiles'].append(path)
+                with open(join(data_dir_path, PROFILES_JSON), 'w') as file:
+                    json.dump(profiles, file)
+
+                for dir_ in dirs_to_make:
+                    os.mkdir(join(data_dir_path, path, dir_))
+            except FileExistsError:
+                pass
+            except OSError:
+                flash(f'{flash_err} invalid profile name')
                 return redirect(url_for('index'))
-            else:
-                dirs_to_make = ['logs', 'graphs']
-                try:
-                    os.mkdir(join(data_dir_path, path))
-                    profiles['profiles'].append(path)
-                    with open(join(data_dir_path, PROFILES_JSON), 'w') as file:
-                        json.dump(profiles, file)
 
-                    for dir_ in dirs_to_make:
-                        os.mkdir(join(data_dir_path, path, dir_))
-                except FileExistsError:
-                    pass
-                except OSError:
-                    flash(f'{flash_err} invalid profile name')
-                    return redirect(url_for('index'))
-
-                resp = make_response(redirect(url_for('index')))
-                resp.set_cookie('current_profile', path, max_age=31_536_000)
-                return resp
+            resp = make_response(redirect(url_for('index')))
+            resp.set_cookie('current_profile', path, max_age=31_536_000)
+            return resp
+    return redirect(url_for('index'))
 
 
 if __name__ == '__main__':
