@@ -10,7 +10,10 @@
     {% if path %}
         Data directory: <span id="data_dir_path">{{ path }}</span>
         <button id="show_form_button"
-                style="display:inline" onclick="showForm()">Change...</button>
+                data-toggle="collapse" data-target="#collapseOne">
+                <!--style="display:inline"-->
+                <!--onclick="showDataDirForm()">Change...-->
+        </button>
         <form id="change_form"
               style="display:none;"
               action="{{ url_for('setup_data_dir') }}"
