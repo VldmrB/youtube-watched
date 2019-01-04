@@ -1,0 +1,37 @@
+<div id="profile_dir_setup">
+    <div class="dir_clarification">
+        {% if not profiles %}
+                Add a profile.
+                <br>
+                All the data and configuration is stored per profile.
+        {% else %}
+            Profile: <span class="path">{{ cur_profile }}</span>
+            <button id="show_profile_form_button" class="btn btn-outline-primary btn-sm"
+                    data-target="#profile_form"
+                    data-toggle="collapse">Change...</button>
+            <script>
+    var show_button = $("#show_profile_form_button");
+    show_button.on(
+        "click",
+        function(){if (show_button.html() == 'Change...') {$.ajax("{{ url_for('profiles') }}").done(function(profiles) {$("#profile_dir_setup").append(profiles);})}})
+            </script>
+        {% endif %}
+    </div>
+    <form id="profile_form"
+          class="collapse"
+          action="{{ url_for('setup_profile_dir') }}"
+          method=post>
+        <input id="profile_dir_input" name="profile"
+               placeholder="Profile name...">
+        <input type=submit value="Add">
+        <script>
+            document.getElementById('profile_dir_input').focus();
+        </script>
+    </form>
+    {% if not profiles %}
+        <script>
+            document.getElementById('profile_form').style.display = 'block';
+            document.getElementById('show_profile_form_button').style.display = 'none';
+        </script>
+    {% endif %}
+</div>
