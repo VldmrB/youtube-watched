@@ -16,6 +16,7 @@ input::-moz-placeholder{
     opacity: 0.5;
 }
 
-#data_dir_path {
+.path {
     font-weight: bold;
+    padding-right: 0.3em;
     }

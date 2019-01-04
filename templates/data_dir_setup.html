@@ -1,0 +1,50 @@
+<div id="data_dir_setup">
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+                {% for message in messages %}
+                    {{ message| safe}}<br>
+                {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <form id="data_dir_form"
+          class="collapse"
+          action="{{ url_for('setup_data_dir') }}"
+          method=post
+          onsubmit="return confirm('Create new directory?\n
+              (The old one and its data will still be there)');">
+        <input id="data_dir_input" name="data_dir"
+               placeholder="Directory path...">
+        <input type=submit value="Submit">
+    </form>
+    {% if path %}
+        <div class="dir_clarification">
+            Data directory: <span class="path">{{ path }}</span>
+            <button id="show_form_button" class="btn btn-outline-primary btn-sm"
+                    data-toggle="collapse" data-target="#data_dir_form">Change...</button>
+        </div>
+        <script>
+                var show_btn = $("#show_form_button");
+                show_btn.on(
+                    'click',
+                    function(){if (show_btn.html() == 'Change...') {
+                                   show_btn.html('Cancel');
+                                   setTimeout(
+                                       function(){$("#data_dir_input").focus()}, 1);}
+                               else {
+                                   show_btn.html('Change...')}
+                               });
+        </script>
+    {% else %}
+        <div class="dir_clarification">
+            Create a data directory (or enter a previously created one).
+            <br>
+            Individual profiles will be stored within.
+            <script>
+                //showDataDirForm();
+                $("#data_dir_form").removeAttr('class');
+                $("#data_dir_form input[type='text']")[0].focus();
+            </script>
+        </div>
+    {% endif %}
+</div>

@@ -4,7 +4,8 @@
 {% block title %} {{ super() }} {% endblock %}
 
 {% block body %}
-    {% include "data_dir_form.html" %}
-    {% include "profile_list.html" %}
-    {% include "profile_dir_form.html" %}
+    {% include "data_dir_setup.html" %}
+    {% if path %}
+        {% include "profile_setup.html" %}
+    {% endif %}
 {% endblock %}

@@ -21,30 +21,34 @@ def index():
         return render_template('index.html', path=path)
     if not os.path.exists(path):
         flash(f'{flash_err} could not find directory {path}')
-        resp = make_response(render_template('index.html', path=None))
-        return resp
+        return render_template('index.html')
     if not os.path.exists(join(path, PROFILES_JSON)):
         with open(join(path, PROFILES_JSON), 'w') as file:
-            json.dump({'profiles': []}, file)
-            profiles = None
+            json.dump([], file)
+        return render_template('index.html', path=path)
     else:
+        cur_profile = request.cookies.get('current_profile')
         with open(join(path, PROFILES_JSON), 'r') as file:
-            profiles = json.load(file)['profiles']
-            new_profiles = []
-            for profile in profiles:
+            profiles_list = json.load(file)
+            new_profiles_list = []
+            for profile in profiles_list:
                 if os.path.exists(join(path, profile)):
-                    new_profiles.append(profile)
-            if profiles != new_profiles:
+                    new_profiles_list.append(profile)
+            if profiles_list != new_profiles_list:
+                profiles_list = new_profiles_list
                 with open(join(path, PROFILES_JSON), 'w') as profiles_file:
-                    json.dump(new_profiles, profiles_file)
+                    json.dump(profiles_list, profiles_file)
+                if cur_profile not in profiles_list:
+                    flash(f'{flash_err} could not find profile {cur_profile}')
 
-    return render_template('index.html', path=path, profiles=profiles)
+        return render_template('index.html', path=path, profiles=profiles_list,
+                               cur_profile=cur_profile)
 
 
 @app.route('/create_data_dir', methods=['GET', 'POST'])
 def setup_data_dir():
     if request.method == 'POST':
-        path = request.form['text']
+        path = request.form['data_dir']
         if not path:
             return redirect(url_for('index'))
         try:
@@ -57,6 +61,7 @@ def setup_data_dir():
         resp = make_response(redirect(url_for('index')))
         if path:
             resp.set_cookie('data_dir', path, max_age=31_536_000)
+            # flash(f'Data directory set to {path}')
             return resp
     return redirect(url_for('index'))
 
@@ -65,23 +70,23 @@ def setup_data_dir():
 def setup_profile_dir():
     if request.method == 'POST':
         data_dir_path = request.cookies.get('data_dir')
-        path = request.form['text']
+        path = request.form['profile']
         if not path:
             return redirect(url_for('index'))
         if os.sep in path:
             path = path[path.rfind(os.sep)+1:]
         with open(join(data_dir_path, PROFILES_JSON), 'r') as file:
-            profiles = json.load(file)
-        if path in profiles['profiles']:
+            profiles_list = json.load(file)
+        if path in profiles_list:
             flash(f'{flash_err} Profile \'{path}\' already exists.')
             return redirect(url_for('index'))
         else:
             dirs_to_make = ['logs', 'graphs']
             try:
                 os.mkdir(join(data_dir_path, path))
-                profiles['profiles'].append(path)
+                profiles_list.append(path)
                 with open(join(data_dir_path, PROFILES_JSON), 'w') as file:
-                    json.dump(profiles, file)
+                    json.dump(profiles_list, file)
 
                 for dir_ in dirs_to_make:
                     os.mkdir(join(data_dir_path, path, dir_))
@@ -95,6 +100,22 @@ def setup_profile_dir():
             resp.set_cookie('current_profile', path, max_age=31_536_000)
             return resp
     return redirect(url_for('index'))
+
+
+@app.route('/profiles')
+def profiles():
+    data_dir = request.cookies.get('data_dir')
+    try:
+        with open(join(data_dir, PROFILES_JSON), 'r') as file:
+            results = json.load(file)
+            if results:
+                profiles_list = results
+            else:
+                profiles_list = None
+    except FileNotFoundError:
+        profiles_list = None
+
+    return render_template('profile_list.html', profiles=profiles_list)
 
 
 if __name__ == '__main__':
