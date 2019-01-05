@@ -4,8 +4,112 @@
 {% block title %} {{ super() }} {% endblock %}
 
 {% block body %}
-    {% include "data_dir_setup.html" %}
-    {% if path %}
-        {% include "profile_setup.html" %}
-    {% endif %}
+    <div id="data_dir_setup">
+        {% with messages = get_flashed_messages() %} {% if messages %}
+                    {% for message in messages %}
+                        <div>{{ message| safe}}</div>
+                    {% endfor %}
+            {% endif %} {% endwith %}
+        <div class="dir_clarification">
+            {% if path %}
+                Data directory: <span class="path">{{ path }}</span>
+                <button id="show_data_form_button"
+                        class="btn btn-outline-primary btn-sm shw-btn"
+                        data-toggle="collapse"
+                        data-target="#data_dir_form">Change...</button>
+            {% else %}
+                Create a data directory (or enter a previously created one).
+                <br>
+                Individual profiles will be stored within.
+            {% endif %}
+            <form id="data_dir_form"
+                  class="collapse"
+                  action="{{ url_for('setup_data_dir') }}"
+                  method=post
+                  onsubmit="return confirm('Create new directory?\
+                        \n(The old one and its data will still be there)');">
+                <input id="data_dir_input" name="data_dir"
+                       placeholder="Directory path..." required>
+                <input type=submit value="Submit">
+            </form>
+            <script>
+                {% if path %}
+                    var show_btn = $("#show_data_form_button");
+                    show_btn.on(
+                        'click',
+                        function(){
+                            if (show_btn.html() == 'Change...') {
+                                show_btn.html('Cancel');
+                                setTimeout(
+                                    function(){$("#data_dir_input").focus()}, 1);}
+                            else {
+                                show_btn.html('Change...')}
+                            });
+                {% else %}
+                    $("#data_dir_form").removeClass('collapse');
+                    $("#data_dir_form input[name='data_dir']")[0].focus();
+                {% endif %}
+            </script>
+        </div>
+    </div>
+        {% if path %}
+            <div id="profile_dir_setup">
+                <div class="dir_clarification">
+                    {% if not profiles %}
+                        Add a profile.
+                        <br>
+                        All the data and configuration is stored per profile.
+                    {% elif not cur_profile %}
+                        Choose a profile or create a new one:
+                        <script>
+                            var profile_div = $("#profile_dir_setup");
+                            $.ajax("{{ url_for('profiles') }}").done(
+                                function(profiles) {
+                                    profile_div.append(profiles);
+                                    show_button.html('Cancel');
+                                    });
+                        </script>
+                    {% else %}
+                        Profile: <span class="path">{{ cur_profile }}</span>
+                        <button id="show_profile_form_button"
+                                class="btn btn-outline-primary btn-sm shw-btn"
+                                data-target="#profile_form"
+                                data-toggle="collapse">Change...</button>
+                        <script>
+                            var show_button = $("#show_profile_form_button");
+                            var profile_div = $("#profile_dir_setup");
+                            show_button.on(
+                                "click",
+                                function(){
+                                    if (show_button.html() == 'Change...') {
+                                        $.ajax("{{ url_for('profiles') }}").done(
+                                            function(profiles) {
+                                                profile_div.append(profiles);
+                                                show_button.html('Cancel');})}
+                                    else {
+                                        show_button.html('Change...');
+                                        $("#profiles").remove();
+                            }})
+                        </script>
+                    {% endif %}
+                </div>
+                <form id="profile_form"
+                      class="collapse"
+                      action="{{ url_for('setup_profile_dir') }}"
+                      method=post>
+                    <input id="profile_dir_input" name="profile"
+                           placeholder="Profile name..." required>
+                    <input type=submit value="Add">
+                    <script>
+                        document.getElementById('profile_dir_input').focus();
+                    </script>
+                </form>
+                {% if not profiles or not cur_profile %}
+                    <script>
+                        $("#profile_form").css("display", "block");
+                        $("#show_profile_form_button").css("display", "none");
+                    </script>
+                {% endif %}
+            </div>
+        {% endif %}
 {% endblock %}
