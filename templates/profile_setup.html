@@ -6,14 +6,24 @@
                 All the data and configuration is stored per profile.
         {% else %}
             Profile: <span class="path">{{ cur_profile }}</span>
-            <button id="show_profile_form_button" class="btn btn-outline-primary btn-sm"
+            <button id="show_profile_form_button"
+                    class="btn btn-outline-primary btn-sm"
                     data-target="#profile_form"
                     data-toggle="collapse">Change...</button>
             <script>
-    var show_button = $("#show_profile_form_button");
-    show_button.on(
-        "click",
-        function(){if (show_button.html() == 'Change...') {$.ajax("{{ url_for('profiles') }}").done(function(profiles) {$("#profile_dir_setup").append(profiles);})}})
+                var show_button = $("#show_profile_form_button");
+                var profile_div = $("#profile_dir_setup");
+                show_button.on(
+                    "click",
+                    function(){
+                        if (show_button.html() == 'Change...') {
+                            $.ajax("{{ url_for('profiles') }}").done(
+                                function(profiles) {profile_div.append(profiles);
+                                show_button.html('Cancel');})}
+                        else {
+                            show_button.html('Change...');
+                            $("#profiles").remove();
+                        }});
             </script>
         {% endif %}
     </div>
@@ -30,8 +40,8 @@
     </form>
     {% if not profiles %}
         <script>
-            document.getElementById('profile_form').style.display = 'block';
-            document.getElementById('show_profile_form_button').style.display = 'none';
+            $("#profile_form").css("display", "block");
+            $("#show_profile_form_button").css("display", "none");
         </script>
     {% endif %}
 </div>
