@@ -4,11 +4,13 @@
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <link rel="stylesheet" href="{{ url_for('static', filename='bootstrap-4.2.1.min.css') }}">
+        <!--<link href="{{ url_for('static', filename='fontawesome-free-5.6.3-web/css/all.css') }}" rel="stylesheet">-->
         <link rel="stylesheet" href="{{ url_for('static', filename='main.css') }}">
         <link rel="icon" href="{{ url_for('static', filename='favicon.png') }}">
         <script src="{{ url_for('static', filename='jquery-3.3.1.min.js') }}"></script>
         <script src="{{ url_for('static', filename='popper-1.14.6.umd.min.js') }}" async></script>
         <script src="{{ url_for('static', filename='bootstrap-4.2.1.min.js') }}" async></script>
+        <script src="{{ url_for('static', filename='fontawesome-free-5.6.3-web/js/all.js') }}" async></script>
         <title>
             {% block title %}Youtube Data Analysis{% endblock %}
         </title>

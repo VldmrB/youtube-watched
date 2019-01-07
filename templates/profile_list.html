@@ -1,10 +1,47 @@
 {% if profiles %}
+    <script>
+          function renameProfile(profile_entry){
+              var inputField = document.querySelector("#" + profile_entry + " input");
+              inputField.setAttribute("type", "text");
+              inputField.focus();
+          };
+    </script>
     <div id="profiles">
-        Profiles:
-        <ul>
-            {% for profile in profiles %}
-                <li>{{ profile }}</li>
-            {% endfor %}
-        </ul>
+        Existing profiles:
+        {% for profile_entry in profiles %}
+            <form id="{{ profile_entry }}" class="profile_listing form-inline"
+                  action="{{ url_for('manage_profile') }}"
+                  method=post>
+                <div class="col-md-3">
+                    <div class="prf-lst-prf-name">{{ profile_entry }}</div>
+                    <button class="btn btn-outline-success btn-sm shw-btn" name="set_active"
+                            value="{{ profile_entry }}" type="submit">Activate</button>
+                    <script>
+                        var cur_profile = $("#cur-prf").html();
+                        var profile_entry = "{{ profile_entry }}";
+                        if (cur_profile === profile_entry) {
+                            console.log(profile_entry + ' ' + cur_profile);
+                            var renameButtonOfActiveProfile = $("button[value=" + profile_entry + "][name='set_active']");
+                            console.log(renameButtonOfActiveProfile);
+                            renameButtonOfActiveProfile.attr('disabled', true);
+                            renameButtonOfActiveProfile.removeClass('btn-outline-success');
+                            renameButtonOfActiveProfile.addClass('btn-success');
+                            renameButtonOfActiveProfile.attr('title', 'This profile is currently active');
+                            renameButtonOfActiveProfile.html('Active');
+                            renameButtonOfActiveProfile.width(49); // width of a button that reads 'Activate'
+                            renameButtonOfActiveProfile.css('opacity', 1);
+                            }
+                    </script>
+                    <input class="form-control" type="hidden" placeholder="New name...">
+                    <button class="btn btn-outline-primary btn-sm shw-btn" name="rename"
+                            value="{{ profile_entry }}" type="button"
+                            onclick="renameProfile('{{ profile_entry }}');">Rename</button>
+                    <button class="btn btn-outline-danger btn-sm shw-btn" name="delete"
+                            value="{{ profile_entry }}" type="submit"
+                            onclick="return confirm('All the contents of the profile will be deleted.');"
+                            >Delete</button>
+                </div>
+            </form>
+        {% endfor %}
     </div>
 {% endif %}

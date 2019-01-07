@@ -4,57 +4,64 @@
 {% block title %} {{ super() }} {% endblock %}
 
 {% block body %}
-    <div id="data_dir_setup">
+    <div id="data-dir-setup">
         {% with messages = get_flashed_messages() %} {% if messages %}
                     {% for message in messages %}
                         <div>{{ message| safe}}</div>
                     {% endfor %}
             {% endif %} {% endwith %}
-        <div class="dir_clarification">
+        <div class="dir-clarification">
             {% if path %}
-                Data directory: <span class="path">{{ path }}</span>
-                <button id="show_data_form_button"
+                Data directory: <span id="data-dir-path" class="path">{{ path }}</span>
+                <button id="show-data-form-button"
                         class="btn btn-outline-primary btn-sm shw-btn"
                         data-toggle="collapse"
-                        data-target="#data_dir_form">Change...</button>
+                        data-target="#data-dir-form">Change...</button>
             {% else %}
                 Create a data directory (or enter a previously created one).
                 <br>
                 Individual profiles will be stored within.
             {% endif %}
-            <form id="data_dir_form"
-                  class="collapse"
-                  action="{{ url_for('setup_data_dir') }}"
-                  method=post
-                  onsubmit="return confirm('Create new directory?\
-                        \n(The old one and its data will still be there)');">
-                <input id="data_dir_input" name="data_dir"
-                       placeholder="Directory path..." required>
-                <input type=submit value="Submit">
+            <form id="data-dir-form" class="collapse form-inline" action="{{ url_for('setup_data_dir') }}" method=post>
+                <div id="da" class="col-md-3">
+                    <input id="data-dir-input" class="form-control" name="data-dir"
+                           placeholder="Directory path..." required>
+                    <input class="form-control" type="submit" value="Submit">
+                </div>
             </form>
             <script>
                 {% if path %}
-                    var show_btn = $("#show_data_form_button");
+                    var newDir = $("#data-dir-form");
+                        $("#data-dir-form").on("submit", function(event){
+                            var newDirValue = $("#data-dir-input").val();
+                            if (newDirValue != $("#data-dir-path").html()) {
+                                confirm('Switch to ' + newDirValue + '?\nThe old one and its data will still be there.')
+                            } else {
+                                event.preventDefault();
+                                newDir.append($("<span>Already set to this directory</span>").css('color', 'red'));
+                            }
+                        });
+                    var show_btn = $("#show-data-form-button");
                     show_btn.on(
                         'click',
                         function(){
                             if (show_btn.html() == 'Change...') {
                                 show_btn.html('Cancel');
                                 setTimeout(
-                                    function(){$("#data_dir_input").focus()}, 1);}
+                                    function(){$("#data-dir-input").focus()}, 1);}
                             else {
                                 show_btn.html('Change...')}
                             });
                 {% else %}
-                    $("#data_dir_form").removeClass('collapse');
+                    $("#data-dir-form").removeClass('collapse');
                     $("#data_dir_form input[name='data_dir']")[0].focus();
                 {% endif %}
             </script>
         </div>
     </div>
         {% if path %}
-            <div id="profile_dir_setup">
-                <div class="dir_clarification">
+            <div id="profile-dir-setup">
+                <div class="dir-clarification">
                     {% if not profiles %}
                         Add a profile.
                         <br>
@@ -62,7 +69,7 @@
                     {% elif not cur_profile %}
                         Choose a profile or create a new one:
                         <script>
-                            var profile_div = $("#profile_dir_setup");
+                            var profile_div = $("#profile-dir-setup");
                             $.ajax("{{ url_for('profiles') }}").done(
                                 function(profiles) {
                                     profile_div.append(profiles);
@@ -70,14 +77,15 @@
                                     });
                         </script>
                     {% else %}
-                        Profile: <span class="path">{{ cur_profile }}</span>
-                        <button id="show_profile_form_button"
+                        Current profile:
+                        <span id="cur-prf" class="path">{{ cur_profile }}</span>
+                        <button id="show-profile-form-button"
                                 class="btn btn-outline-primary btn-sm shw-btn"
-                                data-target="#profile_form"
+                                data-target="#profile-form"
                                 data-toggle="collapse">Change...</button>
                         <script>
-                            var show_button = $("#show_profile_form_button");
-                            var profile_div = $("#profile_dir_setup");
+                            var show_button = $("#show-profile-form-button");
+                            var profile_div = $("#profile-dir-setup");
                             show_button.on(
                                 "click",
                                 function(){
@@ -93,21 +101,23 @@
                         </script>
                     {% endif %}
                 </div>
-                <form id="profile_form"
+                <form id="profile-form"
                       class="collapse"
                       action="{{ url_for('setup_profile_dir') }}"
                       method=post>
-                    <input id="profile_dir_input" name="profile"
+                    <input id="profile-dir-input" name="profile"
                            placeholder="Profile name..." required>
-                    <input type=submit value="Add">
+                    <button type=submit style="background-color:white;border:none" value="Add">
+                        <span class="fas fa-plus" style="color:green;"></span>
+                    </button>
                     <script>
                         document.getElementById('profile_dir_input').focus();
                     </script>
                 </form>
                 {% if not profiles or not cur_profile %}
                     <script>
-                        $("#profile_form").css("display", "block");
-                        $("#show_profile_form_button").css("display", "none");
+                        $("#profile-form").css("display", "block");
+                        $("#show-profile-form-button").css("display", "none");
                     </script>
                 {% endif %}
             </div>
