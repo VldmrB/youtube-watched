@@ -140,3 +140,13 @@ def sqlite_connection(db_path: str, **kwargs) -> sqlite3.Connection:
     conn.commit()
     cur.close()
     return conn
+
+
+def load_file(path: str):
+    with open(path, 'r') as file:
+        return file.read()
+
+
+def write_to_file(path: str, content):
+    with open(path, 'r') as file:
+        file.write(content)

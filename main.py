@@ -1,8 +1,10 @@
 import os
+import shutil
 import json
 # import logging
 # from utils import logging_config
 # import write_to_sql
+from utils import load_file
 from os.path import join
 from flask import Flask, render_template, url_for
 from flask import request, redirect, make_response, flash
@@ -107,6 +109,39 @@ def setup_profile_dir():
             except OSError:
                 flash(f'{flash_err} {strong(path)} is not a valid profile name')
     return redirect(url_for('index'))
+
+
+@app.route('/manage_profile', methods=['POST'])
+def manage_profile():
+    if request.method == 'POST':
+        data_dir_path = request.cookies.get('data_dir')
+        for possible_action in ['rename', 'delete', 'set_active']:
+            action = possible_action
+            profile_path = request.form.get(action)
+            print(profile_path)
+            if profile_path:
+                break
+        profiles_path = join(data_dir_path, PROFILES_JSON)
+        if action == 'delete':
+            shutil.rmtree(join(data_dir_path, profile_path))
+            profiles_dict = json.loads(load_file(profiles_path))
+            profiles_dict['profiles'].remove(profile_path)
+            with open(profiles_path, 'w') as file:
+                json.dump(profiles_dict, file)
+            return redirect(url_for('index'))
+        # elif action == 'rename':
+        #     profiles_dict = json.loads(load_file(profiles_path))
+        #     profiles_dict.pop(request)
+        #     write_to_file(profiles_path, profiles_dict)
+        elif action == 'set_active':
+            print('Activated')
+            profiles_dict = json.loads(load_file(profiles_path))
+            profiles_dict['current_profile'] = profile_path
+            with open(profiles_path, 'w') as file:
+                json.dump(profiles_dict, file)
+            return redirect(url_for('index'))
+
+    return '', 204
 
 
 @app.route('/profiles')
