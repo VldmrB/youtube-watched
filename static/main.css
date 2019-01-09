@@ -11,6 +11,10 @@
 .prf-lst-prf-name {
     display: inline-block;
     margin-right: 0.5em;
-    width:60px;
+    width: 60px;
     font-weight: bold;
 }
+
+.rnm-sbmt {
+    display: none;
+    }

@@ -4,7 +4,7 @@
 {% block title %} {{ super() }} {% endblock %}
 
 {% block body %}
-    <div id="data-dir-setup">
+    <div id="project-dir-setup">
         {% with messages = get_flashed_messages() %} {% if messages %}
                     {% for message in messages %}
                         <div>{{ message| safe}}</div>
@@ -12,114 +12,66 @@
             {% endif %} {% endwith %}
         <div class="dir-clarification">
             {% if path %}
-                Data directory: <span id="data-dir-path" class="path">{{ path }}</span>
-                <button id="show-data-form-button"
+                Data directory: <span id="project-dir-path" class="path">{{ path }}</span>
+                <button id="show-project-form-button"
                         class="btn btn-outline-primary btn-sm shw-btn"
                         data-toggle="collapse"
-                        data-target="#data-dir-form">Change...</button>
+                        data-target="#project-dir-form">Change...</button>
             {% else %}
-                Create a data directory (or enter a previously created one).
-                <br>
-                Individual profiles will be stored within.
+                Create a project directory (or enter a previously created one).
             {% endif %}
-            <form id="data-dir-form" class="collapse form-inline" action="{{ url_for('setup_data_dir') }}" method=post>
-                <div id="da" class="col-md-3">
-                    <input id="data-dir-input" class="form-control" name="data-dir"
-                           placeholder="Directory path..." required>
+            <form id="project-dir-form" class="collapse form-inline"
+                  action="{{ url_for('setup_project_dir') }}" method=post>
+                <div id="project-dir-input-group" class="col-md-3">
+                    <input id="project-dir-input" class="form-control" name="project-dir"
+                           placeholder="Directory path..." pattern="[^/?<>|*]+" required>
                     <input class="form-control" type="submit" value="Submit">
                 </div>
             </form>
             <script>
+                var projectDirInput = document.querySelector("#project-dir-input");
+                projectDirInput.addEventListener(
+                    "invalid",
+                    function() {
+                        if (projectDirInput.value != "") {
+                            projectDirInput.setCustomValidity(
+                                "Characters \/?<>|*\" are not allowed.");
+                    }})
+                projectDirInput.addEventListener(
+                    "input",
+                    function(){ projectDirInput.setCustomValidity(""); });
+                document.getElementById('project-dir-input').focus();
                 {% if path %}
-                    var newDir = $("#data-dir-form");
-                        $("#data-dir-form").on("submit", function(event){
-                            var newDirValue = $("#data-dir-input").val();
-                            if (newDirValue != $("#data-dir-path").html()) {
+                        $("#project-dir-form").on("submit", function(event){
+                            var newDirValue = $("#project-dir-input").val();
+                            if (newDirValue != $("#project-dir-path").html()) {
                                 confirm('Switch to ' + newDirValue + '?\nThe old one and its data will still be there.')
                             } else {
+                                var dirInputGroup = $("#project-dir-input-group");
                                 event.preventDefault();
-                                newDir.append($("<span>Already set to this directory</span>").css('color', 'red'));
+                                if (dirInputGroup.children().length == 2) {
+                                    var sameDirError = $("<div>Already set to this directory</div>").css('color', 'red');
+                                    dirInputGroup.append(sameDirError);
+                                    setTimeout(function(){ sameDirError.remove(); }, 2000);
+                                }
                             }
                         });
-                    var show_btn = $("#show-data-form-button");
+                    var show_btn = $("#show-project-form-button");
                     show_btn.on(
                         'click',
                         function(){
                             if (show_btn.html() == 'Change...') {
                                 show_btn.html('Cancel');
                                 setTimeout(
-                                    function(){$("#data-dir-input").focus()}, 1);}
+                                    function(){$("#project-dir-input").focus()}, 1);}
                             else {
                                 show_btn.html('Change...')}
                             });
                 {% else %}
-                    $("#data-dir-form").removeClass('collapse');
-                    $("#data_dir_form input[name='data_dir']")[0].focus();
+                    $("#project-dir-form").removeClass('collapse');
+                    $("#project-dir-form input[name='project-dir']")[0].focus();
                 {% endif %}
             </script>
         </div>
     </div>
-        {% if path %}
-            <div id="profile-dir-setup">
-                <div class="dir-clarification">
-                    {% if not profiles %}
-                        Add a profile.
-                        <br>
-                        All the data and configuration is stored per profile.
-                    {% elif not cur_profile %}
-                        Choose a profile or create a new one:
-                        <script>
-                            var profile_div = $("#profile-dir-setup");
-                            $.ajax("{{ url_for('profiles') }}").done(
-                                function(profiles) {
-                                    profile_div.append(profiles);
-                                    show_button.html('Cancel');
-                                    });
-                        </script>
-                    {% else %}
-                        Current profile:
-                        <span id="cur-prf" class="path">{{ cur_profile }}</span>
-                        <button id="show-profile-form-button"
-                                class="btn btn-outline-primary btn-sm shw-btn"
-                                data-target="#profile-form"
-                                data-toggle="collapse">Change...</button>
-                        <script>
-                            var show_button = $("#show-profile-form-button");
-                            var profile_div = $("#profile-dir-setup");
-                            show_button.on(
-                                "click",
-                                function(){
-                                    if (show_button.html() == 'Change...') {
-                                        $.ajax("{{ url_for('profiles') }}").done(
-                                            function(profiles) {
-                                                profile_div.append(profiles);
-                                                show_button.html('Cancel');})}
-                                    else {
-                                        show_button.html('Change...');
-                                        $("#profiles").remove();
-                            }})
-                        </script>
-                    {% endif %}
-                </div>
-                <form id="profile-form"
-                      class="collapse"
-                      action="{{ url_for('setup_profile_dir') }}"
-                      method=post>
-                    <input id="profile-dir-input" name="profile"
-                           placeholder="Profile name..." required>
-                    <button type=submit style="background-color:white;border:none" value="Add">
-                        <span class="fas fa-plus" style="color:green;"></span>
-                    </button>
-                    <script>
-                        document.getElementById('profile_dir_input').focus();
-                    </script>
-                </form>
-                {% if not profiles or not cur_profile %}
-                    <script>
-                        $("#profile-form").css("display", "block");
-                        $("#show-profile-form-button").css("display", "none");
-                    </script>
-                {% endif %}
-            </div>
-        {% endif %}
 {% endblock %}
