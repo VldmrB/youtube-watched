@@ -23,42 +23,20 @@ def strong(text):
 
 @app.route('/')
 def index():
-    path = request.cookies.get('data_dir')
+    path = request.cookies.get('project-dir')
     if not path:
-        return render_template('index.html', path=path)
-    if not os.path.exists(path):
+        return render_template('index.html')
+    elif not os.path.exists(path):
         flash(f'{flash_err} could not find directory {strong(path)}')
         return render_template('index.html')
-    if not os.path.exists(join(path, PROFILES_JSON)):
-        with open(join(path, PROFILES_JSON), 'w') as file:
-            json.dump({'profiles': [], 'current_profile': ''}, file)
-        return render_template('index.html', path=path)
-    else:
-        with open(join(path, PROFILES_JSON), 'r') as file:
-            profiles_dict = json.load(file)
-            cur_profile = profiles_dict.get('current_profile', None)
-            new_profiles_list = []
-            for profile in profiles_dict['profiles']:
-                if os.path.exists(join(path, profile)):
-                    new_profiles_list.append(profile)
-            if profiles_dict['profiles'] != new_profiles_list:
-                profiles_dict['profiles'] = new_profiles_list
-                with open(join(path, PROFILES_JSON), 'w') as profiles_file:
-                    json.dump(profiles_dict, profiles_file)
-            if cur_profile and cur_profile not in profiles_dict['profiles']:
-                flash(f'{flash_err} could not find profile '
-                      f'{strong(cur_profile)}')
-                cur_profile = None
 
-        return render_template('index.html', path=path,
-                               profiles=profiles_dict['profiles'],
-                               cur_profile=cur_profile)
+    return render_template('index.html', path=path)
 
 
-@app.route('/create_data_dir', methods=['POST'])
-def setup_data_dir():
+@app.route('/create_project_dir', methods=['POST'])
+def setup_project_dir():
     if request.method == 'POST':
-        path = request.form['data_dir']
+        path = request.form['project-dir']
         try:
             os.makedirs(path, exist_ok=True)
         except FileNotFoundError:
@@ -68,102 +46,24 @@ def setup_data_dir():
             return redirect(url_for('index'))
         resp = make_response(redirect(url_for('index')))
         if path:
-            resp.set_cookie('data_dir', path, max_age=31_536_000)
-            return resp
-    return redirect(url_for('index'))
-
-
-@app.route('/setup_profile_dir', methods=['POST'])
-def setup_profile_dir():
-    if request.method == 'POST':
-        data_dir_path = request.cookies.get('data_dir')
-        path = request.form['profile']
-        if os.sep in path:
-            path = path[path.rfind(os.sep)+1:]
-        with open(join(data_dir_path, PROFILES_JSON), 'r') as file:
-            profiles_dict = json.load(file)
-        if path in profiles_dict['profiles']:
-            flash(f'{flash_note} switched to profile {strong(path)}')
-            profiles_dict['current_profile'] = path
-            with open(join(data_dir_path, PROFILES_JSON), 'w') as file:
-                json.dump(profiles_dict, file)
-        else:
             dirs_to_make = ['logs', 'graphs']
-            full_path = join(data_dir_path, path)
             try:
-                # necessary in case user mistakenly deletes/removes a profile,
-                # then manually adds it back. Otherwise, will throw
-                # FileExistsError out before registering the profile in
-                # profiles.json (thus causing the profile to never show up in
-                # the app) and do that ad infinitum
-                if not os.path.exists(full_path):
-                    os.mkdir(full_path)
-                profiles_dict['profiles'].append(path)
-                profiles_dict['current_profile'] = path
-                with open(join(data_dir_path, PROFILES_JSON), 'w') as file:
-                    json.dump(profiles_dict, file)
+                if not os.path.exists(path):
+                    os.mkdir(path)
                 for dir_ in dirs_to_make:
-                    os.mkdir(join(full_path, dir_))
+                    os.mkdir(join(path, dir_))
             except FileExistsError:
                 pass
             except OSError:
                 flash(f'{flash_err} {strong(path)} is not a valid profile name')
+            resp.set_cookie('project-dir', path, max_age=31_536_000)
+            return resp
     return redirect(url_for('index'))
-
-
-@app.route('/manage_profile', methods=['POST'])
-def manage_profile():
-    if request.method == 'POST':
-        data_dir_path = request.cookies.get('data_dir')
-        for possible_action in ['rename', 'delete', 'set_active']:
-            action = possible_action
-            profile_path = request.form.get(action)
-            print(profile_path)
-            if profile_path:
-                break
-        profiles_path = join(data_dir_path, PROFILES_JSON)
-        if action == 'delete':
-            shutil.rmtree(join(data_dir_path, profile_path))
-            profiles_dict = json.loads(load_file(profiles_path))
-            profiles_dict['profiles'].remove(profile_path)
-            with open(profiles_path, 'w') as file:
-                json.dump(profiles_dict, file)
-            return redirect(url_for('index'))
-        # elif action == 'rename':
-        #     profiles_dict = json.loads(load_file(profiles_path))
-        #     profiles_dict.pop(request)
-        #     write_to_file(profiles_path, profiles_dict)
-        elif action == 'set_active':
-            print('Activated')
-            profiles_dict = json.loads(load_file(profiles_path))
-            profiles_dict['current_profile'] = profile_path
-            with open(profiles_path, 'w') as file:
-                json.dump(profiles_dict, file)
-            return redirect(url_for('index'))
-
-    return '', 204
-
-
-@app.route('/profiles')
-def profiles():
-    data_dir = request.cookies.get('data_dir')
-    try:
-        with open(join(data_dir, PROFILES_JSON), 'r') as file:
-            results = json.load(file)
-            if results:
-                profiles_list = results['profiles']
-            else:
-                profiles_list = None
-    except FileNotFoundError:
-        profiles_list = None
-
-    return render_template('profile_list.html', profiles=profiles_list)
 
 
 if __name__ == '__main__':
     test_db_path = r'G:\pyton\youtube_watched_data\test2'
     # os.chdir(test_db_path)
-    # setup_data_dir(test_db_path)
     # log_path = r'logs\sql_fails.log'
     # logging_config(log_path)
     # logger = logging.getLogger(__name__)
