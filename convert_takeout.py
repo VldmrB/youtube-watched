@@ -8,14 +8,14 @@ from utils import get_video_id
 In addition to seemingly only returning an oddly even number of records 
 (20300 the first time, 18300 the second), Takeout also seems to only return 
 about 4 years worth of videos. 
-When compared to the list you'd get from scraping your YouTube History web page 
+When compared to the list you'd get from scraping your YouTube history web page 
 directly (which seems to go back to the very start of your account), 
-it's missing a number of videos for every year, even the current. The current 
-one is only missing 15, but the number increases the further back you go in 
-years, ending up in hundreds.
+it's missing a number of videos from every year, even the current. Year 2018 
+is only missing 15, but the number increases the further back you go, 
+ending up in hundreds.
 Inversely, Takeout has 1352 records which are not present on Youtube's 
-history page. Only 9 of them were still up when last checked, however. Most or 
-all of them had their urls listed as their titles.
+history page. Only 9 of them were videos that were still up when last checked, 
+however. Most or all of them have their urls listed as their titles in Takeout.
 
 There's also 3 videos which have titles, but not channel info. They're no 
 longer up on YouTube.
@@ -38,6 +38,26 @@ channel_url_re = re.compile(r'youtube\.com/channel')
 
 
 def get_watch_history_files(takeout_path: str = '.'):
+    """
+    Only locates watch-history.html files if any of the following is
+    in the provided directory:
+     - watch-history file(s) (numbers may be appended at the end)
+     - Takeout directory, extracted from the archive downloaded from 
+    Google Takeout
+     - Directory of the download archive, extracted with the same 
+    name as the archive e.g. "takeout-20181120T163352Z-001"
+    
+    The search will become confined to one of these types after the first
+    match, e.g. if a watch-history file is found in the very directory that was
+    passed, it'll continue looking for those within the same directory, but not
+    in Takeout directories.If you have or plan to have multiple watch-history
+    files, the best thing to do is manually move them into one directory while
+    adding a number to the end of each name, e.g. watch-history_001.html,
+    from oldest to newest.
+    
+    :param takeout_path: 
+    :return: 
+    """
     dir_contents = os.listdir(takeout_path)
     dir_list = ('Takeout', 'YouTube', 'history', 'watch-history.html')
     watch_histories = []
@@ -65,25 +85,6 @@ def get_watch_history_files(takeout_path: str = '.'):
             if os.path.exists(full_path):
                 watch_histories.append(os.path.join(takeout_path, full_path))
 
-    if not watch_histories:
-        raise SystemExit(
-            'No watch-history.html files found.\n' +
-            '-'*79 + '\n' +
-            'This only locates watch-history.html files if any of the '
-            'following is in the provided directory:\n\n - watch-history '
-            'file(s) (numbers may be appended at the end)\n'
-            ' - Takeout directory, extracted from the archive downloaded from '
-            'Google Takeout\n'
-            ' - Directory of the download archive, extracted with the same '
-            'name as the archive e.g. "takeout-20181120T163352Z-001"\n\n'
-            'The search will become confined to one of these types after the '
-            'first match, e.g. if a watch-history file is found in the very '
-            'directory that was passed, it\'ll continue looking for those '
-            'within the same directory, but not in Takeout directories.\n\n'
-            'If you have or plan to have multiple watch-history files, the '
-            'best thing to do is manually move them into one directory while '
-            'adding a number to the end of each name, e.g. '
-            'watch-history_001.html, from oldest to newest.\n' + '-'*79)
     return watch_histories
 
 
@@ -106,15 +107,13 @@ def from_divs_to_dict(path: str, occ_dict: dict = None,
     is negligible, if there's only a few files.
     :return:
     """
-    with open(path, 'r') as file:
-        content = file.read()
+    with open(path, 'r') as takeout_file:
+        content = takeout_file.read()
         original_content = content
     done_ = '<span id="Done">'
     if not content.startswith(done_):  # cleans out all the junk for faster
         # BSoup processing, in addition to fixing an out-of-place-tag which
         # stops BSoup from working completely
-        print(path)
-
         content = content[content.find('<body>')+6:content.find('</body>')-6]
         fluff = [  # the order should not be changed
             ('<div class="mdl-grid">', ''),
@@ -137,8 +136,9 @@ def from_divs_to_dict(path: str, occ_dict: dict = None,
         for piece in fluff:
             content = content.replace(piece[0], piece[1])
         content = done_ + '\n' + content
-
-    last_record_found = occ_dict['last_record_found']
+    if not occ_dict:
+        occ_dict = {}
+    last_record_found = occ_dict.get('last_record_found')
     last_record_found_now = None
     if last_record_found:
         new_content_end = content.find(last_record_found)
@@ -155,9 +155,7 @@ def from_divs_to_dict(path: str, occ_dict: dict = None,
         occ_dict = {}
     occ_dict.setdefault('videos', {})
     occ_dict.setdefault('total_count', 0)
-    divs = soup.find_all(
-        'div',
-        class_='awesome_class')
+    divs = soup.find_all('div', class_='awesome_class')
     if len(divs) == 0:
         raise ValueError(f'Could not find any records in {path} while '
                          f'processing Takeout data.\n'
@@ -166,7 +164,7 @@ def from_divs_to_dict(path: str, occ_dict: dict = None,
     removed_string = 'Watched a video that has been removed'
     removed_string_len = len(removed_string)
     story_string = 'Watched story'
-    for str_ in divs[0].stripped_strings:
+    for str_ in divs[0].stripped_strings:  # records are in descending order
         last_record_found_now = str_.strip()
         if last_record_found_now.startswith(removed_string):
             last_record_found_now = last_record_found_now[removed_string_len:]
@@ -206,24 +204,28 @@ def from_divs_to_dict(path: str, occ_dict: dict = None,
 
 
 def get_all_records(takeout_path: str = '.',
-                    dump_json=True, prune_html=False, silent=False) -> dict:
+                    dump_json_to: str = None, prune_html=False,
+                    silent=False) -> dict:
     """
     Accumulates records from all found watch-history.html files and returns
     them in a dict.
 
     :param takeout_path: directory with watch-history.html file(s) or with
     Takeout directories
-    :param dump_json: saves the dict with accumulated records to a json file
+    :param dump_json_to: saves the dict with accumulated records to a json file
     :param prune_html: prunes unnecessary HTML and records found in a
     previously processed file, as long as they're passed in chronological order
     :param silent: Prints out some stats, if False
     :return:
     """
     watch_files = get_watch_history_files(takeout_path)
+    if not watch_files:
+        return {}
+
     occ_dict = {}
-    occ_dict.setdefault('last_record_found', None)
-    for file in watch_files:
-        from_divs_to_dict(file, occ_dict=occ_dict, write_changes=prune_html)
+    for takeout_file in watch_files:
+        from_divs_to_dict(takeout_file, occ_dict=occ_dict,
+                          write_changes=prune_html)
 
     if not silent:
         print('Total videos:', occ_dict['total_count'])
@@ -236,9 +238,19 @@ def get_all_records(takeout_path: str = '.',
     for entry in records:
         records[entry]['times_watched'] = len(
             records[entry]['timestamps'])
-    if dump_json:
+    if dump_json_to:
         import json
-        with open(os.path.join(takeout_path, 'all_records.json'), 'w') as file:
-            json.dump(occ_dict['videos'], file, indent=4)
+        with open(os.path.join(dump_json_to, 'all_records.json'),
+                  'w') as all_records_file:
+            json.dump(occ_dict['videos'], all_records_file, indent=4)
 
     return occ_dict['videos']
+
+
+if __name__ == '__main__':
+    with open(r'C:\Users\Vladimir\Desktop\file.json', 'w') as file:
+        file_contents = from_divs_to_dict(
+            r'D:\Downloads\takeout-20181120T163352Z-001\Takeout\YouTube\history'
+            r'\watch-history.html',)
+        import json
+        json.dump(file_contents, file, indent=4)

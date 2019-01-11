@@ -2,11 +2,9 @@ import sqlite3
 import logging
 import youtube
 from typing import Union, Optional
-from utils import get_final_key_paths, logging_config
-from utils import convert_duration, sqlite_connection
+from utils import get_final_key_paths, convert_duration, sqlite_connection
 from config import video_keys_and_columns
 
-logging_config(r'C:\Users\Vladimir\Desktop\sql_fails.log')
 logger = logging.getLogger(__name__)
 DB_NAME = 'yt.sqlite'
 TABLE_SCHEMAS = {
@@ -518,7 +516,7 @@ def insert_videos():
             tags = video_record.pop('tags')
         else:
             tags = None
-            
+
         timestamps = video_record.pop('timestamps')
 
         # presence of this video gets checked at the very start of the loop
@@ -526,7 +524,7 @@ def insert_videos():
             sql_fails += 1
         else:
             video_ids.append(video_id)
-            
+
         for timestamp in timestamps:
             timestamp = datetime.strptime(timestamp[:-4],
                                           '%b %d, %Y, %I:%M:%S %p')
