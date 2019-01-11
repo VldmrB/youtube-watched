@@ -4,74 +4,158 @@
 {% block title %} {{ super() }} {% endblock %}
 
 {% block body %}
-    <div id="project-dir-setup">
-        {% with messages = get_flashed_messages() %} {% if messages %}
-                    {% for message in messages %}
-                        <div>{{ message| safe}}</div>
-                    {% endfor %}
-            {% endif %} {% endwith %}
-        <div class="dir-clarification">
-            {% if path %}
-                Data directory: <span id="project-dir-path" class="path">{{ path }}</span>
-                <button id="show-project-form-button"
-                        class="btn btn-outline-primary btn-sm shw-btn"
-                        data-toggle="collapse"
-                        data-target="#project-dir-form">Change...</button>
-            {% else %}
-                Create a project directory (or enter a previously created one).
-            {% endif %}
+    <div id="project-dir">
+    {% with messages = get_flashed_messages() %} {% if messages %}
+                {% for message in messages %}
+                    <div>{{ message| safe }}</div>
+                {% endfor %}
+    {% endif %} {% endwith %}
+        <div id="project-dir-clarification">
+        {% if path %}
+            Project directory: <span id="project-dir-path" class="path">{{ path }}</span>
+            <button id="show-project-form-button"
+                    class="btn btn-outline-primary btn-sm shw-btn"
+                    data-toggle="collapse"
+                    data-target="#project-dir-form">Change...</button>
+        {% else %}
+            <div>Create a project directory (or enter a previously created one).</div>
+        {% endif %}
+        </div>
             <form id="project-dir-form" class="collapse form-inline"
-                  action="{{ url_for('setup_project_dir') }}" method=post>
+                  action="{{ url_for('create_project_dir') }}" method=post>
                 <div id="project-dir-input-group" class="col-md-3">
                     <input id="project-dir-input" class="form-control" name="project-dir"
-                           placeholder="Directory path..." pattern="[^/?<>|*]+" required>
+                           placeholder="Directory path..." pattern='[^/?<>|*"]+' required>
                     <input class="form-control" type="submit" value="Submit">
                 </div>
             </form>
             <script>
                 var projectDirInput = document.querySelector("#project-dir-input");
-                projectDirInput.addEventListener(
-                    "invalid",
-                    function() {
-                        if (projectDirInput.value != "") {
-                            projectDirInput.setCustomValidity(
-                                "Characters \/?<>|*\" are not allowed.");
-                    }})
-                projectDirInput.addEventListener(
-                    "input",
-                    function(){ projectDirInput.setCustomValidity(""); });
+                projectDirInput.addEventListener("invalid",
+                    function() { if (projectDirInput.value != "") {
+                        projectDirInput.setCustomValidity("Characters /?<>|*\" are not allowed.");
+                    }});
+                projectDirInput.addEventListener("input", function() { projectDirInput.setCustomValidity(""); });
                 document.getElementById('project-dir-input').focus();
-                {% if path %}
-                        $("#project-dir-form").on("submit", function(event){
-                            var newDirValue = $("#project-dir-input").val();
-                            if (newDirValue != $("#project-dir-path").html()) {
-                                confirm('Switch to ' + newDirValue + '?\nThe old one and its data will still be there.')
-                            } else {
-                                var dirInputGroup = $("#project-dir-input-group");
-                                event.preventDefault();
-                                if (dirInputGroup.children().length == 2) {
-                                    var sameDirError = $("<div>Already set to this directory</div>").css('color', 'red');
-                                    dirInputGroup.append(sameDirError);
-                                    setTimeout(function(){ sameDirError.remove(); }, 2000);
-                                }
-                            }
-                        });
-                    var show_btn = $("#show-project-form-button");
-                    show_btn.on(
-                        'click',
-                        function(){
-                            if (show_btn.html() == 'Change...') {
-                                show_btn.html('Cancel');
-                                setTimeout(
-                                    function(){$("#project-dir-input").focus()}, 1);}
-                            else {
-                                show_btn.html('Change...')}
-                            });
-                {% else %}
-                    $("#project-dir-form").removeClass('collapse');
-                    $("#project-dir-form input[name='project-dir']")[0].focus();
-                {% endif %}
+            {% if path %}
+                $("#project-dir-form").on("submit", function(event) {
+                    var newDirValue = $("#project-dir-input").val();
+                    if (newDirValue != $("#project-dir-path").html()) {
+                        confirm('Switch to ' + newDirValue + '?\nThe old one and its data will still be there.')
+                    } else {
+                        event.preventDefault();
+                        var dirInputGroup = $("#project-dir-input-group");
+                        if (dirInputGroup.children().length == 2) {
+                            var sameDirError = $("<div>Already set to this directory</div>").css('color', 'red');
+                            dirInputGroup.append(sameDirError);
+                            setTimeout(function(){ sameDirError.remove(); }, 2000);
+                        }}
+                });
+                var showProjectFormButton = $("#show-project-form-button");
+                showProjectFormButton.on( 'click', function() {
+                    if (showProjectFormButton.html() == 'Change...') {
+                        showProjectFormButton.html('Cancel');
+                        setTimeout( function(){$("#project-dir-input").focus()}, 1);
+                    } else { showProjectFormButton.html('Change...') }
+                });
+            {% else %}
+                $("#project-dir-form").removeClass('collapse');
+                $("#project-dir-form input[name='project-dir']")[0].focus();
+            {% endif %}
             </script>
-        </div>
     </div>
+    {% if path %}
+    <div id="api-key-setup">
+        <div id="api-key-clarification">
+        {% if api_key %}
+            <button id="api-key-form-button"
+                    class="btn btn-outline-primary btn-sm shw-btn"
+                    data-toggle="collapse"
+                    data-target="#api-key-form">Change API key...</button>
+        {% else %}
+            Add a <a href="https://support.google.com/googleapi/answer/6158862?hl=en"
+                     target="_blank">Google API key.</a>
+            Alternatively, create a file "api_key" in the project directory and paste it there.
+            <br>
+            The key is needed to make requests to Youtube Data API for information on each video.
+        {% endif %}
+        </div>
+        <form id="api-key-form" class="collapse form-inline"
+              action="{{ url_for('setup_api_key') }}" method=post>
+            <div class="col-md-3">
+                <input id="api-key-input" type="password" class="form-control" name="api-key"
+                       placeholder="API key..." required>
+                <input class="form-control" type="submit" value="Submit">
+            </div>
+        </form>
+
+        <script>
+        {% if api_key %}
+            var showApiFormButton = $("#api-key-form-button");
+            showApiFormButton.on( 'click', function() {
+                if (showApiFormButton.html() == 'Change API key...') {
+                    showApiFormButton.html('Cancel');
+                    setTimeout( function(){$("#api-key-input").focus()}, 1);
+                } else { showApiFormButton.html('Change API key...') }
+            });
+        {% else %}
+            $("#api-key-form").removeClass('collapse');
+            $("#api-key-form input[name='api-key']").focus();
+        {% endif %}
+        </script>
+    </div>
+    {% endif %}
+
+{% if api_key %}
+    <div id="takeout-setup">
+        <div id="takeout-clarification">
+            {% if takeout_records %}
+            <button id="takeout-form-button"
+                    class="btn btn-outline-primary btn-sm shw-btn"
+                    data-toggle="collapse"
+                    data-target="#takeout-form">Additional Takeout...</button>
+            {% else %}
+            Point to the directory containing the watch-history file(s) or to the file itself.
+            <br>
+            Only locates watch-history.html files within directories in case any of the following is true:
+            <ul>
+                <li>watch-history file(s) (numbers may be appended at the end)</li>
+                <li>Takeout directory, extracted from the archive downloaded from Google Takeout</li>
+                <li>Directory of the download archive, extracted with the same
+                    name as the archive e.g. "takeout-20181120T163352Z-001"</li>
+            </ul>
+            The search will become confined to one of these types after the first match,
+            e.g. if a watch-history file is found in the very directory that was
+            passed, it'll continue looking for those in the same place, but not in Takeout directories.
+            <br>
+            For multiple files, the best thing to do is to manually move them
+            into one directory while adding a number to the end of each name, e.g. watch-history_001.html,
+            from oldest to newest.
+            {% endif %}
+        </div>
+        <form id="takeout-form" class="collapse form-inline"
+              action="{{ url_for('convert_takeout') }}" method=post>
+            <div class="col-md-3">
+                <input id="takeout-input" class="form-control" name="takeout-path"
+                       placeholder="Takeout directory path..." required>
+                <input class="form-control" type="submit" value="Submit">
+            </div>
+        </form>
+
+        <script>
+            {% if takeout_records %}
+                var showTakeoutFormButton = $("#takeout-form-button");
+                showTakeoutFormButton.on( 'click', function() {
+                    if (showTakeoutFormButton.html() == 'Change API key...') {
+                        showTakeoutFormButton.html('Cancel');
+                        setTimeout( function(){$("#takeout-input").focus()}, 1);
+                    } else { showTakeoutFormButton.html('Change API key...') }
+                });
+            {% else %}
+                $("#takeout-form").removeClass('collapse');
+                $("#takeout-form input[name='takeout-path']").focus();
+            {% endif %}
+            </script>
+    </div>
+{% endif %}
 {% endblock %}
