@@ -115,22 +115,56 @@
                     data-toggle="collapse"
                     data-target="#takeout-form">Additional Takeout...</button>
             {% else %}
-            Point to the directory containing the watch-history file(s) or to the file itself.
-            <br>
-            Only locates watch-history.html files within directories in case any of the following is true:
-            <ul>
-                <li>watch-history file(s) (numbers may be appended at the end)</li>
-                <li>Takeout directory, extracted from the archive downloaded from Google Takeout</li>
-                <li>Directory of the download archive, extracted with the same
-                    name as the archive e.g. "takeout-20181120T163352Z-001"</li>
-            </ul>
-            The search will become confined to one of these types after the first match,
-            e.g. if a watch-history file is found in the very directory that was
-            passed, it'll continue looking for those in the same place, but not in Takeout directories.
-            <br>
-            For multiple files, the best thing to do is to manually move them
-            into one directory while adding a number to the end of each name, e.g. watch-history_001.html,
-            from oldest to newest.
+            <div id="takeout-single-file-description">
+                For a single file:
+                <br>
+                Enter the path for the watch-history.html file from Google Takeout.
+            </div>
+            <a href="#" class="link-btn" data-toggle="collapse"
+               data-target="#takeout-multiple-files-description">For multiple files...</a>
+            <div id="takeout-multiple-files-description" class="collapse">
+                Enter the path to the directory with the files.
+                <p>
+                    It's essential they are ordered from old to new for accurate processing.
+                    (files with partially overlapping records are fine)
+                </p>
+                <p>
+                    It's best to either extract each Takeout archive to a directory with the same name as the
+                    archive and then point to the directory containing all of them
+                    <br>
+                    --- or ---
+                    <br>
+                    manually move the actual watch-history files into one directory while appending a number at the end
+                    of each name, e.g. watch-history_001.html, from oldest to newest.
+                </p>
+                Only locates watch-history.html files in the given directory if any of the following is inside:
+                <ul>
+                    <li>watch-history files themselves</li>
+                    <li>"Takeout" directory, extracted from the archive downloaded from Google Takeout</li>
+                    <li>Directory of the download archive, extracted with the same
+                        name as the archive e.g. "takeout-20181120T163352Z-001"</li>
+                </ul>
+                <p>
+                    The search will become confined to one of these types after the first match, e.g. if a
+                    watch-history file is found in the very directory that was passed, it'll continue looking for
+                    those in the same place, but not in Takeout directories,
+                    to avoid picking up potential duplicates.
+                </p>
+            </div>
+            <script>
+                var multipleFilesLink = document.querySelector(".link-btn");
+                multipleFilesLink.addEventListener(
+                    "click",
+                    function () {
+                        if (multipleFilesLink.innerHTML == "For multiple files...") {
+                            multipleFilesLink.innerHTML = "Hide...";
+                        } else {
+                            multipleFilesLink.innerHTML = "For multiple files...";
+                        }
+                    });
+
+            </script>
+
             {% endif %}
         </div>
         <form id="takeout-form" class="collapse form-inline"
