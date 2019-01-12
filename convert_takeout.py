@@ -218,8 +218,12 @@ def get_all_records(takeout_path: str = '.',
     :param silent: Prints out some stats, if False
     :return:
     """
-    watch_files = get_watch_history_files(takeout_path)
+    if os.path.isfile(takeout_path) and 'watch-history' in takeout_path:
+        watch_files = [takeout_path]
+    else:
+        watch_files = get_watch_history_files(takeout_path)
     if not watch_files:
+        print('Found no watch-history files.')
         return {}
 
     occ_dict = {}
@@ -245,12 +249,3 @@ def get_all_records(takeout_path: str = '.',
             json.dump(occ_dict['videos'], all_records_file, indent=4)
 
     return occ_dict['videos']
-
-
-if __name__ == '__main__':
-    with open(r'C:\Users\Vladimir\Desktop\file.json', 'w') as file:
-        file_contents = from_divs_to_dict(
-            r'D:\Downloads\takeout-20181120T163352Z-001\Takeout\YouTube\history'
-            r'\watch-history.html',)
-        import json
-        json.dump(file_contents, file, indent=4)

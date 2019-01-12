@@ -8,10 +8,13 @@
     margin-bottom: 0.5em;
     }
 
-.rnm-sbmt {
-    display: none;
-    }
-
 #takeout-clarification {
     width: 35rem;
+    }
+
+.link-btn, .link-btn:visited {
+    color: #007BFF;
+    }
+
+.link-btn:hover {
     }
