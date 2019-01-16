@@ -9,6 +9,10 @@ app.secret_key = '23lkjhv9z8y$!gffflsa1g4[p[p]'
 
 flash_err = '<span style="color:Red;font-weight:bold">Error:</span>'
 flash_note = '<span style="color:Blue;font-weight:bold">Note:</span>'
+if os.name == 'nt':
+    path_pattern = '[.a-zA-Z0-9_][^/?<>|*"]+'
+else:
+    path_pattern = '.+'
 
 
 def strong(text):
@@ -35,12 +39,16 @@ def index():
     else:
         api_key = None
 
-    return render_template('index.html', path=project_path, api_key=api_key)
+    return render_template('index.html', path=project_path, api_key=api_key,
+                           path_pattern=path_pattern)
 
 
 @app.route('/create_project_dir', methods=['POST'])
 def create_project_dir():
-    project_path = request.form['project-dir']
+    project_path = request.form['project-dir'].strip()
+    if not project_path:
+        flash(f'{flash_err} path cannot be empty ')
+        return redirect(url_for('index'))
     resp = make_response(redirect(url_for('index')))
 
     try:
@@ -77,7 +85,7 @@ def convert_takeout():
     takeout_path = request.form.get('takeout-path')
     if not os.path.isdir(takeout_path):
         flash(f'{flash_err} {strong(takeout_path)} is not a directory or a '
-              f'valid path.')
+              f'valid path')
         return redirect(url_for('index', failed=True))
 
     takeout_records = get_all_records(takeout_path, silent=True)
@@ -88,7 +96,6 @@ def convert_takeout():
     project_path = get_project_dir_path_from_cookie()
 
     return redirect(url_for('index'))
-
 
 
 if __name__ == '__main__':
