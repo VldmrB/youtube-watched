@@ -4,7 +4,33 @@
 {% block title %} {{ super() }} {% endblock %}
 
 {% block body %}
-    <div id="project-dir">
+    <script>
+        var forbiddenCharacters = "/?<>|*\""
+        function setPathValidation(inputFieldSelector, submitFieldSelector) {
+            var inputField = document.querySelector(inputFieldSelector);
+            var submitField = document.querySelector(submitFieldSelector);
+            inputField.addEventListener("keyup",
+                function() {
+                    if (inputField.value != "") {
+                        for (i = 0; i < forbiddenCharacters.length; i++) {
+                            if (inputField.value.includes(forbiddenCharacters[i])) {
+                                inputField.setCustomValidity("Characters /?<>|*\" are not allowed.");
+                                submitField.setAttribute("disabled", true);
+                                inputField.style.border.color = "red";
+                                inputField.style.border.width = "5px";
+                                break;
+                            } else {
+                                inputField.style.border.color = "default";
+                                submitField.removeAttribute("disabled");
+                                inputField.setCustomValidity("");
+                            }
+                        }
+                }
+            });
+            inputField.focus();
+        }
+    </script>
+        <div id="project-dir">
     {% with messages = get_flashed_messages() %} {% if messages %}
                 {% for message in messages %}
                     <div>{{ message| safe }}</div>
@@ -25,18 +51,12 @@
                   action="{{ url_for('create_project_dir') }}" method=post>
                 <div id="project-dir-input-group" class="col-md-3">
                     <input id="project-dir-input" class="form-control" name="project-dir"
-                           placeholder="Directory path..." pattern='[^/?<>|*"]+' required>
+                           placeholder="Directory path..." pattern='{{ path_pattern }}' required>
                     <input class="form-control" type="submit" value="Submit">
                 </div>
             </form>
             <script>
-                var projectDirInput = document.querySelector("#project-dir-input");
-                projectDirInput.addEventListener("invalid",
-                    function() { if (projectDirInput.value != "") {
-                        projectDirInput.setCustomValidity("Characters /?<>|*\" are not allowed.");
-                    }});
-                projectDirInput.addEventListener("input", function() { projectDirInput.setCustomValidity(""); });
-                document.getElementById('project-dir-input').focus();
+                setPathValidation("#project-dir-input", "#project-dir-input-group input[type='submit']");
             {% if path %}
                 $("#project-dir-form").on("submit", function(event) {
                     var newDirValue = $("#project-dir-input").val();
@@ -88,7 +108,6 @@
                 <input class="form-control" type="submit" value="Submit">
             </div>
         </form>
-
         <script>
         {% if api_key %}
             var showApiFormButton = $("#api-key-form-button");
@@ -116,9 +135,9 @@
                     data-target="#takeout-form">Additional Takeout...</button>
             {% else %}
             <div id="takeout-single-file-description">
-                For a single file:
+                Enter the path for the watch-history.html file(s) from Google Takeout:
                 <br>
-                Enter the path for the watch-history.html file from Google Takeout.
+                For a single file, use the path to the file itself.
             </div>
             <a href="#" class="link-btn" data-toggle="collapse"
                data-target="#takeout-multiple-files-description">For multiple files...</a>
@@ -137,7 +156,7 @@
                     manually move the actual watch-history files into one directory while appending a number at the end
                     of each name, e.g. watch-history_001.html, from oldest to newest.
                 </p>
-                Only locates watch-history.html files in the given directory if any of the following is inside:
+                The files will only be located within the given directory if any of the following is inside:
                 <ul>
                     <li>watch-history files themselves</li>
                     <li>"Takeout" directory, extracted from the archive downloaded from Google Takeout</li>
@@ -153,16 +172,14 @@
             </div>
             <script>
                 var multipleFilesLink = document.querySelector(".link-btn");
-                multipleFilesLink.addEventListener(
-                    "click",
-                    function () {
-                        if (multipleFilesLink.innerHTML == "For multiple files...") {
-                            multipleFilesLink.innerHTML = "Hide...";
-                        } else {
-                            multipleFilesLink.innerHTML = "For multiple files...";
-                        }
-                    });
-
+                var multipleFilesDescriptionDiv = document.querySelector("#takeout-multiple-files-description");
+                multipleFilesLink.addEventListener("click", function() {
+                    if (multipleFilesDescriptionDiv.classList.contains("show")) {
+                        multipleFilesLink.innerHTML = "For multiple files...";
+                    } else {
+                        multipleFilesLink.innerHTML = "For multiple files:";
+                    }
+                });
             </script>
 
             {% endif %}
@@ -177,6 +194,7 @@
         </form>
 
         <script>
+            setPathValidation("#takeout-input", "#takeout-form input[type='submit']");
             {% if takeout_records %}
                 var showTakeoutFormButton = $("#takeout-form-button");
                 showTakeoutFormButton.on( 'click', function() {

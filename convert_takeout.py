@@ -238,10 +238,6 @@ def get_all_records(takeout_path: str = '.',
         print('A video won\'t have an ID if it\'s been taken down, or if it '
               'was watched as a "story", in which case it will list one or '
               'more YouTube channels instead.')
-    records = occ_dict['videos']
-    for entry in records:
-        records[entry]['times_watched'] = len(
-            records[entry]['timestamps'])
     if dump_json_to:
         import json
         with open(os.path.join(dump_json_to, 'all_records.json'),
