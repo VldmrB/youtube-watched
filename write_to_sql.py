@@ -88,7 +88,9 @@ TABLE_SCHEMAS = {
     attempts integer
     );''',
 
-    'dead_videos': '''dead_videos (
+    # videos that have IDs in takeout, but aren't available via API and have no
+    # minimal identifying data, such as title
+    'dead_videos_ids': '''dead_videos_ids (
     id text primary key
     );'''
 }
@@ -157,11 +159,11 @@ add_topic_to_video_query = generate_insert_query('videos_topics',
                                                  columns=VIDEOS_TOPICS_COLUMNS)
 add_time_to_video_query = generate_insert_query(
     'videos_watched_at_timestamps',
-    columns=VIDEOS_WATCHED_AT_TIMESTAMPS_COLUMNS)
+    columns=VIDEOS_WATCHED_AT_TIMESTAMPS_COLUMNS, on_conflict='IGNORE')
 add_failed_request_query = generate_insert_query(
     'failed_requests_ids',
     columns=FAILED_REQUESTS_IDS_COLUMNS, on_conflict='IGNORE')
-add_dead_video_query = generate_insert_query('dead_videos',
+add_dead_video_query = generate_insert_query('dead_videos_ids',
                                              columns=DEAD_VIDEOS_COLUMNS)
 
 
@@ -259,7 +261,7 @@ def wrangle_video_record(json_obj: dict):
 def drop_dynamic_tables(conn):
     for table in TABLE_SCHEMAS:
         if table not in ['categories', 'topics', 'parent_topics',
-                         'dead_videos']:
+                         'dead_videos_ids']:
             execute_query(conn, '''DROP TABLE IF EXISTS ''' + table)
     conn.commit()
     conn.close()
@@ -309,22 +311,18 @@ def add_time(conn: sqlite3.Connection, watched_at, video_id):
     return execute_query(conn, add_time_to_video_query, values)
 
 
-def add_failed_request(conn: sqlite3.Connection, video_id):
-    if not execute_query(conn,
-                         add_failed_request_query,
-                         (video_id, 1), log_integrity_fail=False):
-        result = execute_query(conn,
-                               '''SELECT attempts from failed_requests_ids 
-                               WHERE id = ?''',
-                               (video_id,))
-        if result:
-            current_attempt = result[0][0] + 1
-            execute_query(conn,
-                          '''UPDATE failed_requests_ids 
-                          SET attempts = ?
-                          WHERE id = ?''',
-                          (current_attempt, video_id))
-            return True
+def add_failed_request(conn: sqlite3.Connection, video_id, attempts: int):
+    if attempts == 1:
+        execute_query(conn,
+                      add_failed_request_query,
+                      (video_id, 1), log_integrity_fail=False)
+    else:
+        execute_query(conn,
+                      '''UPDATE failed_requests_ids 
+                      SET attempts = ?
+                      WHERE id = ?''',
+                      (attempts, video_id))
+        return True
 
 
 def add_dead_video(conn: sqlite3.Connection, video_id):
@@ -441,8 +439,8 @@ def insert_videos():
     for timestamp_record in cur.fetchall():
         all_timestamps.setdefault(timestamp_record[0], [])
         all_timestamps[timestamp_record[0]].append(timestamp_record[1])
-    cur.execute("""SELECT id FROM dead_videos;""")
-    dead_videos = [dead_video[0] for dead_video in cur.fetchall()]
+    cur.execute("""SELECT id FROM dead_videos_ids;""")
+    dead_videos_ids = [dead_video[0] for dead_video in cur.fetchall()]
     cur.execute("""SELECT * FROM failed_requests_ids;""")
     failed_requests_ids = {k: v for k, v in cur.fetchall()}
     cur.close()
@@ -455,76 +453,90 @@ def insert_videos():
         rows_passed += 1
         video_record = records[video_record]
         video_record['id'] = video_id
-        if video_id in dead_videos and video_id == 'unknown':
-            for timestamp in video_record['timestamps']:
-                add_time(conn, timestamp, video_id)
-            continue
-        if video_id in video_ids:
-            if video_id in failed_requests_ids:
-                if failed_requests_ids[video_id] < 3:
-                    pass
-                else:
-                    # if not execute_query(conn,
-                    #                      '''DELETE FROM failed_requests_id
-                    #                      WHERE id = ?''', (video_id,)):
-                    #     sql_fails += 1
-                    continue
-            else:
-                '''
-                Things that can be changed:
-                    video title
-                    channel title
-                    category
-                    all the counts (view, like, etc.)
-                    
-                Add two columns: last_updated, video_status (available or not)
-                
-                Tasks to implement functions for:
-                  Add new records and update timestamps for the existing 
-                    ones. This uses Takeout data. Uses API requests for new 
-                    records.
-                  Update existing records, i.e. their view counts, possibly 
-                    names, anything that may have changed. Uses API requests
-                
-                This function can be modified to do the first task.
-                The second task must have a separate function.
-                '''
 
-                for timestamp in video_record['timestamps']:
+        if video_id in video_ids:
+            timestamps = video_record.pop('timestamps')
+            for timestamp in timestamps:
+                if timestamp not in all_timestamps[video_id]:
                     add_time(conn, timestamp, video_id)
-                continue
+
+            if video_id in dead_videos_ids and 'title' in video_record:
+                # Older Takeout file which for some reason was added out of
+                # order and which has info on a video that has been
+                # deleted by the time newer Takeout containing entries for that
+                # video has been generated
+                if 'channel_id' in video_record:
+                    channel_id = video_record['channel_id']
+                    add_channel(conn, channel_id)
+                update_video(conn, video_record)
+            conn.commit()
+            continue
+
+        elif video_id in failed_requests_ids:
+            pass
+        else:
+            '''
+            Things that can change:
+                video title
+                channel title
+                category
+                all the counts (view, like, etc.)
+                
+            Add two columns: last_updated, video_status (available or not)
+            
+            Tasks to implement functions for:
+              Add new records and update timestamps for the existing 
+                ones. This uses Takeout data. Uses API requests for new 
+                records.
+              Update existing records, i.e. their view counts, possibly 
+                names, anything that may have changed. Uses API requests.
+            
+            This function can be modified to do the first task.
+            The second task must have a separate function.
+            '''
+            for timestamp in video_record['timestamps']:
+                if timestamp not in all_timestamps:
+                    add_time(conn, timestamp, video_id)
+            continue
+
         print(rows_passed, 'entries processed')
         for attempt in range(1, 6):
             api_response = youtube.get_video_info(video_id, yt_api)
             time.sleep(0.01*attempt**attempt)
             if api_response:
                 if api_response['items']:
-                    api_response = wrangle_video_record(api_response['items'])
+                    api_response = wrangle_video_record(
+                        api_response['items'])
                     video_record.update(api_response)
+                else:
+                    add_dead_video(conn, video_id)
                 break
         else:
             failed_requests_ids.setdefault(video_id, 0)
-            failed_requests_ids[video_id] += 1
-            api_requests_fails += 1
-            add_failed_request(conn, video_id)
+            attempts = failed_requests_ids[video_id]
+            if attempts > 1:
+                add_dead_video(conn, video_id)
+                execute_query(conn,
+                              '''DELETE FROM failed_requests_id
+                              WHERE id = ?''', (video_id,))
+            else:
+                attempts += 1
+                add_failed_request(conn, video_id,
+                                   attempts)
             logger.error(
                 f'Failed API request, ID# {video_id}')
             # video is still inserted, as long as the minimum data necessary
-            # is present (title), otherwise, when this is run again,
-            # it will attempt to retrieve the data from API again and
-            # update the record accordingly
+            # is present (title), but this will be run again a couple of times;
+            # it will attempt to retrieve the data from API and
+            # update the record accordingly, if any data is returned
 
-        if 'title' not in video_record:
-            add_dead_video(conn, video_id)
-            conn.commit()
-            continue
-        else:
-            if 'channel_id' not in video_record:
-                # a few videos have a title, but not channel info
-                video_record['channel_id'] = 'unknown'
+            for field in ['channel_id', 'title']:
+                if field not in video_record:
+                    video_record[field] = 'unknown'
 
-        # everything that doesn't go into the videos table gets popped
-        # so the video table insert query can be constructed
+        # everything that doesn't go into the videos table gets popped below
+        # so the videos
+        # table insert query can be constructed
         # automatically with the remaining items, since their amount
         # will vary from row to row
 
@@ -538,9 +550,8 @@ def insert_videos():
             if add_channel(conn, channel_id, channel_title):
                 channels.append(video_record['channel_id'])
             else:
-                sql_fails += 1
-                continue  # nothing else can be inserted without the channel
-                # being inserted
+                continue  # nothing else can/should be inserted without the
+                # channel for it being inserted
 
         if 'relevant_topic_ids' in video_record:
             topics = video_record.pop('relevant_topic_ids')
@@ -554,15 +565,12 @@ def insert_videos():
         timestamps = video_record.pop('timestamps')
 
         if video_id in video_ids:  # passing this check means the API request
-            # has been successfully made whereas previous attempts have failed.
+            # has been successfully made, whereas previous attempts have failed.
             # Had they not failed, this check would have
             # never been reached.
-            if not update_video(conn, video_record):
-                sql_fails += 1
+            update_video(conn, video_record)
         else:
-            if not add_video(conn, video_record):
-                sql_fails += 1
-            else:
+            if add_video(conn, video_record):
                 video_ids.append(video_id)
 
         for timestamp in timestamps:
@@ -571,7 +579,6 @@ def insert_videos():
             add_time(conn, timestamp, video_id)
 
         if tags:
-            # TODO check tagging, in relation to log_integrity_fail
             for tag in tags:
                 if tag not in existing_tags:
                     tag_id = None
@@ -583,6 +590,12 @@ def insert_videos():
                             tag_id = cur.fetchone()[0]
                             existing_tags[tag] = tag_id
                         except (TypeError, sqlite3.Error) as e:
+                            # this is thrown because sometimes the tag_id is not
+                            # retrieved, due to a weird combo of escaping and
+                            # the tag being an SQLITE keyword.
+                            # It's likely fixed now (after changing the select
+                            # query a bit) and won't error out anymore, but
+                            # needs to be confirmed first
                             max_id_query_str = 'SELECT max(id) FROM tags'
                             cur.execute(max_id_query_str)
                             tag_id = cur.fetchone()[0] + 1
@@ -592,8 +605,6 @@ def insert_videos():
                             cur.execute(update_tag_id_query, (tag_id, tag))
                             log_query_error(e, query_str, tag)
                         cur.close()
-                    else:
-                        sql_fails += 1
                 else:
                     tag_id = existing_tags[tag]
                 if tag_id:
@@ -601,8 +612,7 @@ def insert_videos():
 
         if topics:
             for topic in topics:
-                if not add_topic_to_video(conn, topic, video_id):
-                    sql_fails += 1
+                add_topic_to_video(conn, topic, video_id)
 
         conn.commit()  # committing after every record ensures all its info
         # is inserted, or not at all, in case of an unforeseen failure during
