@@ -1,6 +1,7 @@
 import sys
 import sqlite3
 import logging
+from hashlib import sha3_256
 from logging import handlers
 from typing import Union
 
@@ -150,3 +151,11 @@ def load_file(path: str):
 def write_to_file(path: str, content):
     with open(path, 'r') as file:
         file.write(content)
+
+
+def get_hash(obj: bytes) -> str:
+    return sha3_256(obj).hexdigest()
+
+
+if __name__ == '__main__':
+    print(get_hash(bytes('boi', encoding='utf-8')))
