@@ -81,7 +81,7 @@ def setup_api_key():
 
 
 @app.route('/convert_takeout', methods=['POST'])
-def convert_takeout():
+def populate_db():
     takeout_path = request.form.get('takeout-path')
     if not os.path.isdir(takeout_path):
         flash(f'{flash_err} {strong(takeout_path)} is not a directory or a '
