@@ -347,7 +347,7 @@ def delete_dead_video(conn: sqlite3.Connection, video_id):
                          WHERE id = ?''', (video_id,))
 
 
-def insert_or_refresh_categories(db_path: str, api_auth):
+def insert_or_refresh_categories(db_path: str, api_auth, refresh=True):
     def bool_adapt(bool_value: bool): return str(bool_value)
 
     sqlite3.register_adapter(bool, bool_adapt)
@@ -355,6 +355,8 @@ def insert_or_refresh_categories(db_path: str, api_auth):
     query_string = generate_insert_query('categories',
                                          columns=CATEGORIES_COLUMNS)
     conn = sqlite_connection(db_path, detect_types=sqlite3.PARSE_DECLTYPES)
+    if not refresh and execute_query(conn, 'SELECT * FROM categories'):
+        pass
     if execute_query(conn, 'DELETE FROM categories;'):
         for category_dict in categories['items']:
             etag = category_dict['etag']
