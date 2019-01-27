@@ -122,7 +122,7 @@ VIDEOS_TAGS_COLUMNS = ['video_id', 'tag_id']
 VIDEOS_TOPICS_COLUMNS = ['video_id', 'topic_id']
 VIDEOS_WATCHED_AT_TIMESTAMPS_COLUMNS = ['video_id', 'watched_at']
 FAILED_REQUESTS_IDS_COLUMNS = ['id', 'attempts']
-DEAD_VIDEOS_COLUMNS = ['id']
+DEAD_VIDEOS_IDS_COLUMNS = ['id']
 
 
 def generate_insert_query(table: str,
@@ -166,7 +166,7 @@ add_failed_request_query = generate_insert_query(
     'failed_requests_ids',
     columns=FAILED_REQUESTS_IDS_COLUMNS)
 add_dead_video_query = generate_insert_query('dead_videos_ids',
-                                             columns=DEAD_VIDEOS_COLUMNS,
+                                             columns=DEAD_VIDEOS_IDS_COLUMNS,
                                              on_conflict_ignore=True)
 
 
@@ -331,8 +331,20 @@ def add_failed_request(conn: sqlite3.Connection, video_id, attempts: int):
         return True
 
 
+def delete_failed_request(conn: sqlite3.Connection, video_id):
+    return execute_query(conn,
+                         '''DELETE FROM failed_requests_ids
+                         WHERE id = ?''', (video_id,))
+
+
 def add_dead_video(conn: sqlite3.Connection, video_id):
     return execute_query(conn, add_dead_video_query, (video_id,))
+
+
+def delete_dead_video(conn: sqlite3.Connection, video_id):
+    return execute_query(conn,
+                         '''DELETE FROM dead_videos_ids
+                         WHERE id = ?''', (video_id,))
 
 
 def insert_or_refresh_categories(db_path: str, api_auth):
@@ -417,17 +429,11 @@ def setup_tables(db_path: str, api_auth):
     conn.close()
 
 
-def insert_videos(db_path: str, takeout_path: str, api_auth):
+def insert_videos(db_path: str, records: dict, api_auth,
+                  generate_progress=False):
 
-    from convert_takeout import get_all_records
     import time
     from datetime import datetime
-    if takeout_path.endswith('.json'):
-        import json
-        with open(takeout_path, 'r') as records_json:
-            records = json.load(records_json)
-    else:
-        records = get_all_records(takeout_path)
     rows_passed = 0
     decl_types = sqlite3.PARSE_DECLTYPES
     decl_colnames = sqlite3.PARSE_COLNAMES
@@ -474,23 +480,30 @@ def insert_videos(db_path: str, takeout_path: str, api_auth):
     '''
 
     # due to its made up ID, the unknown record is best handled manually
-    unknown_record = records.pop('unknown')
-    unknown_record['id'] = 'unknown'
-    unknown_record['timestamps'] = [
-        datetime.strptime(timestamp[:-4], '%b %d, %Y, %I:%M:%S %p')
-        for timestamp in unknown_record['timestamps']
-    ]
-    unknown_timestamps = unknown_record.pop('timestamps')
-    unknown_record['status'] = 'inactive'
-    add_channel(conn, 'unknown', 'unknown')
-    add_video(conn, unknown_record)
-    for timestamp in unknown_timestamps:
-        if timestamp not in all_timestamps['unknown']:
-            add_time(conn, timestamp, 'unknown')
-
+    if 'unknown' in records:
+        unknown_record = records.pop('unknown')
+        unknown_record['id'] = 'unknown'
+        unknown_record['timestamps'] = [
+            datetime.strptime(timestamp[:-4], '%b %d, %Y, %I:%M:%S %p')
+            for timestamp in unknown_record['timestamps']
+        ]
+        unknown_timestamps = unknown_record.pop('timestamps')
+        unknown_record['status'] = 'inactive'
+        add_channel(conn, 'unknown', 'unknown')
+        add_video(conn, unknown_record)
+        all_timestamps.setdefault('unknown', [])
+        for timestamp in unknown_timestamps:
+            if timestamp not in all_timestamps['unknown']:
+                add_time(conn, timestamp, 'unknown')
+    records_len = len(records)
+    percent = records_len // 100
     yt_api = api_auth
     for video_id, video_record in records.items():
         rows_passed += 1
+        if generate_progress and rows_passed % percent == 0:
+            yield int(rows_passed // percent)
+        # if rows_passed % 200 == 0:
+        #     print(f'Processing entry # {rows_passed}')
         video_record['id'] = video_id
         video_record['timestamps'] = [
             datetime.strptime(timestamp[:-4], '%b %d, %Y, %I:%M:%S %p')
@@ -523,10 +536,16 @@ def insert_videos(db_path: str, takeout_path: str, api_auth):
                 # deleted by the time newer Takeout containing entries for that
                 # video has been generated
                 if 'channel_id' in video_record:
-                    add_channel(conn, video_record['channel_id'])
+                    if 'channel_title' in video_record:
+                        channel_title = video_record.pop('channel_title')
+                    else:
+                        channel_title = None
+                    add_channel(conn, video_record['channel_id'], channel_title)
+                video_record['status'] = 'inactive'
                 video_record['last_updated'] = datetime.utcnow(
                 ).replace(microsecond=0)
                 update_video(conn, video_record)
+                delete_dead_video(conn, video_id)
             conn.commit()
             continue
 
@@ -535,6 +554,8 @@ def insert_videos(db_path: str, takeout_path: str, api_auth):
             api_response = youtube.get_video_info(video_id, yt_api)
             time.sleep(0.01*attempt**attempt)
             if api_response:
+                print(video_id, print(video_record.get('title')))
+                delete_failed_request(conn, video_id)
                 if api_response['items']:
                     api_response = wrangle_video_record(api_response['items'])
                     video_record.update(api_response)
@@ -549,19 +570,21 @@ def insert_videos(db_path: str, takeout_path: str, api_auth):
             failed_requests_ids.setdefault(video_id, 0)
             attempts = failed_requests_ids[video_id]
             if attempts + 1 > 2:
-                add_dead_video(conn, video_id)
-                execute_query(conn,
-                              '''DELETE FROM failed_requests_id
-                              WHERE id = ?''', (video_id,))
+                video_record['status'] = 'inactive'
+                video_record['last_updated'] = datetime.utcnow(
+                ).replace(microsecond=0)
+                delete_failed_request(conn, video_id)
             else:
                 add_failed_request(conn, video_id, attempts + 1)
             # video is still inserted, but this will be run again a couple of
             # times; it will attempt to retrieve the data from API and
             # update the record accordingly, if any data is returned
 
-            for field in ['channel_id', 'title']:
-                if field not in video_record:
-                    video_record[field] = 'unknown'
+        if 'title' not in video_record:
+            video_record['title'] = 'unknown'
+            add_dead_video(conn, video_id)
+        if 'channel_id' not in video_record:
+            video_record['channel_id'] = 'unknown'
 
         # everything that doesn't go into the videos table gets popped below
         # so the videos table insert query can be constructed
@@ -600,8 +623,9 @@ def insert_videos(db_path: str, takeout_path: str, api_auth):
             if add_video(conn, video_record):
                 video_ids.append(video_id)
 
+        all_timestamps.setdefault(video_id, [])
         for timestamp in timestamps:
-            # if timestamp not in all_timestamps[video_id]:
+            if timestamp not in all_timestamps[video_id]:
                 add_time(conn, timestamp, video_id)
 
         if tags:
@@ -642,7 +666,7 @@ def insert_videos(db_path: str, takeout_path: str, api_auth):
 
         conn.commit()  # committing after every record ensures all its info
         # is inserted, or not at all, in case of an unforeseen failure during
-        # some loop, an atomic insertion of sorts
+        # some loop. An atomic insertion of sorts
 
     conn.commit()
     conn.close()
@@ -660,8 +684,13 @@ def mock_records(db_path: str):
     unknown_vid = {"title": "unknown",
                    "channel_id": "unknown",
                    "id": 'unknown'}
+    deleted_vid = {"title": "unknown",
+                   "channel_id": "unknown",
+                   "id": 'bB0nnxaFOgw'}
     add_video(conn, vid)
     add_video(conn, unknown_vid)
+    add_video(conn, deleted_vid)
+    add_dead_video(conn, deleted_vid['id'])
     add_failed_request(conn, '9EarvZN3e0M', 1)
 
     add_time(conn,
@@ -670,11 +699,16 @@ def mock_records(db_path: str):
     add_time(conn,
              datetime.strptime("Nov 16, 2018, 8:53:37 AM EST"[:-4],
                                '%b %d, %Y, %I:%M:%S %p'), 'unknown')
+
+    add_time(conn,
+             datetime.strptime("Nov 15, 2018, 11:04:01 PM EST"[:-4],
+                               '%b %d, %Y, %I:%M:%S %p'), deleted_vid['id'])
     conn.commit()
     conn.close()
 
 
 if __name__ == '__main__':
+    import cProfile
     from os.path import join
     test_dir = r'G:\test_dir'
     with open(join(test_dir, 'api_key'), 'r') as file:
@@ -682,7 +716,9 @@ if __name__ == '__main__':
     DB_PATH = join(test_dir, 'yt.sqlite')
     auth = youtube.get_api_auth(api_key)
     setup_tables(DB_PATH, auth)
-    mock_records(DB_PATH)
-    # insert_videos(DB_PATH, join(test_dir, 'records.json'), auth)
-    # todo write more mocks? either try a full scale run or go over the code
-    # once more before doing so
+    # mock_records(DB_PATH)
+    cProfile.run(
+        r"insert_videos(DB_PATH, get_all_records(r'D:\Downloads'), auth)",
+        r'C:\Users\Vladimir\Desktop\results.txt'
+    )
+    # insert_videos(DB_PATH, get_all_records(r'D:\Downloads'), auth)

@@ -20,9 +20,13 @@ YOUTUBE_API_VERSION = 'v3'
 YOUTUBE_API_SERVICE_NAME = 'youtube'
 
 
+class ApiKeyError(ValueError):
+    pass
+
+
 def get_api_auth(developer_key):
     if not developer_key:
-        raise ValueError('Please provide an API key.')
+        raise ApiKeyError('Please provide an API key.')
     return build(YOUTUBE_API_SERVICE_NAME, YOUTUBE_API_VERSION,
                  developerKey=developer_key)
 
@@ -36,7 +40,7 @@ def get_video_info(video_id, api_auth):
         err_inf = json.loads(e.content)['error']
         reason = err_inf['errors'][0]['reason']
         if reason == 'keyInvalid':
-            raise SystemExit('Invalid API key')
+            raise ApiKeyError('Invalid API key')
         logger.error(f'ID {video_id} retrieval failed,\n'
                      f'error code: ' + str(err_inf['code']) +
                      '\ndescription: ' + err_inf['message'] +
@@ -52,7 +56,7 @@ def get_categories(api_auth):
         err_inf = json.loads(e.content)['error']
         reason = err_inf['errors'][0]['reason']
         if reason == 'keyInvalid':
-            raise SystemExit('Invalid API key')
+            raise ApiKeyError('Invalid API key')
         logger.error(f'Categories\' retrieval failed,\n'
                      f'error code: ' + str(err_inf['code']) +
                      '\ndescription: ' + err_inf['message'] +

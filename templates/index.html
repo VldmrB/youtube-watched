@@ -126,88 +126,114 @@
     {% endif %}
 
 {% if api_key %}
-    <div id="takeout-setup">
-        <div id="takeout-clarification">
-            {% if takeout_records %}
-            <button id="takeout-form-button"
-                    class="btn btn-outline-primary btn-sm shw-btn"
-                    data-toggle="collapse"
-                    data-target="#takeout-form">Additional Takeout...</button>
-            {% else %}
-            <div id="takeout-single-file-description">
-                Enter the path for the watch-history.html file(s) from Google Takeout:
-                <br>
-                For a single file, use the path to the file itself.
-            </div>
-            <a href="#" class="link-btn" data-toggle="collapse"
-               data-target="#takeout-multiple-files-description">For multiple files...</a>
-            <div id="takeout-multiple-files-description" class="collapse">
-                Enter the path to the directory with the files.
-                <p>
-                    It's essential they are ordered from old to new for accurate processing.
-                    (files with partially overlapping records are fine)
-                </p>
-                <p>
-                    It's best to either extract each Takeout archive to a directory with the same name as the
-                    archive and then point to the directory containing all of them
-                    <br>
-                    --- or ---
-                    <br>
-                    manually move the actual watch-history files into one directory while appending a number at the end
-                    of each name, e.g. watch-history_001.html, from oldest to newest.
-                </p>
-                The files will only be located within the given directory if any of the following is inside:
-                <ul>
-                    <li>watch-history files themselves</li>
-                    <li>"Takeout" directory, extracted from the archive downloaded from Google Takeout</li>
-                    <li>Directory of the download archive, extracted with the same
-                        name as the archive e.g. "takeout-20181120T163352Z-001"</li>
-                </ul>
-                <p>
-                    The search will become confined to one of these types after the first match, e.g. if a
-                    watch-history file is found in the very directory that was passed, it'll continue looking for
-                    those in the same place, but not in Takeout directories,
-                    to avoid picking up potential duplicates.
-                </p>
-            </div>
-            <script>
-                var multipleFilesLink = document.querySelector(".link-btn");
-                var multipleFilesDescriptionDiv = document.querySelector("#takeout-multiple-files-description");
-                multipleFilesLink.addEventListener("click", function() {
-                    if (multipleFilesDescriptionDiv.classList.contains("show")) {
-                        multipleFilesLink.innerHTML = "For multiple files...";
-                    } else {
-                        multipleFilesLink.innerHTML = "For multiple files:";
-                    }
-                });
-            </script>
-
-            {% endif %}
+<div id="takeout-setup">
+    <div id="takeout-clarification">
+        {% if takeout_records %}
+        <button id="takeout-form-button"
+                class="btn btn-outline-primary btn-sm shw-btn"
+                data-toggle="collapse"
+                data-target="#takeout-form">Additional Takeout...</button>
+        {% else %}
+        <div id="takeout-single-file-description">
+            <br>
+            Enter the path for the watch-history.html file(s) from Google Takeout:
+            <br>
+            For a single file, use the path to the file itself.
         </div>
-        <form id="takeout-form" class="collapse form-inline"
-              action="{{ url_for('convert_takeout') }}" method=post>
-            <div class="col-md-3">
-                <input id="takeout-input" class="form-control" name="takeout-path"
-                       placeholder="Takeout directory path..." required>
-                <input class="form-control" type="submit" value="Submit">
-            </div>
-        </form>
-
+        <a href="#" class="link-btn" data-toggle="collapse"
+           data-target="#takeout-multiple-files-description">For multiple files...</a>
+        <div id="takeout-multiple-files-description" class="collapse">
+            Enter the path to the directory with the files.
+            <p>
+                It's essential they are ordered from old to new for accurate processing.
+                (files with partially overlapping records are fine)
+            </p>
+            <p>
+                It's best to either extract each Takeout archive to a directory with the same name as the
+                archive and then point to the directory containing all of them
+                <br>
+                --- or ---
+                <br>
+                manually move the actual watch-history files into one directory while appending a number at the end
+                of each name, e.g. watch-history_001.html, from oldest to newest.
+            </p>
+            The files will only be located within the given directory if any of the following is inside:
+            <ul>
+                <li>watch-history files themselves</li>
+                <li>"Takeout" directory, extracted from the archive downloaded from Google Takeout</li>
+                <li>Directory of the download archive, extracted with the same
+                    name as the archive e.g. "takeout-20181120T163352Z-001"</li>
+            </ul>
+            <p>
+                The search will become confined to one of these types after the first match, e.g. if a
+                watch-history file is found in the very directory that was passed, it'll continue looking for
+                those in the same place, but not in Takeout directories.
+            </p>
+        </div>
         <script>
-            setPathValidation("#takeout-input", "#takeout-form input[type='submit']");
-            {% if takeout_records %}
-                var showTakeoutFormButton = $("#takeout-form-button");
-                showTakeoutFormButton.on( 'click', function() {
-                    if (showTakeoutFormButton.html() == 'Change API key...') {
-                        showTakeoutFormButton.html('Cancel');
-                        setTimeout( function(){$("#takeout-input").focus()}, 1);
-                    } else { showTakeoutFormButton.html('Change API key...') }
-                });
-            {% else %}
-                $("#takeout-form").removeClass('collapse');
-                $("#takeout-form input[name='takeout-path']").focus();
-            {% endif %}
-            </script>
+            var multipleFilesLink = document.querySelector(".link-btn");
+            var multipleFilesDescriptionDiv = document.querySelector("#takeout-multiple-files-description");
+            multipleFilesLink.addEventListener("click", function() {
+                if (multipleFilesDescriptionDiv.classList.contains("show")) {
+                    multipleFilesLink.innerHTML = "For multiple files...";
+                } else {
+                    multipleFilesLink.innerHTML = "For multiple files:";
+                }
+            });
+        </script>
+
+        {% endif %}
     </div>
+    <form id="takeout-form" class="collapse form-inline"
+          action="{{ url_for('populate_db_form') }}" method=post>
+        <div class="col-md-3">
+            <input id="takeout-input" class="form-control" name="takeout-path"
+                   placeholder="Takeout directory path..." required>
+            <input class="form-control" type="submit" value="Submit">
+        </div>
+    </form>
+    <div id="db-progress"></div>
+    <script>
+        setPathValidation("#takeout-input", "#takeout-form input[type='submit']");
+        {% if takeout_records %}
+            var showTakeoutFormButton = $("#takeout-form-button");
+            showTakeoutFormButton.on( 'click', function() {
+                if (showTakeoutFormButton.html() == 'Change API key...') {
+                    showTakeoutFormButton.html('Cancel');
+                    setTimeout( function(){$("#takeout-input").focus()}, 1);
+                } else { showTakeoutFormButton.html('Change API key...') }
+            });
+        {% else %}
+            $("#takeout-form").removeClass('collapse');
+            $("#takeout-form input[name='takeout-path']").focus();
+        {% endif %}
+        var progressTracker = document.querySelector("#db-progress");
+        var takeoutSubmit = document.querySelector("#takeout-form");
+        takeoutSubmit.addEventListener("submit", function(event) {
+            event.preventDefault();
+            var takeoutDirectoryVal = document.querySelector("#takeout-input").value;
+            anAJAX = new XMLHttpRequest();
+            anAJAX.open("POST", "{{ url_for('populate_db_form') }}");
+
+            anAJAX.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+            anAJAX.addEventListener("readystatechange", function () {
+                if (this.readyState == 4 && this.status == 200) {
+                    var progress = new EventSource("{{ url_for('db_progress_stream') }}");
+                    window.addEventListener('beforeunload', function () { progress.close(); });
+                    progress.onmessage = function (progress) {
+                        progressTracker.innerHTML = progress.data;
+                        if (progress.data.indexOf("100") != -1) {
+                            progressTracker.innerHTML = "Video records' insertion finished";
+                            progress.close();
+                        } else if (progress.data.indexOf("Error") != -1) {
+                            progress.close();
+                        }};
+                }
+            });
+            anAJAX.send("takeout-path=" + takeoutDirectoryVal);
+
+        });
+    </script>
+</div>
 {% endif %}
 {% endblock %}

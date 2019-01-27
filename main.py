@@ -1,6 +1,7 @@
 import os
 from os.path import join
-from flask import Flask, render_template, url_for
+from time import sleep
+from flask import Flask, Response, render_template, url_for
 from flask import request, redirect, make_response, flash
 from convert_takeout import get_all_records
 
@@ -13,6 +14,9 @@ if os.name == 'nt':
     path_pattern = '[.a-zA-Z0-9_][^/?<>|*"]+'
 else:
     path_pattern = '.+'
+
+insert_videos_thread = None
+progress = []
 
 
 def strong(text):
@@ -39,8 +43,13 @@ def index():
     else:
         api_key = None
 
+    if insert_videos_thread and insert_videos_thread.is_alive():
+        thread = 'live'
+    else:
+        thread = None
+
     return render_template('index.html', path=project_path, api_key=api_key,
-                           path_pattern=path_pattern)
+                           path_pattern=path_pattern, thread=thread)
 
 
 @app.route('/create_project_dir', methods=['POST'])
@@ -80,34 +89,78 @@ def setup_api_key():
     return redirect(url_for('index'))
 
 
-@app.route('/convert_takeout', methods=['POST'])
-def populate_db():
-    takeout_path = request.form.get('takeout-path')
-    if not os.path.isdir(takeout_path):
-        flash(f'{flash_err} {strong(takeout_path)} is not a directory or a '
-              f'valid path')
-        return redirect(url_for('index', failed=True))
+def db_stream_event():
+    cur_val = '0'
+    while True:
+        if progress:
+            cur_val = str(progress.pop(0))
+            yield 'data: ' + cur_val + '\n'*2
+        else:
+            yield 'data: ' + cur_val + '\n'*2
+            sleep(0.05)
 
-    takeout_records = get_all_records(takeout_path, silent=True)
-    if not takeout_records:
-        flash(f'{flash_err} No watch-history files found.')
-        return redirect(url_for('index', failed=True))
+
+@app.route('/get_progress')
+def db_progress_stream():
+    return Response(db_stream_event(), mimetype="text/event-stream")
+
+
+@app.route('/convert_takeout', methods=['POST'])
+def populate_db_form():
+    from threading import Thread
+    takeout_path = request.form.get('takeout-path')
 
     project_path = get_project_dir_path_from_cookie()
+    global insert_videos_thread
+    insert_videos_thread = Thread(target=populate_db,
+                                  args=(takeout_path, project_path))
+    insert_videos_thread.start()
 
-    return redirect(url_for('index'))
+    return ''
+
+
+def populate_db(takeout_path: str, project_path: str):
+    import sqlite3
+    import write_to_sql
+    import youtube
+    from utils import load_file
+    # if not os.path.isdir(takeout_path):
+    #     flash(f'{flash_err} {strong(takeout_path)} is not a directory or a '
+    #           f'valid path')
+    progress.append('Locating watch-history.html files...')
+    try:
+        records = get_all_records(takeout_path)
+    except FileNotFoundError:
+        progress.append(f'{flash_err} Invalid/non-existent path for '
+                        f'watch-history.html files')
+        raise
+    if records is False:
+        progress.append(f'{flash_err} No watch-history files found')
+        raise ValueError('No watch-history files found')
+        # return
+    try:
+        api_auth = youtube.get_api_auth(
+            load_file(join(project_path, 'api_key')).strip())
+        db_path = join(project_path, 'yt.sqlite')
+        write_to_sql.setup_tables(db_path, api_auth)
+        for records_processed in write_to_sql.insert_videos(
+                db_path, records, api_auth, True):
+            progress.append('Inserting video records (' + str(records_processed)
+                            + '%)')
+            print(progress[-1])
+    except youtube.ApiKeyError:
+        progress.append(f'{flash_err} Missing or invalid API key')
+        raise
+    except (sqlite3.OperationalError, sqlite3.DatabaseError) as e:
+        progress.append(f'Error: Fatal database error - {e!r}')
+        raise
+    except FileNotFoundError:
+        progress.append(f'Error: Invalid database path')
+        raise
 
 
 if __name__ == '__main__':
     app.run()
+
     # from utils import logging_config
     # logging_config(r'C:\Users\Vladimir\Desktop\sql_fails.log')
-    # write_to_sql.setup_db()
-
-    # write_to_sql.create_all_tables(test_db_path)
-    # drop_dynamic_tables(sqlite3.Connection(test_db_path))
-    # create_all_tables(test_db_path)
-    # insert_categories(test_db_path, takeout_path[:takeout_path.rfind('\\')])
-    # insert_parent_topics(test_db_path)
-    # insert_sub_topics(test_db_path)
-    # write_to_sql.insert_videos()
