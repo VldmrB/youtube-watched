@@ -1,6 +1,7 @@
 from bs4 import BeautifulSoup as BSoup
 import os
 import re
+from typing import Union
 from utils import get_video_id
 
 
@@ -136,7 +137,7 @@ def from_divs_to_dict(path: str, occ_dict: dict = None,
         for piece in fluff:
             content = content.replace(piece[0], piece[1])
         content = done_ + '\n' + content
-    if not occ_dict:
+    if occ_dict is None:
         occ_dict = {}
     last_record_found = occ_dict.get('last_record_found')
     last_record_found_now = None
@@ -205,7 +206,7 @@ def from_divs_to_dict(path: str, occ_dict: dict = None,
 
 def get_all_records(takeout_path: str = '.',
                     dump_json_to: str = None, prune_html=False,
-                    silent=False) -> dict:
+                    silent=False) -> Union[dict, bool]:
     """
     Accumulates records from all found watch-history.html files and returns
     them in a dict.
@@ -224,20 +225,17 @@ def get_all_records(takeout_path: str = '.',
         watch_files = get_watch_history_files(takeout_path)
     if not watch_files:
         print('Found no watch-history files.')
-        return {}
+        return False
 
     occ_dict = {}
     for takeout_file in watch_files:
+        print(takeout_file)
         from_divs_to_dict(takeout_file, occ_dict=occ_dict,
                           write_changes=prune_html)
-
     if not silent:
-        print('Total videos:', occ_dict['total_count'])
+        print('Total videos watched/opened:', occ_dict['total_count'])
         print('Unique videos with ids:', len(occ_dict['videos']) - 1)
         # ^ minus one for 'unknown' key
-        print('A video won\'t have an ID if it\'s been taken down, or if it '
-              'was watched as a "story", in which case it will list one or '
-              'more YouTube channels instead.')
     if dump_json_to:
         import json
         with open(os.path.join(dump_json_to, 'all_records.json'),
