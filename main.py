@@ -47,9 +47,13 @@ def index():
         thread = 'live'
     else:
         thread = None
-
+    if os.path.exists(join(project_path, 'yt.sqlite')):
+        takeout_data = True
+    else:
+        takeout_data = None
     return render_template('index.html', path=project_path, api_key=api_key,
-                           path_pattern=path_pattern, thread=thread)
+                           path_pattern=path_pattern, thread=thread,
+                           takeout_data=takeout_data)
 
 
 @app.route('/create_project_dir', methods=['POST'])
@@ -90,13 +94,13 @@ def setup_api_key():
 
 
 def db_stream_event():
-    cur_val = '0'
     while True:
         if progress:
+            print(progress[0])
             cur_val = str(progress.pop(0))
             yield 'data: ' + cur_val + '\n'*2
         else:
-            yield 'data: ' + cur_val + '\n'*2
+            # yield 'data: ' + cur_val + '\n'*2
             sleep(0.05)
 
 
@@ -135,7 +139,8 @@ def populate_db(takeout_path: str, project_path: str):
                         f'watch-history.html files')
         raise
     if records is False:
-        progress.append(f'{flash_err} No watch-history files found')
+        progress.append(f'{flash_err} No watch-history files found in '
+                        f'"{takeout_path}"')
         raise ValueError('No watch-history files found')
         # return
     try:
@@ -147,7 +152,6 @@ def populate_db(takeout_path: str, project_path: str):
                 db_path, records, api_auth, True):
             progress.append('Inserting video records (' + str(records_processed)
                             + '%)')
-            print(progress[-1])
     except youtube.ApiKeyError:
         progress.append(f'{flash_err} Missing or invalid API key')
         raise
