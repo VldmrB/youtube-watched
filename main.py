@@ -139,7 +139,6 @@ def populate_db(takeout_path: str, project_path: str):
         progress.append(f'{flash_err} No watch-history files found in '
                         f'"{takeout_path}"')
         raise ValueError('No watch-history files found')
-        # return
     try:
         api_auth = youtube.get_api_auth(
             load_file(join(project_path, 'api_key')).strip())
@@ -158,6 +157,11 @@ def populate_db(takeout_path: str, project_path: str):
     except FileNotFoundError:
         progress.append(f'{flash_err} Invalid database path')
         raise
+    finally:
+        # in case the page is refreshed before this finishes running, to
+        # prevent old progress messages from potentially showing up
+        # in the next run
+        progress.clear()
 
 
 if __name__ == '__main__':

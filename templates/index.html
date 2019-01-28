@@ -230,12 +230,23 @@
             if (this.readyState == 4 && this.status == 200) {
                 takeoutDirectorySubmitButton.setAttribute('disabled', true);
                 var progress = new EventSource("{{ url_for('db_progress_stream') }}");
-                window.addEventListener('beforeunload', function () { progress.target.close(); });
+                console.log(progress);
+                console.log(progress.constructor.name);
+                window.addEventListener('beforeunload', function () {
+                    // progress turns into an SSE message, as soon as the first one is pushed, it seems
+                    try {
+                        progress.close();
+                    } catch(err) {
+                        progress.target.close();
+                    }
+                });
                 progress.onmessage = function (progress) {
                     progressTracker.innerHTML = progress.data;
                     if (progress.data.indexOf("100") != -1) {
                         progressTracker.innerHTML = "Video records' insertion finished";
                         takeoutDirectorySubmitButton.removeAttribute('disabled');
+                        console.log(progress);
+                        console.log(progress.constructor.name);
                         progress.target.close();
                     } else if (progress.data.indexOf("Error") != -1) {
                         takeoutDirectorySubmitButton.removeAttribute('disabled');
