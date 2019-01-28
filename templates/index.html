@@ -230,16 +230,16 @@
             if (this.readyState == 4 && this.status == 200) {
                 takeoutDirectorySubmitButton.setAttribute('disabled', true);
                 var progress = new EventSource("{{ url_for('db_progress_stream') }}");
-                window.addEventListener('beforeunload', function () { progress.close(); });
+                window.addEventListener('beforeunload', function () { progress.target.close(); });
                 progress.onmessage = function (progress) {
                     progressTracker.innerHTML = progress.data;
                     if (progress.data.indexOf("100") != -1) {
                         progressTracker.innerHTML = "Video records' insertion finished";
                         takeoutDirectorySubmitButton.removeAttribute('disabled');
-                        progress.close();
+                        progress.target.close();
                     } else if (progress.data.indexOf("Error") != -1) {
                         takeoutDirectorySubmitButton.removeAttribute('disabled');
-                        progress.close();
+                        progress.target.close();
                     }};
             }
         });

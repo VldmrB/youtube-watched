@@ -16,7 +16,7 @@ else:
     path_pattern = '.+'
 
 insert_videos_thread = None
-progress = []
+progress = ['Locating watch-history.html files...']
 
 
 def strong(text):
@@ -101,7 +101,7 @@ def db_stream_event():
             yield 'data: ' + cur_val + '\n'*2
         else:
             # yield 'data: ' + cur_val + '\n'*2
-            sleep(0.05)
+            sleep(0.1)
 
 
 @app.route('/get_progress')
@@ -128,9 +128,6 @@ def populate_db(takeout_path: str, project_path: str):
     import write_to_sql
     import youtube
     from utils import load_file
-    # if not os.path.isdir(takeout_path):
-    #     flash(f'{flash_err} {strong(takeout_path)} is not a directory or a '
-    #           f'valid path')
     progress.append('Locating watch-history.html files...')
     try:
         records = get_all_records(takeout_path)
@@ -156,10 +153,10 @@ def populate_db(takeout_path: str, project_path: str):
         progress.append(f'{flash_err} Missing or invalid API key')
         raise
     except (sqlite3.OperationalError, sqlite3.DatabaseError) as e:
-        progress.append(f'Error: Fatal database error - {e!r}')
+        progress.append(f'{flash_err} Fatal database error - {e!r}')
         raise
     except FileNotFoundError:
-        progress.append(f'Error: Invalid database path')
+        progress.append(f'{flash_err} Invalid database path')
         raise
 
 
