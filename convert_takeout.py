@@ -43,15 +43,13 @@ def get_watch_history_files(takeout_path: str = '.'):
     Only locates watch-history.html files if any of the following is
     in the provided directory:
      - watch-history file(s) (numbers may be appended at the end)
-     - Takeout directory, extracted from the archive downloaded from 
-    Google Takeout
-     - Directory of the download archive, extracted with the same 
+     - Directory of the download archive, extracted with the same
     name as the archive e.g. "takeout-20181120T163352Z-001"
     
     The search will become confined to one of these types after the first
     match, e.g. if a watch-history file is found in the very directory that was
     passed, it'll continue looking for those within the same directory, but not
-    in Takeout directories.If you have or plan to have multiple watch-history
+    in Takeout directories. If you have or plan to have multiple watch-history
     files, the best thing to do is manually move them into one directory while
     adding a number to the end of each name, e.g. watch-history_001.html,
     from oldest to newest.
@@ -59,32 +57,29 @@ def get_watch_history_files(takeout_path: str = '.'):
     :param takeout_path: 
     :return: 
     """
+    if os.path.isfile(takeout_path):
+        if 'watch-history' in takeout_path:
+            return [takeout_path]
+        else:
+            return
+
     dir_contents = os.listdir(takeout_path)
-    dir_list = ('Takeout', 'YouTube', 'history', 'watch-history.html')
     watch_histories = []
     for path in dir_contents:
-        if path in ['Takeout', 'YouTube']:
-            if path == 'Takeout':
-                full_path = os.path.join(takeout_path, *dir_list)
-            else:
-                full_path = os.path.join(takeout_path, *dir_list[1:])
-            if os.path.exists(full_path):
-                watch_histories.append(full_path)
-                return watch_histories  # assumes only one folder
         if path.startswith('watch-history'):
             watch_histories.append(os.path.join(takeout_path, path))
 
     if watch_histories:
-        return watch_histories  # assumes only one watch-history.html file is
-    # present or there's multiple ones (with nums appended to their ends) in
-    # the same directory
-
+        return watch_histories  # assumes multiple watch-history.html files
+        # (with nums appended to their file names)
     for path in dir_contents:
         if path.startswith('takeout-2') and path[-5:-3] == 'Z-':
             full_path = os.path.join(takeout_path, path, 'Takeout', 'YouTube',
                                      'history', 'watch-history.html')
             if os.path.exists(full_path):
                 watch_histories.append(os.path.join(takeout_path, full_path))
+            else:
+                print(f'Expected watch-history.html in {path}, found none')
 
     return watch_histories
 
@@ -219,10 +214,7 @@ def get_all_records(takeout_path: str = '.',
     :param silent: Prints out some stats, if False
     :return:
     """
-    if os.path.isfile(takeout_path) and 'watch-history' in takeout_path:
-        watch_files = [takeout_path]
-    else:
-        watch_files = get_watch_history_files(takeout_path)
+    watch_files = get_watch_history_files(takeout_path)
     if not watch_files:
         print('Found no watch-history files.')
         return False
