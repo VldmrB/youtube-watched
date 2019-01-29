@@ -3,12 +3,10 @@ from os.path import join
 from time import sleep
 from flask import Flask, Response, render_template, url_for
 from flask import request, redirect, make_response, flash
-from flask_socketio import emit, SocketIO
 from convert_takeout import get_all_records
 
 app = Flask(__name__)
 app.secret_key = '23lkjhv9z8y$!gffflsa1g4[p[p]'
-socket_io = SocketIO(app)
 
 flash_err = '<span style="color:Red;font-weight:bold">Error:</span>'
 flash_note = '<span style="color:Blue;font-weight:bold">Note:</span>'
@@ -105,11 +103,6 @@ def db_stream_event():
             sleep(0.1)
 
 
-@socket_io.on('message')
-def message(msg):
-    emit('response', {'data': msg['data']})
-
-
 @app.route('/get_progress')
 def db_progress_stream():
     return Response(db_stream_event(), mimetype="text/event-stream")
@@ -134,8 +127,6 @@ def populate_db(takeout_path: str, project_path: str):
     import write_to_sql
     import youtube
     from utils import load_file
-    progress.append('Locating and processing watch-history.html files...')
-    progress.append('Locating and processing watch-history.html files...')
     progress.append('Locating and processing watch-history.html files...')
     try:
         records = get_all_records(takeout_path)
@@ -178,7 +169,7 @@ def populate_db(takeout_path: str, project_path: str):
 
 
 if __name__ == '__main__':
-    # app.run()
-    socket_io.run(app)
+    app.run()
+
     # from utils import logging_config
     # logging_config(r'C:\Users\Vladimir\Desktop\sql_fails.log')
