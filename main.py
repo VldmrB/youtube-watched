@@ -3,10 +3,12 @@ from os.path import join
 from time import sleep
 from flask import Flask, Response, render_template, url_for
 from flask import request, redirect, make_response, flash
+from flask_socketio import emit, SocketIO
 from convert_takeout import get_all_records
 
 app = Flask(__name__)
 app.secret_key = '23lkjhv9z8y$!gffflsa1g4[p[p]'
+socket_io = SocketIO(app)
 
 flash_err = '<span style="color:Red;font-weight:bold">Error:</span>'
 flash_note = '<span style="color:Blue;font-weight:bold">Note:</span>'
@@ -16,7 +18,7 @@ else:
     path_pattern = '.+'
 
 insert_videos_thread = None
-progress = ['Locating watch-history.html files...']
+progress = []
 
 
 def strong(text):
@@ -100,8 +102,12 @@ def db_stream_event():
             cur_val = str(progress.pop(0))
             yield 'data: ' + cur_val + '\n'*2
         else:
-            # yield 'data: ' + cur_val + '\n'*2
             sleep(0.1)
+
+
+@socket_io.on('message')
+def message(msg):
+    emit('response', {'data': msg['data']})
 
 
 @app.route('/get_progress')
@@ -128,7 +134,9 @@ def populate_db(takeout_path: str, project_path: str):
     import write_to_sql
     import youtube
     from utils import load_file
-    progress.append('Locating watch-history.html files...')
+    progress.append('Locating and processing watch-history.html files...')
+    progress.append('Locating and processing watch-history.html files...')
+    progress.append('Locating and processing watch-history.html files...')
     try:
         records = get_all_records(takeout_path)
     except FileNotFoundError:
@@ -146,8 +154,11 @@ def populate_db(takeout_path: str, project_path: str):
         write_to_sql.setup_tables(db_path, api_auth)
         for records_processed in write_to_sql.insert_videos(
                 db_path, records, api_auth, True):
-            progress.append('Inserting video records (' + str(records_processed)
-                            + '%)')
+                if isinstance(records_processed, int):
+                    progress.append('Inserting video records ('
+                                    + str(records_processed) + '%)')
+                else:
+                    progress.append(records_processed)
     except youtube.ApiKeyError:
         progress.append(f'{flash_err} Missing or invalid API key')
         raise
@@ -161,11 +172,13 @@ def populate_db(takeout_path: str, project_path: str):
         # in case the page is refreshed before this finishes running, to
         # prevent old progress messages from potentially showing up
         # in the next run
+        sleep(1)
         progress.clear()
+        pass
 
 
 if __name__ == '__main__':
-    app.run()
-
+    # app.run()
+    socket_io.run(app)
     # from utils import logging_config
     # logging_config(r'C:\Users\Vladimir\Desktop\sql_fails.log')

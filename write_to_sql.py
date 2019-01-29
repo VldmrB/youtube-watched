@@ -1,4 +1,5 @@
 import sqlite3
+import json
 import logging
 import youtube
 from typing import Union
@@ -355,18 +356,17 @@ def insert_or_refresh_categories(db_path: str, api_auth, refresh=True):
     query_string = generate_insert_query('categories',
                                          columns=CATEGORIES_COLUMNS)
     conn = sqlite_connection(db_path, detect_types=sqlite3.PARSE_DECLTYPES)
-    if not refresh and execute_query(conn, 'SELECT * FROM categories'):
-        pass
-    if execute_query(conn, 'DELETE FROM categories;'):
-        for category_dict in categories['items']:
-            etag = category_dict['etag']
-            id_ = category_dict['id']
-            channel_id = category_dict['snippet']['channelId']
-            title = category_dict['snippet']['title']
-            assignable = category_dict['snippet']['assignable']
-            execute_query(conn, query_string,
-                          (id_, channel_id, title, assignable, etag),
-                          log_integrity_fail=False)
+    if refresh or not execute_query(conn, 'SELECT * FROM categories'):
+        if execute_query(conn, 'DELETE FROM categories;'):
+            for category_dict in categories['items']:
+                etag = category_dict['etag']
+                id_ = category_dict['id']
+                channel_id = category_dict['snippet']['channelId']
+                title = category_dict['snippet']['title']
+                assignable = category_dict['snippet']['assignable']
+                execute_query(conn, query_string,
+                              (id_, channel_id, title, assignable, etag),
+                              log_integrity_fail=False)
         conn.commit()
     conn.close()
 
@@ -423,7 +423,7 @@ def setup_tables(db_path: str, api_auth):
         except sqlite3.Error as e:
             print(e)
             print(schema_)
-    insert_or_refresh_categories(db_path, api_auth)
+    insert_or_refresh_categories(db_path, api_auth, False)
     insert_parent_topics(db_path)
     insert_sub_topics(db_path)
 
@@ -436,7 +436,7 @@ def insert_videos(db_path: str, records: dict, api_auth,
 
     import time
     from datetime import datetime
-    rows_passed = 0
+    rows_passed, inserted, updated, failed, dead = 0, 0, 0, 0, 0
     decl_types = sqlite3.PARSE_DECLTYPES
     decl_colnames = sqlite3.PARSE_COLNAMES
     conn = sqlite_connection(db_path, detect_types=decl_types | decl_colnames)
@@ -483,6 +483,7 @@ def insert_videos(db_path: str, records: dict, api_auth,
 
     # due to its made up ID, the unknown record is best handled manually
     if 'unknown' in records:
+        rows_passed += 1
         unknown_record = records.pop('unknown')
         unknown_record['id'] = 'unknown'
         unknown_record['timestamps'] = [
@@ -546,8 +547,9 @@ def insert_videos(db_path: str, records: dict, api_auth,
                 video_record['status'] = 'inactive'
                 video_record['last_updated'] = datetime.utcnow(
                 ).replace(microsecond=0)
-                update_video(conn, video_record)
-                delete_dead_video(conn, video_id)
+                if update_video(conn, video_record):
+                    delete_dead_video(conn, video_id)
+                    updated += 1
             conn.commit()
             continue
 
@@ -577,14 +579,16 @@ def insert_videos(db_path: str, records: dict, api_auth,
                 ).replace(microsecond=0)
                 delete_failed_request(conn, video_id)
             else:
-                add_failed_request(conn, video_id, attempts + 1)
+                if add_failed_request(conn, video_id, attempts + 1):
+                    failed += 1
             # video is still inserted, but this will be run again a couple of
             # times; it will attempt to retrieve the data from API and
             # update the record accordingly, if any data is returned
 
         if 'title' not in video_record:
             video_record['title'] = 'unknown'
-            add_dead_video(conn, video_id)
+            if add_dead_video(conn, video_id):
+                dead += 1
         if 'channel_id' not in video_record:
             video_record['channel_id'] = 'unknown'
 
@@ -620,10 +624,13 @@ def insert_videos(db_path: str, records: dict, api_auth,
         if video_id in video_ids:  # passing this check means the API request
             # has been successfully made, whereas previous attempts have failed.
             # Had they not failed, this check would have never been reached.
-            update_video(conn, video_record)
+            if update_video(conn, video_record):
+                updated += 1
+
         else:
             if add_video(conn, video_record):
                 video_ids.append(video_id)
+                inserted += 1
 
         all_timestamps.setdefault(video_id, [])
         for timestamp in timestamps:
@@ -672,6 +679,15 @@ def insert_videos(db_path: str, records: dict, api_auth,
 
     conn.commit()
     conn.close()
+
+    yield json.dumps(
+        {"records_processed": rows_passed,
+         "records_inserted": inserted,
+         "records_updated": updated,
+         "records_in_db": len(video_ids),
+         "failed_records": failed,
+         "dead_records": dead})
+    
     logger.info('-'*100 + f'\nPopulating finished')
 
 
