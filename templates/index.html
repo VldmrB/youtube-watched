@@ -140,7 +140,7 @@
             Insert videos' data into the database. This may take a while.
             <br>
             Information for all the ID bearing video records from Google Takeout will be requested
-            from YouTube API. The rest will be inserted as unknown, or with whatever limited information they come with
+            via YouTube API. The rest will be inserted as unknown, or with whatever limited information they come with
             in the watch-history.html file(s).
         </div>
         <div id="takeout-single-file-description">
@@ -230,27 +230,49 @@
             if (this.readyState == 4 && this.status == 200) {
                 takeoutDirectorySubmitButton.setAttribute('disabled', true);
                 var progress = new EventSource("{{ url_for('db_progress_stream') }}");
-                console.log(progress);
-                console.log(progress.constructor.name);
-                window.addEventListener('beforeunload', function () {
-                    // progress turns into an SSE message, as soon as the first one is pushed, it seems
+                function closeEventSource (event) {
+                    // var progress turns into an SSE message at some point in the process of the messages being pushed,
+                    // it seems
+                    event.preventDefault();
+                    console.log(progress);
                     try {
                         progress.close();
                     } catch(err) {
                         progress.target.close();
                     }
-                });
+                }
+                window.addEventListener('beforeunload', closeEventSource);
                 progress.onmessage = function (progress) {
                     progressTracker.innerHTML = progress.data;
-                    if (progress.data.indexOf("100") != -1) {
-                        progressTracker.innerHTML = "Video records' insertion finished";
+                    if (progress.data.indexOf("records_processed") != -1) {
+                        console.log("Insertion done!");
+                        var msgJSON = JSON.parse(progress.data);
+                        try {
+                            var msgString = ("Records processed: " + msgJSON.records_processed + "<br>Inserted: " +
+                            msgJSON.records_inserted + "<br>Updated: " + msgJSON.records_updated +
+                            "<br>Total records in the database: " + msgJSON.records_in_db)
+                            if (msgJSON.failed_records != 0) {
+                                msgString += ("<br>Failed API requests: " + msgJSON.failed_records +
+                                "( run 'Update records...' to attempt these again 1-2 times.)")
+                            }
+                            if (msgJSON.dead_records != 0) {
+                                msgString += "<br>Videos with no identifying info " + msgJSON.failed_records +
+                                " (added as unknown)"
+                            }
+
+                            progressTracker.innerHTML = msgString;
+                        } catch(err) {
+                            console.log(msgJSON);
+                        }
                         takeoutDirectorySubmitButton.removeAttribute('disabled');
-                        console.log(progress);
-                        console.log(progress.constructor.name);
                         progress.target.close();
+                        console.log("EventSource state:");
+                        console.log(progress.target);
+                        window.removeEventListener('beforeunload', closeEventSource);
                     } else if (progress.data.indexOf("Error") != -1) {
                         takeoutDirectorySubmitButton.removeAttribute('disabled');
                         progress.target.close();
+                        window.removeEventListener('beforeunload', closeEventSource);
                     }};
             }
         });
