@@ -197,6 +197,14 @@
             }
         });
     </script>
+    <div id="db-progress">
+        <div id="progress-bar-container" style="display:none;">
+            <div id="progress-bar">
+                <div id="progress-bar-text"><span></span></div>
+            </div>
+        </div>
+        <div id="progress-msg"></div>
+    </div>
     </div>
     <script>
         setPathValidation("#takeout-input", "#takeout-form input[type='submit']");
@@ -213,14 +221,6 @@
             $("#takeout-form input[name='takeout-path']").focus();
         {% endif %}
     </script>
-    <div id="db-progress" style="display:none;">
-        <div id="progress-bar-container">
-            <div id="progress-bar">
-                <div id="progress-bar-text"><span></span></div>
-            </div>
-        </div>
-        <div id="progress-msg"></div>
-    </div>
 </div>
 <script>
     var progressMsg = document.querySelector("#progress-msg");
@@ -237,11 +237,9 @@
         anAJAX.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
         anAJAX.addEventListener("readystatechange", function () {
             if (this.readyState == 4 && this.status == 200) {
+                document.querySelector("#progress-bar-container").style.display = "none";
                 takeoutDirectorySubmitButton.setAttribute('disabled', true);
                 var progress = new EventSource("{{ url_for('db_progress_stream') }}");
-                progressBar.style.width = "0%";
-                progressBarText.innerHTML = "0%";
-                document.querySelector("#db-progress").style.display = "block";
                 function closeEventSource (event) {
                     event.preventDefault();
                     console.log(progress);
@@ -249,12 +247,14 @@
                 };
                 window.addEventListener('beforeunload', closeEventSource);
                 progress.onmessage = function (event) {
-                    if (event.data.length < 4) {
+                    if (event.data.length < 6) {
                         var progressVal = event.data + "%";
                         progressBar.style.width = progressVal;
                         progressBarText.innerHTML = progressVal;
                     } else {
                         progressMsg.innerHTML = event.data;
+                        progressBar.style.width = "100%";
+                        progressBarText.innerHTML = "100%";
                         if (event.data.indexOf("records_processed") != -1) {
                             var msgJSON = JSON.parse(event.data);
                             try {
@@ -280,6 +280,10 @@
                             takeoutDirectorySubmitButton.removeAttribute('disabled');
                             event.target.close();
                             window.removeEventListener('beforeunload', closeEventSource);
+                        } else if (event.data.indexOf("Inserting") != -1) {
+                            document.querySelector("#progress-bar-container").style.display = "block";
+                            progressBar.style.width = "0%";
+                            progressBarText.innerHTML = "0%";
                         }
                     }
                 };
