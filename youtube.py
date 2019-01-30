@@ -41,7 +41,7 @@ def get_video_info(video_id, api_auth):
         reason = err_inf['errors'][0]['reason']
         if reason == 'keyInvalid':
             raise ApiKeyError('Invalid API key')
-        logger.error(f'ID {video_id} retrieval failed,\n'
+        logger.error(f'API error: ID# {video_id} retrieval failed\n'
                      f'error code: ' + str(err_inf['code']) +
                      '\ndescription: ' + err_inf['message'] +
                      '\nreason: ' + reason)

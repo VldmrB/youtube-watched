@@ -133,6 +133,7 @@ def populate_db(takeout_path: str, project_path: str):
     progress.append('Locating and processing watch-history.html files...')
     try:
         records = get_all_records(takeout_path)
+        progress.append('Inserting records...')
     except FileNotFoundError:
         progress.append(f'{flash_err} Invalid/non-existent path for '
                         f'watch-history.html files')
@@ -146,7 +147,6 @@ def populate_db(takeout_path: str, project_path: str):
             load_file(join(project_path, 'api_key')).strip())
         db_path = join(project_path, 'yt.sqlite')
         write_to_sql.setup_tables(db_path, api_auth)
-        progress.append('Inserting records...')
         tm_start = time.time()
         for records_processed in write_to_sql.insert_videos(
                 db_path, records, api_auth, True):

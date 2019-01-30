@@ -499,14 +499,15 @@ def insert_videos(db_path: str, records: dict, api_auth,
             if timestamp not in all_timestamps['unknown']:
                 add_time(conn, timestamp, 'unknown')
     records_len = len(records)
-    percent = records_len // 100
+    percent = records_len / 1000
+    percent_int = int(percent)
     yt_api = api_auth
     for video_id, video_record in records.items():
         rows_passed += 1
-        if generate_progress and rows_passed % percent == 0:
-            yield int(rows_passed // percent)
-        # if rows_passed % 200 == 0:
-        #     print(f'Processing entry # {rows_passed}')
+        if generate_progress:
+            if rows_passed % percent_int == 0:
+                print(f'Processing entry # {rows_passed}')
+                yield (rows_passed // percent)/10
         video_record['id'] = video_id
         video_record['timestamps'] = [
             datetime.strptime(timestamp[:-4], '%b %d, %Y, %I:%M:%S %p')
@@ -548,18 +549,20 @@ def insert_videos(db_path: str, records: dict, api_auth,
                 video_record['last_updated'] = datetime.utcnow(
                 ).replace(microsecond=0)
                 if update_video(conn, video_record):
+                    print('Updated', video_id, video_record['title'])
                     delete_dead_video(conn, video_id)
                     updated += 1
             conn.commit()
             continue
 
-        # print(rows_passed, 'entries processed')
         for attempt in range(1, 6):
             api_response = youtube.get_video_info(video_id, yt_api)
             time.sleep(0.01*attempt**attempt)
             if api_response:
-                print(video_id, print(video_record.get('title')))
-                delete_failed_request(conn, video_id)
+                delete_failed_request(conn, video_id)  # there may not a record
+                # for this yet due to one only being created after 5 failed
+                # attempts, while this checks regardless of the number of
+                # those, but that's fine
                 if api_response['items']:
                     api_response = wrangle_video_record(api_response['items'])
                     video_record.update(api_response)
