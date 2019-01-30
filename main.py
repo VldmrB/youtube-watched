@@ -48,12 +48,13 @@ def index():
     else:
         thread = None
     if os.path.exists(join(project_path, 'yt.sqlite')):
-        takeout_data = True
+        db = True
     else:
-        takeout_data = None
+        db = None
+
     return render_template('index.html', path=project_path, api_key=api_key,
                            path_pattern=path_pattern, thread=thread,
-                           takeout_data=takeout_data)
+                           db=db)
 
 
 @app.route('/create_project_dir', methods=['POST'])
@@ -94,7 +95,6 @@ def setup_api_key():
 
 
 def db_stream_event():
-    # cur_val = 'data: \n'*2
     while True:
         if progress:
             cur_val = str(progress.pop(0))

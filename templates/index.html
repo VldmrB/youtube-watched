@@ -50,7 +50,7 @@
     </div>
         <form id="project-dir-form" class="collapse form-inline"
               action="{{ url_for('create_project_dir') }}" method=post>
-            <div id="project-dir-input-group" class="col-md-3">
+            <div id="project-dir-input-group" class="col-xs-3">
                 <input id="project-dir-input" class="form-control" name="project-dir"
                        placeholder="Directory path..." pattern="{{ path_pattern }}" required>
                 <input class="form-control" type="submit" value="Submit">
@@ -103,7 +103,7 @@
     </div>
     <form id="api-key-form" class="collapse form-inline"
           action="{{ url_for('setup_api_key') }}" method=post>
-        <div class="col-md-3">
+        <div class="col-xs-3">
             <input id="api-key-input" type="password" class="form-control" name="api-key"
                    placeholder="API key..." required>
             <input class="form-control" type="submit" value="Submit">
@@ -128,7 +128,7 @@
 
 {% if api_key %}
 <div id="takeout-section">
-    {% if takeout_data %}
+    {% if db %}
     <button id="takeout-setup-button"
             class="btn btn-outline-primary btn-sm shw-btn"
             data-toggle="collapse"
@@ -137,7 +137,6 @@
     {% endif %}
     <div id="takeout-setup" class="collapse" >
         <div id="takeout-clarification">
-            <br>
             Insert videos' data into the database. This may take a while.
             <br>
             Information for all the ID bearing video records from Google Takeout will be requested
@@ -208,7 +207,7 @@
     </div>
     <script>
         setPathValidation("#takeout-input", "#takeout-form input[type='submit']");
-        {% if takeout_data %}
+        {% if db %}
             var showTakeoutFormButton = $("#takeout-setup-button");
             showTakeoutFormButton.on( 'click', function() {
                 if (showTakeoutFormButton.html() == 'Additional Takeout...') {
@@ -257,22 +256,19 @@
                         progressBarText.innerHTML = "100%";
                         if (event.data.indexOf("records_processed") != -1) {
                             var msgJSON = JSON.parse(event.data);
-                            try {
-                                var msgString = ("Records processed: " + msgJSON.records_processed + "<br>Inserted: " +
-                                msgJSON.records_inserted + "<br>Updated: " + msgJSON.records_updated +
-                                "<br>Total records in the database: " + msgJSON.records_in_db)
-                                if (msgJSON.failed_records != 0) {
-                                    msgString += ("<br>Failed API requests: " + msgJSON.failed_records +
-                                    "( run 'Update records...' to attempt these again 1-2 times.)")
-                                }
-                                if (msgJSON.dead_records != 0) {
-                                    msgString += "<br>Videos with no identifying info " + msgJSON.failed_records +
-                                    " (added as unknown)"
-                                }
-                                progressMsg.innerHTML = msgString;
-                            } catch(err) {
-                                console.log(msgJSON);
+                            var msgString = ("Records processed: " + msgJSON.records_processed + "<br>Inserted: " +
+                            msgJSON.records_inserted + "<br>Updated: " + msgJSON.records_updated +
+                            "<br>Total records in the database: " + msgJSON.records_in_db)
+                            if (msgJSON.failed_records != 0) {
+                                msgString += ("<br>Failed API requests: " + msgJSON.failed_records +
+                                "( run 'Update records...' to attempt these again 1-2 times.)")
                             }
+                            if (msgJSON.dead_records != 0) {
+                                msgString += "<br>Videos with no identifying info " + msgJSON.failed_records +
+                                " (added as unknown)"
+                            }
+                            progressMsg.innerHTML = msgString;
+
                             takeoutDirectorySubmitButton.removeAttribute('disabled');
                             event.target.close();
                             window.removeEventListener('beforeunload', closeEventSource);
