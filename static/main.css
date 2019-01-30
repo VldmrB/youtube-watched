@@ -24,4 +24,30 @@
     margin-bottom: 0.3rem;
     }
 
+#progress-bar-container {
+    width: 306px;
+    height: 26px;
+    border-radius: 2px;
+    border-style: solid;
+    border-width: 1px;
+    border-color: Gray;
+    text-align: center;
+    margin-top: 10px;
+    margin-bottom: 10px;
+}
+
+#progress-bar {
+    position: relative;
+    background-color: #00cc00;
+    width: 0%;
+    border-radius: 2px;
+    /*border-color: Black;*/
+    height: 25px;
+    transition: all 0.1s ease;
+}
+
+#progress-bar-text {
+    width: 305px;
+    text-align: center;
+}
 

@@ -31,10 +31,10 @@ def get_project_dir_path_from_cookie():
 def index():
     project_path = get_project_dir_path_from_cookie()
     if not project_path:
-        return render_template('index.html')
+        return render_template('index.html', path_pattern=path_pattern)
     elif not os.path.exists(project_path):
         flash(f'{flash_err} could not find directory {strong(project_path)}')
-        return render_template('index.html')
+        return render_template('index.html', path_pattern=path_pattern)
 
     api_key_path = join(project_path, 'api_key')
     if os.path.exists(api_key_path):
@@ -94,13 +94,15 @@ def setup_api_key():
 
 
 def db_stream_event():
+    # cur_val = 'data: \n'*2
     while True:
         if progress:
-            print(progress[0])
             cur_val = str(progress.pop(0))
             yield 'data: ' + cur_val + '\n'*2
+            if 'records_processed' in cur_val:
+                break
         else:
-            sleep(0.1)
+            sleep(0.05)
 
 
 @app.route('/get_progress')
@@ -126,6 +128,7 @@ def populate_db(takeout_path: str, project_path: str):
     import sqlite3
     import write_to_sql
     import youtube
+    import time
     from utils import load_file
     progress.append('Locating and processing watch-history.html files...')
     try:
@@ -143,13 +146,15 @@ def populate_db(takeout_path: str, project_path: str):
             load_file(join(project_path, 'api_key')).strip())
         db_path = join(project_path, 'yt.sqlite')
         write_to_sql.setup_tables(db_path, api_auth)
+        progress.append('Inserting records...')
+        tm_start = time.time()
         for records_processed in write_to_sql.insert_videos(
                 db_path, records, api_auth, True):
                 if isinstance(records_processed, int):
-                    progress.append('Inserting video records ('
-                                    + str(records_processed) + '%)')
+                    progress.append(str(records_processed))
                 else:
                     progress.append(records_processed)
+        print(time.time() - tm_start, 'seconds!')
     except youtube.ApiKeyError:
         progress.append(f'{flash_err} Missing or invalid API key')
         raise
