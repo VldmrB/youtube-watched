@@ -45,13 +45,14 @@
                 data-target="#project-dir-form">Change...</button>
     {% else %}
         <div>Create a project directory (or enter a previously created one).</div>
+
     {% endif %}
     </div>
         <form id="project-dir-form" class="collapse form-inline"
               action="{{ url_for('create_project_dir') }}" method=post>
             <div id="project-dir-input-group" class="col-md-3">
                 <input id="project-dir-input" class="form-control" name="project-dir"
-                       placeholder="Directory path..." pattern='{{ path_pattern }}' required>
+                       placeholder="Directory path..." pattern="{{ path_pattern }}" required>
                 <input class="form-control" type="submit" value="Submit">
             </div>
         </form>
@@ -212,11 +213,19 @@
             $("#takeout-form input[name='takeout-path']").focus();
         {% endif %}
     </script>
-    <div id="db-progress">
+    <div id="db-progress" style="display:none;">
+        <div id="progress-bar-container">
+            <div id="progress-bar">
+                <div id="progress-bar-text"><span></span></div>
+            </div>
+        </div>
+        <div id="progress-msg"></div>
     </div>
 </div>
 <script>
-    var progressTracker = document.querySelector("#db-progress");
+    var progressMsg = document.querySelector("#progress-msg");
+    var progressBar = document.querySelector("#progress-bar");
+    var progressBarText = document.querySelector("#progress-bar-text span");
     var takeoutSubmit = document.querySelector("#takeout-form");
     takeoutSubmit.addEventListener("submit", function(event) {
         event.preventDefault();
@@ -230,50 +239,50 @@
             if (this.readyState == 4 && this.status == 200) {
                 takeoutDirectorySubmitButton.setAttribute('disabled', true);
                 var progress = new EventSource("{{ url_for('db_progress_stream') }}");
+                progressBar.style.width = "0%";
+                progressBarText.innerHTML = "0%";
+                document.querySelector("#db-progress").style.display = "block";
                 function closeEventSource (event) {
-                    // var progress turns into an SSE message at some point in the process of the messages being pushed,
-                    // it seems
                     event.preventDefault();
                     console.log(progress);
-                    try {
-                        progress.close();
-                    } catch(err) {
-                        progress.target.close();
-                    }
-                }
+                    progress.close();
+                };
                 window.addEventListener('beforeunload', closeEventSource);
-                progress.onmessage = function (progress) {
-                    progressTracker.innerHTML = progress.data;
-                    if (progress.data.indexOf("records_processed") != -1) {
-                        console.log("Insertion done!");
-                        var msgJSON = JSON.parse(progress.data);
-                        try {
-                            var msgString = ("Records processed: " + msgJSON.records_processed + "<br>Inserted: " +
-                            msgJSON.records_inserted + "<br>Updated: " + msgJSON.records_updated +
-                            "<br>Total records in the database: " + msgJSON.records_in_db)
-                            if (msgJSON.failed_records != 0) {
-                                msgString += ("<br>Failed API requests: " + msgJSON.failed_records +
-                                "( run 'Update records...' to attempt these again 1-2 times.)")
+                progress.onmessage = function (event) {
+                    if (event.data.length < 4) {
+                        var progressVal = event.data + "%";
+                        progressBar.style.width = progressVal;
+                        progressBarText.innerHTML = progressVal;
+                    } else {
+                        progressMsg.innerHTML = event.data;
+                        if (event.data.indexOf("records_processed") != -1) {
+                            var msgJSON = JSON.parse(event.data);
+                            try {
+                                var msgString = ("Records processed: " + msgJSON.records_processed + "<br>Inserted: " +
+                                msgJSON.records_inserted + "<br>Updated: " + msgJSON.records_updated +
+                                "<br>Total records in the database: " + msgJSON.records_in_db)
+                                if (msgJSON.failed_records != 0) {
+                                    msgString += ("<br>Failed API requests: " + msgJSON.failed_records +
+                                    "( run 'Update records...' to attempt these again 1-2 times.)")
+                                }
+                                if (msgJSON.dead_records != 0) {
+                                    msgString += "<br>Videos with no identifying info " + msgJSON.failed_records +
+                                    " (added as unknown)"
+                                }
+                                progressMsg.innerHTML = msgString;
+                            } catch(err) {
+                                console.log(msgJSON);
                             }
-                            if (msgJSON.dead_records != 0) {
-                                msgString += "<br>Videos with no identifying info " + msgJSON.failed_records +
-                                " (added as unknown)"
-                            }
-
-                            progressTracker.innerHTML = msgString;
-                        } catch(err) {
-                            console.log(msgJSON);
+                            takeoutDirectorySubmitButton.removeAttribute('disabled');
+                            event.target.close();
+                            window.removeEventListener('beforeunload', closeEventSource);
+                        } else if (event.data.indexOf("Error") != -1) {
+                            takeoutDirectorySubmitButton.removeAttribute('disabled');
+                            event.target.close();
+                            window.removeEventListener('beforeunload', closeEventSource);
                         }
-                        takeoutDirectorySubmitButton.removeAttribute('disabled');
-                        progress.target.close();
-                        console.log("EventSource state:");
-                        console.log(progress.target);
-                        window.removeEventListener('beforeunload', closeEventSource);
-                    } else if (progress.data.indexOf("Error") != -1) {
-                        takeoutDirectorySubmitButton.removeAttribute('disabled');
-                        progress.target.close();
-                        window.removeEventListener('beforeunload', closeEventSource);
-                    }};
+                    }
+                };
             }
         });
         anAJAX.send("takeout-path=" + takeoutDirectoryVal);
