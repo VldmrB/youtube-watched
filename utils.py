@@ -109,6 +109,9 @@ def get_final_key_paths(
     return paths
 
 
+loggers_to_remove = ['werkzeug', 'flask']
+
+
 def logging_config(log_file_path: str,
                    file_level: int = logging.DEBUG,
                    console_out_level: int = logging.DEBUG,
@@ -131,6 +134,17 @@ def logging_config(log_file_path: str,
         def filter(self, record):
             return record.levelno <= self.level
 
+    class BlackListFilter(logging.Filter):
+        def __init__(self):
+            super(BlackListFilter).__init__()
+
+        def filter(self, record):
+            for logger_name in loggers_to_remove:
+                if record.name.startswith(logger_name):
+                    return
+            else:
+                return True
+
     log_format = logging.Formatter('%(asctime)s {%(name)s.%(funcName)s} '
                                    '%(levelname)s: %(message)s',
                                    datefmt='%Y-%m-%d %H:%M:%S')
@@ -141,14 +155,18 @@ def logging_config(log_file_path: str,
                                                 (1024**2)*3, 5)
     file_handler.setLevel(file_level)
     file_handler.setFormatter(log_format)
+
     console_out = logging.StreamHandler(stream=sys.stdout)
     console_out.setLevel(console_out_level)
-    console_out.addFilter(ConsoleOutFilter(logging.INFO))
     console_out.setFormatter(std_format)
+    console_out.addFilter(ConsoleOutFilter(logging.INFO))
+    console_out.addFilter(BlackListFilter())
+
     console_err = logging.StreamHandler(stream=sys.stderr)
     console_err.setLevel(console_err_level)
     console_err.setFormatter(std_format)
     console_err.addFilter(ConsoleOutFilter(logging.CRITICAL))
+    console_err.addFilter(BlackListFilter())
 
     logging.basicConfig(format=log_format, level=file_level,
                         handlers=[file_handler, console_out, console_err])
