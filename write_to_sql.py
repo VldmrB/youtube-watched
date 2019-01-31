@@ -2,7 +2,8 @@ import sqlite3
 import json
 import logging
 import youtube
-from typing import Union
+from sql_utils import log_query_error, execute_query
+from sql_utils import generate_insert_query, generate_unconditional_update_query
 from utils import get_final_key_paths, convert_duration, sqlite_connection
 from config import video_keys_and_columns
 
@@ -106,32 +107,6 @@ VIDEOS_WATCHED_AT_TIMESTAMPS_COLUMNS = ['video_id', 'watched_at']
 FAILED_REQUESTS_IDS_COLUMNS = ['id', 'attempts']
 DEAD_VIDEOS_IDS_COLUMNS = ['id']
 
-
-def generate_insert_query(table: str,
-                          columns: Union[list, tuple],
-                          on_conflict_ignore=False)-> str:
-    """
-    Constructs a basic insert query.
-    """
-
-    val_amount = len(columns)
-    values_placeholders = '(' + ('?, ' * val_amount).strip(' ,') + ')'
-    columns = '(' + ', '.join(columns) + ')'
-
-    query = f' INTO {table} {columns} VALUES {values_placeholders}'
-    if on_conflict_ignore:
-        query = f'INSERT OR IGNORE' + query
-    else:
-        query = 'INSERT' + query
-    return query
-
-
-def generate_unconditional_update_query(table: str,
-                                        columns: Union[list, tuple]):
-    columns = ' = ?, '.join(columns).strip(',') + ' = ?'
-    return f'''UPDATE {table} SET {columns} WHERE id = ?'''
-
-
 # below are rigid insert queries, ones whose amount of columns will not change
 # between records
 # add_channel and add_video are compiled every run due to dynamic col amount
@@ -150,63 +125,6 @@ add_failed_request_query = generate_insert_query(
 add_dead_video_query = generate_insert_query('dead_videos_ids',
                                              columns=DEAD_VIDEOS_IDS_COLUMNS,
                                              on_conflict_ignore=True)
-
-
-def log_query_error(error, query_string: str, values=None):
-    if not values:
-        logger.error(f'{error}\n'
-                     f'query = \'{query_string}\'')
-        return
-    logger.error(f'{error}\n'
-                 f'query = \'{query_string}\'\n'
-                 f'values = {values}')
-
-
-def execute_query(conn: sqlite3.Connection,
-                  query: str, values: Union[list, tuple] = None,
-                  log_integrity_fail=True):
-    """
-    Executes the query with passed values (if any). If a SELECT query,
-    returns the results.
-    Passes potential errors to a logger. Logging for integrity errors,
-    such as a foreign key constraint fail, can be disabled
-    via log_integrity_fail param.
-    """
-    cur = conn.cursor()
-    try:
-        if values is not None:
-            if isinstance(values, list):
-                values = tuple(values)
-            elif isinstance(values, tuple):
-                pass
-            else:
-                raise ValueError('Expected str, tuple or list, got ' +
-                                 values.__class__.__name__)
-            cur.execute(query, values)
-        else:
-            cur.execute(query)
-        if query.lower().startswith('select'):
-            return cur.fetchall()
-        return True
-    except sqlite3.IntegrityError as e:
-        if not log_integrity_fail:
-            return False
-        if values:
-            values = f'{list(values)}'
-            log_query_error(e, query, values)
-        else:
-            log_query_error(e, query)
-        return False
-    except sqlite3.Error as e:
-        if values:
-            values = f'{list(values)}'
-            logger.error('FATAL ERROR:')
-            log_query_error(e, query, values)
-        else:
-            log_query_error(e, query)
-        raise
-    finally:
-        cur.close()
 
 
 def wrangle_video_record(json_obj: dict):
