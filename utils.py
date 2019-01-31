@@ -111,27 +111,47 @@ def get_final_key_paths(
 
 def logging_config(log_file_path: str,
                    file_level: int = logging.DEBUG,
-                   console_level: int = logging.WARNING):
+                   console_out_level: int = logging.DEBUG,
+                   console_err_level: int = logging.WARNING):
     """    Sets basicConfig - formatting, levels, adds a file and stream
     handlers.
 
     :param log_file_path: path to the log file
     :param file_level: logging threshold for the file handler
-    :param console_level: logging threshold for the console handler
+    :param console_out_level: logging threshold for the console std handler
+    :param console_err_level: logging threshold for the console err handler
     :return:
     """
-    msg_format = logging.Formatter('%(asctime)s {%(name)s %(funcName)s} '
+
+    class ConsoleOutFilter(logging.Filter):
+        def __init__(self, level: int):
+            super(ConsoleOutFilter).__init__()
+            self.level = level
+
+        def filter(self, record):
+            return record.levelno <= self.level
+
+    log_format = logging.Formatter('%(asctime)s {%(name)s.%(funcName)s} '
                                    '%(levelname)s: %(message)s',
                                    datefmt='%Y-%m-%d %H:%M:%S')
+    std_format = logging.Formatter('%(asctime)s {%(funcName)s} '
+                                   '%(levelname)s: %(message)s',
+                                   datefmt='%H:%M:%S')
     file_handler = handlers.RotatingFileHandler(log_file_path, 'a',
                                                 (1024**2)*3, 5)
     file_handler.setLevel(file_level)
-    file_handler.setFormatter(msg_format)
+    file_handler.setFormatter(log_format)
     console_out = logging.StreamHandler(stream=sys.stdout)
-    console_out.setLevel(console_level)
-    console_out.setFormatter(msg_format)
-    logging.basicConfig(format=msg_format, level=file_level,
-                        handlers=[file_handler, console_out])
+    console_out.setLevel(console_out_level)
+    console_out.addFilter(ConsoleOutFilter(logging.INFO))
+    console_out.setFormatter(std_format)
+    console_err = logging.StreamHandler(stream=sys.stderr)
+    console_err.setLevel(console_err_level)
+    console_err.setFormatter(std_format)
+    console_err.addFilter(ConsoleOutFilter(logging.CRITICAL))
+
+    logging.basicConfig(format=log_format, level=file_level,
+                        handlers=[file_handler, console_out, console_err])
 
 
 def sqlite_connection(db_path: str, **kwargs) -> sqlite3.Connection:
@@ -155,7 +175,3 @@ def write_to_file(path: str, content):
 
 def get_hash(obj: bytes) -> str:
     return sha3_256(obj).hexdigest()
-
-
-if __name__ == '__main__':
-    print(get_hash(bytes('boi', encoding='utf-8')))

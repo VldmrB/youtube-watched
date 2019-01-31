@@ -1,4 +1,5 @@
 import os
+from utils import logging_config
 from os.path import join
 from time import sleep
 from flask import Flask, Response, render_template, url_for
@@ -15,6 +16,7 @@ if os.name == 'nt':
 else:
     path_pattern = '.+'
 
+configure_logging = False
 insert_videos_thread = None
 progress = []
 
@@ -35,7 +37,10 @@ def index():
     elif not os.path.exists(project_path):
         flash(f'{flash_err} could not find directory {strong(project_path)}')
         return render_template('index.html', path_pattern=path_pattern)
-
+    global configure_logging
+    if not configure_logging:
+        configure_logging = True
+        logging_config(join(project_path, 'events.log'))
     api_key_path = join(project_path, 'api_key')
     if os.path.exists(api_key_path):
         with open(api_key_path, 'r') as api_file:
@@ -175,6 +180,5 @@ def populate_db(takeout_path: str, project_path: str):
 
 if __name__ == '__main__':
     app.run()
-
     # from utils import logging_config
     # logging_config(r'C:\Users\Vladimir\Desktop\sql_fails.log')
