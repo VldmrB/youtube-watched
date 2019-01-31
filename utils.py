@@ -115,7 +115,8 @@ loggers_to_remove = ['werkzeug', 'flask']
 def logging_config(log_file_path: str,
                    file_level: int = logging.DEBUG,
                    console_out_level: int = logging.DEBUG,
-                   console_err_level: int = logging.WARNING):
+                   console_err_level: int = logging.WARNING,
+                   native_app_logger_to_file=False):
     """    Sets basicConfig - formatting, levels, adds a file and stream
     handlers.
 
@@ -123,6 +124,8 @@ def logging_config(log_file_path: str,
     :param file_level: logging threshold for the file handler
     :param console_out_level: logging threshold for the console std handler
     :param console_err_level: logging threshold for the console err handler
+    :param native_app_logger_to_file: enable app's native logging output to go
+    to file as well
     :return:
     """
 
@@ -155,6 +158,8 @@ def logging_config(log_file_path: str,
                                                 (1024**2)*3, 5)
     file_handler.setLevel(file_level)
     file_handler.setFormatter(log_format)
+    if native_app_logger_to_file:
+        file_handler.addFilter(BlackListFilter())
 
     console_out = logging.StreamHandler(stream=sys.stdout)
     console_out.setLevel(console_out_level)
