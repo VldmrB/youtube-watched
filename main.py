@@ -66,7 +66,7 @@ def index():
 def create_project_dir():
     project_path = request.form['project-dir'].strip()
     if not project_path:
-        flash(f'{flash_err} path cannot be empty ')
+        flash(f'{flash_err} path cannot be empty')
         return redirect(url_for('index'))
     resp = make_response(redirect(url_for('index')))
 
