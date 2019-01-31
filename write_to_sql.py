@@ -7,7 +7,6 @@ from utils import get_final_key_paths, convert_duration, sqlite_connection
 from config import video_keys_and_columns
 
 logger = logging.getLogger(__name__)
-DB_NAME = 'yt.sqlite'
 TABLE_SCHEMAS = {
     'categories': '''categories (
     id text primary key,
@@ -96,24 +95,6 @@ TABLE_SCHEMAS = {
     );'''
 }
 
-VIDEOS_COLUMNS = [column.split()[0] for column in
-                  [
-    'id text primary key',  # not using a separate integer as a PK
-    'published_at timestamp',  # pass detect_types when creating connection
-    'channel_id text',
-    'title text',
-    'description text',
-    'category_id text',
-    'default_audio_language text',
-    'last_updated timestamp',
-    'status text',
-    'duration integer',
-    'view_count integer',
-    'like_count integer',
-    'dislike_count integer',
-    'comment_count integer',
-                   ]
-                  ]
 CHANNEL_COLUMNS = ['id', 'title']
 CATEGORIES_COLUMNS = ['id', 'channel_id', 'title', 'assignable', 'etag']
 PARENT_TOPICS_COLUMNS = ['id', 'topic']
@@ -549,7 +530,6 @@ def insert_videos(db_path: str, records: dict, api_auth,
                 video_record['last_updated'] = datetime.utcnow(
                 ).replace(microsecond=0)
                 if update_video(conn, video_record):
-                    print('Updated', video_id, video_record['title'])
                     delete_dead_video(conn, video_id)
                     updated += 1
             conn.commit()
@@ -559,10 +539,10 @@ def insert_videos(db_path: str, records: dict, api_auth,
             api_response = youtube.get_video_info(video_id, yt_api)
             time.sleep(0.01*attempt**attempt)
             if api_response:
-                delete_failed_request(conn, video_id)  # there may not a record
-                # for this yet due to one only being created after 5 failed
-                # attempts, while this checks regardless of the number of
-                # those, but that's fine
+                delete_failed_request(conn, video_id)  # there may not be a
+                # record for this yet due to one only being created after 5
+                # failed attempts, while this checks regardless of the number
+                # of those, but that's fine
                 if api_response['items']:
                     api_response = wrangle_video_record(api_response['items'])
                     video_record.update(api_response)
