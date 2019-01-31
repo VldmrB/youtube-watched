@@ -77,7 +77,7 @@ TABLE_SCHEMAS = {
     on update cascade on delete cascade
     );''',
     
-    'videos_watched_at_timestamps': '''videos_watched_at_timestamps (
+    'videos_timestamps': '''videos_timestamps (
     video_id text,
     watched_at timestamp,
     unique(video_id, watched_at),
@@ -118,7 +118,7 @@ add_tag_to_video_query = generate_insert_query('videos_tags',
 add_topic_to_video_query = generate_insert_query('videos_topics',
                                                  columns=VIDEOS_TOPICS_COLUMNS)
 add_time_to_video_query = generate_insert_query(
-    'videos_watched_at_timestamps',
+    'videos_timestamps',
     columns=VIDEOS_WATCHED_AT_TIMESTAMPS_COLUMNS, on_conflict_ignore=True)
 add_failed_request_query = generate_insert_query(
     'failed_requests_ids',
@@ -347,7 +347,7 @@ def insert_videos(db_path: str, records: dict, api_auth,
     channels = [row[0] for row in cur.fetchall()]
     cur.execute("""SELECT * FROM tags;""")
     existing_tags = {v: k for k, v in cur.fetchall()}
-    cur.execute("""SELECT * FROM videos_watched_at_timestamps;""")
+    cur.execute("""SELECT * FROM videos_timestamps;""")
     all_timestamps = {}
     for timestamp_record in cur.fetchall():
         all_timestamps.setdefault(timestamp_record[0], [])
@@ -591,6 +591,27 @@ def insert_videos(db_path: str, records: dict, api_auth,
          "dead_records": dead})
     
     logger.info('-'*100 + f'\nPopulating finished')
+
+
+def update_videos(db_path: str, dict, api_auth, generate_progress=False):
+    import time
+    rows_passed, inserted, updated, failed, dead = 0, 0, 0, 0, 0
+    decl_types = sqlite3.PARSE_DECLTYPES
+    decl_colnames = sqlite3.PARSE_COLNAMES
+    conn = sqlite_connection(db_path, detect_types=decl_types | decl_colnames)
+    cur = conn.cursor()
+    cur.execute("""SELECT id FROM videos;""")
+    video_ids = [row[0] for row in cur.fetchall()]
+    cur.execute("""SELECT id FROM channels;""")
+    channels = [row[0] for row in cur.fetchall()]
+    cur.execute("""SELECT * FROM tags;""")
+    existing_tags = {v: k for k, v in cur.fetchall()}
+    cur.execute("""SELECT * FROM videos_timestamps;""")
+    cur.execute("""SELECT id FROM dead_videos_ids;""")
+    dead_videos_ids = [dead_video[0] for dead_video in cur.fetchall()]
+    cur.execute("""SELECT * FROM failed_requests_ids;""")
+    failed_requests_ids = {k: v for k, v in cur.fetchall()}
+    cur.close()
 
 
 def mock_records(db_path: str):
