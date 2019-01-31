@@ -8,6 +8,7 @@ from utils import get_final_key_paths, convert_duration, sqlite_connection
 from config import video_keys_and_columns
 
 logger = logging.getLogger(__name__)
+
 TABLE_SCHEMAS = {
     'categories': '''categories (
     id text primary key,
