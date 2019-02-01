@@ -56,7 +56,8 @@ def convert_duration(duration_iso8601: str):
 def get_final_key_paths(
         obj: Union[dict, list, tuple], cur_path: str = '',
         append_values: bool = False,
-        paths: list = None, black_list: list = None):
+        paths: list = None, black_list: list = None,
+        final_keys_only: bool = False):
     """
     Returns Python ready, full key paths as strings
 
@@ -80,11 +81,17 @@ def get_final_key_paths(
                     if black_list is not None and key in black_list:
                         continue
                     get_final_key_paths(
-                        obj[key], new_path, append_values, paths, black_list)
+                        obj[key], new_path, append_values, paths, black_list,
+                        final_keys_only)
                 elif isinstance(obj[key], (list, tuple)):
-                    get_final_key_paths(obj[key], new_path,
-                                        append_values, paths, black_list)
+                    get_final_key_paths(
+                        obj[key], new_path, append_values, paths, black_list,
+                        final_keys_only)
                 else:
+                    if final_keys_only:
+                        last_bracket = new_path.rfind('[\'')
+                        new_path = new_path[
+                                   last_bracket+2:new_path.rfind('\'')]
                     if append_values:
                         to_append = [new_path, obj[key]]
                     else:
@@ -96,9 +103,13 @@ def get_final_key_paths(
                 if isinstance(obj[i], (dict, tuple, list)):
                     get_final_key_paths(
                         obj[i], cur_path + f'[{i}]', append_values,
-                        paths, black_list)
+                        paths, black_list, final_keys_only)
                 else:
                     if not key_added:
+                        if final_keys_only:
+                            last_bracket = cur_path.rfind('[\'')
+                            cur_path = cur_path[
+                                       last_bracket+2:cur_path.rfind('\'')]
                         if append_values:
                             to_append = [cur_path, obj]
                         else:
