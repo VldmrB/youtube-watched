@@ -116,7 +116,8 @@ add_tag_to_video_query = generate_insert_query('videos_tags',
                                                columns=VIDEOS_TAGS_COLUMNS,
                                                on_conflict_ignore=True)
 add_topic_to_video_query = generate_insert_query('videos_topics',
-                                                 columns=VIDEOS_TOPICS_COLUMNS)
+                                                 columns=VIDEOS_TOPICS_COLUMNS,
+                                                 on_conflict_ignore=True)
 add_time_to_video_query = generate_insert_query(
     'videos_timestamps',
     columns=VIDEOS_WATCHED_AT_TIMESTAMPS_COLUMNS, on_conflict_ignore=True)
@@ -182,6 +183,14 @@ def add_channel(conn: sqlite3.Connection,
     return execute_query(conn, query_string, values)
 
 
+def update_channel(conn: sqlite3.Connection,
+                   channel_id: str, channel_name: str):
+    execute_query(conn,
+                  '''UPDATE TABLE channels 
+                  SET title = ?
+                  WHERE id = ?''', (channel_name, channel_id))
+
+
 def add_tag(conn: sqlite3.Connection, tag: str):
     return execute_query(conn, add_tag_query, (tag,))
 
@@ -206,6 +215,40 @@ def update_video(conn: sqlite3.Connection, cols_vals: dict):
 def add_tag_to_video(conn: sqlite3.Connection, tag_id, video_id):
     values = video_id, tag_id
     return execute_query(conn, add_tag_to_video_query, values)
+
+
+def add_tags_to_table_and_video(conn: sqlite3.Connection,
+                                tags: list, video_id, existing_tags: dict):
+    for tag in tags:
+        if tag not in existing_tags:
+            tag_id = None
+            if add_tag(conn, tag):
+                query_str = 'SELECT id FROM tags WHERE tag = ?'
+                cur = conn.cursor()
+                cur.execute(query_str, (tag,))
+                try:
+                    tag_id = cur.fetchone()[0]
+                    existing_tags[tag] = tag_id
+                except (TypeError, sqlite3.Error) as e:
+                    # todo this is thrown because sometimes the tag_id
+                    # is not retrieved, due to a weird combo of
+                    # escaping and the tag being an SQLITE keyword.
+                    # It's likely fixed now (after changing the select
+                    # query a bit) and won't error out anymore, but
+                    # needs to be confirmed first
+                    max_id_query_str = 'SELECT max(id) FROM tags'
+                    cur.execute(max_id_query_str)
+                    tag_id = cur.fetchone()[0] + 1
+                    existing_tags[tag] = tag_id
+                    update_tag_id_query = '''UPDATE tags 
+                        SET id = ? WHERE tag = ?'''
+                    cur.execute(update_tag_id_query, (tag_id, tag))
+                    log_query_error(e, query_str, tag)
+                cur.close()
+        else:
+            tag_id = existing_tags[tag]
+        if tag_id:
+            add_tag_to_video(conn, tag_id, video_id)
 
 
 def add_topic_to_video(conn: sqlite3.Connection, topic, video_id):
@@ -537,39 +580,14 @@ def insert_videos(db_path: str, records: dict, api_auth,
         all_timestamps.setdefault(video_id, [])
         for timestamp in timestamps:
             if timestamp not in all_timestamps[video_id]:
+                # all_timestamps[video_id].append(timestamp)
+                # the commented out LOC is unnecessary, due to
+                # "ON CONFLICT IGNORE" and that there should be no duplicate
+                # timestamps in any Takeout record
                 add_time(conn, timestamp, video_id)
 
         if tags:
-            for tag in tags:
-                if tag not in existing_tags:
-                    tag_id = None
-                    if add_tag(conn, tag):
-                        query_str = 'SELECT id FROM tags WHERE tag = ?'
-                        cur = conn.cursor()
-                        cur.execute(query_str, (tag,))
-                        try:
-                            tag_id = cur.fetchone()[0]
-                            existing_tags[tag] = tag_id
-                        except (TypeError, sqlite3.Error) as e:
-                            # todo this is thrown because sometimes the tag_id
-                            # is not retrieved, due to a weird combo of
-                            # escaping and the tag being an SQLITE keyword.
-                            # It's likely fixed now (after changing the select
-                            # query a bit) and won't error out anymore, but
-                            # needs to be confirmed first
-                            max_id_query_str = 'SELECT max(id) FROM tags'
-                            cur.execute(max_id_query_str)
-                            tag_id = cur.fetchone()[0] + 1
-                            existing_tags[tag] = tag_id
-                            update_tag_id_query = '''UPDATE tags 
-                            SET id = ? WHERE tag = ?'''
-                            cur.execute(update_tag_id_query, (tag_id, tag))
-                            log_query_error(e, query_str, tag)
-                        cur.close()
-                else:
-                    tag_id = existing_tags[tag]
-                if tag_id:
-                    add_tag_to_video(conn, tag_id, video_id)
+            add_tags_to_table_and_video(conn, tags, video_id, existing_tags)
 
         if topics:
             for topic in topics:
@@ -593,25 +611,109 @@ def insert_videos(db_path: str, records: dict, api_auth,
     logger.info('-'*100 + f'\nPopulating finished')
 
 
-def update_videos(db_path: str, dict, api_auth, generate_progress=False):
+def update_videos(db_path: str, api_auth, generate_progress=False):
     import time
-    rows_passed, inserted, updated, failed, dead = 0, 0, 0, 0, 0
+    from datetime import datetime
+    rows_passed, updated, failed = 0, 0, 0
     decl_types = sqlite3.PARSE_DECLTYPES
     decl_colnames = sqlite3.PARSE_COLNAMES
     conn = sqlite_connection(db_path, detect_types=decl_types | decl_colnames)
+    conn.row_factory = sqlite3.Row
     cur = conn.cursor()
-    cur.execute("""SELECT id FROM videos;""")
-    video_ids = [row[0] for row in cur.fetchall()]
-    cur.execute("""SELECT id FROM channels;""")
-    channels = [row[0] for row in cur.fetchall()]
+    cur.execute(
+        """SELECT * FROM videos WHERE status != ?;""", ('inactive',))
+    all_records = list(cur.fetchall())
+    conn.row_factory = None
+    cur.execute("""SELECT * FROM channels WHERE title is not NULL;""")
+    channels = {k: v for k, v in cur.fetchall()}
     cur.execute("""SELECT * FROM tags;""")
     existing_tags = {v: k for k, v in cur.fetchall()}
-    cur.execute("""SELECT * FROM videos_timestamps;""")
-    cur.execute("""SELECT id FROM dead_videos_ids;""")
-    dead_videos_ids = [dead_video[0] for dead_video in cur.fetchall()]
     cur.execute("""SELECT * FROM failed_requests_ids;""")
     failed_requests_ids = {k: v for k, v in cur.fetchall()}
     cur.close()
+    yt_api = api_auth
+    for video_record in range(len(all_records)):
+        if all_records[video_record]['id'] == 'unknown':
+            all_records.pop(video_record)
+
+    '''
+    Outline:
+        
+      Update existing records, i.e. their view counts, possibly names, 
+      anything that may have changed. Uses API requests. 
+      Things that may/will change in a record over time: 
+       - video
+       - title
+       - channel title
+       - category 
+       - all the counts (view, like, etc.) 
+    '''
+    records_len = len(all_records)
+    percent = records_len / 1000
+    percent_int = int(percent)
+
+    logger.info(f'\nStarting records\' updating...\n' + '-'*100)
+    for video_record in all_records:
+        rows_passed += 1
+        if generate_progress:
+            if rows_passed % percent_int == 0:
+                # print(f'Processing entry # {rows_passed}')
+                yield (rows_passed // percent)/10
+
+        video_id = video_record['id']
+        for attempt in range(2, 7):
+            api_response = youtube.get_video_info(video_id, yt_api)
+            time.sleep(0.01*attempt**attempt)
+            if api_response:
+                if video_id in failed_requests_ids.keys():
+                    delete_failed_request(conn, video_id)
+                    failed_requests_ids.pop(video_id)
+                if api_response['items']:
+                    api_video_data = wrangle_video_record(api_response['items'])
+                    video_record.update(api_video_data)
+                    video_record['status'] = 'active'
+                else:
+                    video_record['status'] = 'inactive'
+
+                video_record['last_updated'] = datetime.utcnow(
+                ).replace(microsecond=0)
+                break
+        else:
+            failed_requests_ids.setdefault(video_id, 0)
+            attempts = failed_requests_ids[video_id]
+            if attempts + 1 > 2:
+                video_record['status'] = 'inactive'
+                update_video(conn, video_record)
+                video_record['last_updated'] = datetime.utcnow(
+                ).replace(microsecond=0)
+
+                delete_failed_request(conn, video_id)
+                failed_requests_ids.pop(video_id)
+            else:
+                if add_failed_request(conn, video_id, attempts + 1):
+                    failed += 1
+
+        if 'tags' in video_record:
+            tags = video_record.pop('tags')
+            add_tags_to_table_and_video(conn, tags, video_id, existing_tags)
+        if 'channel_title' in video_record:
+            channel_title = video_record.pop('channel_title')
+            channel_id = video_record['channel_id']
+            if channel_title != channels[channel_id]:
+                update_channel(conn, channel_id, channel_title)
+        if 'relevant_topic_ids' in video_record:
+            topics = video_record.pop('relevant_topic_ids')
+            for topic in topics:
+                add_topic_to_video(conn, topic, video_id)
+
+        if update_video(conn, video_record):
+            updated += 1
+
+        conn.commit()
+
+    conn.commit()
+    conn.close()
+    logger.info('-'*100 + f'\nUpdating finished')
 
 
 def mock_records(db_path: str):
@@ -649,7 +751,7 @@ def mock_records(db_path: str):
 
 
 if __name__ == '__main__':
-    import cProfile
+    # import cProfile
     from os.path import join
     test_dir = r'G:\test_dir'
     with open(join(test_dir, 'api_key'), 'r') as file:
@@ -658,8 +760,10 @@ if __name__ == '__main__':
     auth = youtube.get_api_auth(api_key)
     setup_tables(DB_PATH, auth)
     # mock_records(DB_PATH)
-    cProfile.run(
-        r"insert_videos(DB_PATH, get_all_records(r'D:\Downloads'), auth)",
-        r'C:\Users\Vladimir\Desktop\results.txt'
-    )
+    # cProfile.run(
+    #     r"insert_videos(DB_PATH, get_all_records(r'D:\Downloads'), auth)",
+    #     r'C:\Users\Vladimir\Desktop\results.txt'
+    # )
+    update_videos(DB_PATH, auth)
+    # cProfile.run(r"update_videos(DB_PATH, auth)")
     # insert_videos(DB_PATH, get_all_records(r'D:\Downloads'), auth)

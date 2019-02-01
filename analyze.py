@@ -6,7 +6,7 @@ import pandas as pd
 from scipy.interpolate import interp1d
 from ktools import utils
 from testing import WORK_DIR
-from data_prep import get_videos_info_from_db, duplicate_tags
+from data_prep import duplicate_tags
 
 # Nov 19, 2018, 11:07:59 PM EST
 # %b  %d,   %Y, %I:%M:%S %p  %Z
@@ -36,7 +36,8 @@ def plot_data(data: dict, save_path=None):
 
 @utils.timer
 def plot_tags():
-    records = get_videos_info_from_db()
+    # TODO fix this
+    records = {'PLACEHOLDER': 'DICT! FIX THIS FIRST'}
     all_tags = {}
     no_tags_dict = {}
     for record in records:
