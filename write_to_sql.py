@@ -135,12 +135,8 @@ def wrangle_video_record(json_obj: dict):
     some of them to the right types and returns them in a dict
     """
     entry_dict = {}
-    for key_value_pair in get_final_key_paths(
-            json_obj, '', True, black_list=['localized']):
-        last_bracket = key_value_pair[0].rfind('[\'')
-        key = key_value_pair[0][last_bracket+2:key_value_pair[0].rfind('\'')]
-        # ^ last key in each path
-        value = key_value_pair[1]  # value of the above key
+    for key, value in get_final_key_paths(
+            json_obj, '', True, black_list=['localized'], final_keys_only=True):
         if key in video_keys_and_columns:  # converting camelCase to underscore
             new_key = []
             for letter in key:
