@@ -194,8 +194,7 @@ def add_tag(conn: sqlite3.Connection, tag: str):
 
 
 def add_video(conn: sqlite3.Connection, cols_vals: dict):
-    query_string = generate_insert_query('videos', list(cols_vals.keys()),
-                                         on_conflict_ignore=True)
+    query_string = generate_insert_query('videos', list(cols_vals.keys()))
     values = cols_vals.values()
     return execute_query(conn, query_string, tuple(values))
 
@@ -502,7 +501,8 @@ def insert_videos(conn, records: dict, api_auth):
             channels.append(record['channel_id'])
         else:
             continue  # nothing else can/should be inserted without the
-            # channel for it getting inserted first
+            # channel for it getting inserted first as channel_id is a foreign
+            # key for video records
 
         if 'relevant_topic_ids' in record:
             topics = record.pop('relevant_topic_ids')
@@ -517,8 +517,7 @@ def insert_videos(conn, records: dict, api_auth):
 
         if video_id in video_ids:  # passing this check means the API request
             # has been successfully made on this pass, whereas previous
-            # attempts have failed. Had they not failed, this check would have
-            # never been reached.
+            # attempts have failed
             if update_video(conn, record):
                 updated += 1
 
