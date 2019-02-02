@@ -588,11 +588,17 @@ def update_videos(conn: sqlite3.Connection, api_auth,
                 if api_response['items']:
                     api_video_data = wrangle_video_record(api_response['items'])
                     if 'published_at' in api_video_data:
+                        # always the same, but will compare as different due to
+                        # the same value from the record being of datetime type
                         api_video_data.pop('published_at')
                     for key in api_video_data:
                         # in case the response is messed up and has empty/zero
-                        # values. Not sure if possible, but being safe
-                        if not api_video_data[key]:
+                        # values. Not sure if possible, but being safe.
+                        # As well, if a value is the same as the current one,
+                        # it's removed, hopefully that's faster than rewriting
+                        # the fields with the same values
+                        val = api_video_data[key]
+                        if not val or val == record.get(key):
                             api_video_data.pop(key)
                     record.update(api_video_data)
                 else:
@@ -640,6 +646,7 @@ def update_videos(conn: sqlite3.Connection, api_auth,
         {"records_processed": records_passed,
          "records_updated": updated,
          "failed_api_requests": failed_api_requests})
+
     logger.info('-'*100 + f'\nUpdating finished')
 
 
