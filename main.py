@@ -4,7 +4,7 @@ from os.path import join
 from time import sleep
 from flask import Flask, Response, render_template, url_for
 from flask import request, redirect, make_response, flash
-from utils import sqlite_connection
+from sql_utils import sqlite_connection
 from convert_takeout import get_all_records
 
 app = Flask(__name__)

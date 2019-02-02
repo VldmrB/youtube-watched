@@ -1,5 +1,4 @@
 import sys
-import sqlite3
 import logging
 from hashlib import sha3_256
 from logging import handlers
@@ -10,7 +9,7 @@ def is_video_url(candidate_str: str):
     return True if 'youtube.com/watch?' in candidate_str else False
 
 
-def get_video_id(url):
+def extract_video_id_from_url(url):
     video_id = url[url.find('=') + 1:]
     id_end = video_id.find('&t=')
     if id_end > 0:
@@ -67,7 +66,8 @@ def get_final_key_paths(
     :param append_values: return corresponding key values along with the keys
     :param paths: the list that will contain all the found key paths, no need
     to pass anything
-    :param black_list: dictionary keys which will be ignored (not paths)
+    :param black_list: dictionary keys which will be ignored
+    :param final_keys_only: return only the final key from each path
     :return:
     """
     if paths is None:
@@ -186,15 +186,6 @@ def logging_config(log_file_path: str,
 
     logging.basicConfig(format=log_format, level=file_level,
                         handlers=[file_handler, console_out, console_err])
-
-
-def sqlite_connection(db_path: str, **kwargs) -> sqlite3.Connection:
-    conn = sqlite3.connect(db_path, **kwargs)
-    cur = conn.cursor()
-    cur.execute('PRAGMA foreign_keys=ON;')
-    conn.commit()
-    cur.close()
-    return conn
 
 
 def load_file(path: str):
