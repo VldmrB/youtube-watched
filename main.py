@@ -4,6 +4,7 @@ from os.path import join
 from time import sleep
 from flask import Flask, Response, render_template, url_for
 from flask import request, redirect, make_response, flash
+from utils import sqlite_connection
 from convert_takeout import get_all_records
 
 app = Flask(__name__)
@@ -151,10 +152,15 @@ def populate_db(takeout_path: str, project_path: str):
         api_auth = youtube.get_api_auth(
             load_file(join(project_path, 'api_key')).strip())
         db_path = join(project_path, 'yt.sqlite')
-        write_to_sql.setup_tables(db_path, api_auth)
+        decl_types = sqlite3.PARSE_DECLTYPES
+        decl_colnames = sqlite3.PARSE_COLNAMES
+        # declarations are for the timestamps (maybe for more as well, later)
+        conn = sqlite_connection(db_path,
+                                 detect_types=decl_types | decl_colnames)
+        write_to_sql.setup_tables(conn, api_auth)
         tm_start = time.time()
         for records_processed in write_to_sql.insert_videos(
-                db_path, records, api_auth, True):
+                conn, records, api_auth):
                 if isinstance(records_processed, int):
                     progress.append(str(records_processed))
                 else:

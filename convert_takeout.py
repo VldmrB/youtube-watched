@@ -1,6 +1,7 @@
-from bs4 import BeautifulSoup as BSoup
 import os
 import re
+from bs4 import BeautifulSoup as BSoup
+from datetime import datetime
 from typing import Union
 from utils import get_video_id
 
@@ -170,11 +171,11 @@ def from_divs_to_dict(path: str, occ_dict: dict = None,
         video_id = 'unknown'
         all_text = div.get_text().strip()
         if all_text.startswith(removed_string):
-            watched_on = all_text[removed_string_len:]
+            watched_at = all_text[removed_string_len:]
         elif all_text.startswith(story_string):
-            watched_on = all_text.splitlines()[-1].strip()
-            if '/watch?v=' in watched_on:
-                watched_on = watched_on[57:]
+            watched_at = all_text.splitlines()[-1].strip()
+            if '/watch?v=' in watched_at:
+                watched_at = watched_at[57:]
         else:
             url = div.find(href=watch_url_re)
             video_id = get_video_id(url['href'])
@@ -190,10 +191,13 @@ def from_divs_to_dict(path: str, occ_dict: dict = None,
                     default_values['channel_title'] = channel_title
                 except TypeError:
                     pass
-            watched_on = all_text.splitlines()[-1].strip()
+            watched_at = all_text.splitlines()[-1].strip()
+
+        watched_at = str(datetime.strptime(watched_at[:-4],
+                                           '%b %d, %Y, %I:%M:%S %p'))
 
         occ_dict['videos'].setdefault(video_id, default_values)
-        occ_dict['videos'][video_id]['timestamps'].append(watched_on)
+        occ_dict['videos'][video_id]['timestamps'].append(watched_at)
         occ_dict['total_count'] += 1
 
     return occ_dict
