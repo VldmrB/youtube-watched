@@ -203,6 +203,7 @@
             </div>
         </div>
         <div id="progress-msg"></div>
+        <div id="wait-for-db"></div>
     </div>
     </div>
     <script>
@@ -225,6 +226,7 @@
     var progressMsg = document.querySelector("#progress-msg");
     var progressBar = document.querySelector("#progress-bar");
     var progressBarText = document.querySelector("#progress-bar-text span");
+    var progressWait = document.querySelector("#wait-for-db");
     var takeoutSubmit = document.querySelector("#takeout-form");
     takeoutSubmit.addEventListener("submit", function(event) {
         event.preventDefault();
@@ -234,55 +236,61 @@
         anAJAX.open("POST", "{{ url_for('populate_db_form') }}");
 
         anAJAX.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
-        anAJAX.addEventListener("readystatechange", function () {
+        anAJAX.addEventListener("readystatechange", function (ajax_event) {
             if (this.readyState == 4 && this.status == 200) {
-                document.querySelector("#progress-bar-container").style.display = "none";
-                takeoutDirectorySubmitButton.setAttribute('disabled', true);
-                var progress = new EventSource("{{ url_for('db_progress_stream') }}");
-                function closeEventSource (event) {
-                    event.preventDefault();
-                    console.log(progress);
-                    progress.close();
-                };
-                window.addEventListener('beforeunload', closeEventSource);
-                progress.onmessage = function (event) {
-                    if (event.data.length < 6) {
-                        var progressVal = event.data + "%";
-                        progressBar.style.width = progressVal;
-                        progressBarText.innerHTML = progressVal;
-                    } else {
-                        progressMsg.innerHTML = event.data;
-                        progressBar.style.width = "100%";
-                        progressBarText.innerHTML = "100%";
-                        if (event.data.indexOf("records_processed") != -1) {
-                            var msgJSON = JSON.parse(event.data);
-                            var msgString = ("Records processed: " + msgJSON.records_processed + "<br>Inserted: " +
-                            msgJSON.records_inserted + "<br>Updated: " + msgJSON.records_updated +
-                            "<br>Total records in the database: " + msgJSON.records_in_db)
-                            if (msgJSON.failed_api_requestss != 0) {
-                                msgString += ("<br>Failed API requests: " + msgJSON.failed_api_requestss +
-                                " (run this again to attempt these 1-2 more times.)")
-                            }
-                            if (msgJSON.dead_records != 0) {
-                                msgString += "<br>Videos with no identifying info " + msgJSON.dead_records +
-                                " (added as unknown)"
-                            }
-                            progressMsg.innerHTML = msgString;
-
-                            takeoutDirectorySubmitButton.removeAttribute('disabled');
-                            event.target.close();
-                            window.removeEventListener('beforeunload', closeEventSource);
-                        } else if (event.data.indexOf("Error") != -1) {
-                            takeoutDirectorySubmitButton.removeAttribute('disabled');
-                            event.target.close();
-                            window.removeEventListener('beforeunload', closeEventSource);
-                        } else if (event.data.indexOf("Inserting") != -1) {
-                            document.querySelector("#progress-bar-container").style.display = "block";
-                            progressBar.style.width = "0%";
-                            progressBarText.innerHTML = "0%";
-                        }
+                if (this.responseText.indexOf("Wait for") != -1) {
+                    if (progressWait.innerHTML == "") {
+                        progressWait.innerHTML = this.responseText;
+                        setTimeout(function() {progressWait.innerHTML = "";}, 3000);
                     }
-                };
+                } else {
+                    document.querySelector("#progress-bar-container").style.display = "none";
+                    takeoutDirectorySubmitButton.setAttribute('disabled', true);
+                    var progress = new EventSource("{{ url_for('db_progress_stream') }}");
+                    function closeEventSource (event) {
+                        event.preventDefault();
+                        console.log(progress);
+                        progress.close();
+                    };
+                    window.addEventListener('beforeunload', closeEventSource);
+                    progress.onmessage = function (event) {
+                        if (event.data.length < 6) {
+                            var progressVal = event.data + "%";
+                            progressBar.style.width = progressVal;
+                            progressBarText.innerHTML = progressVal;
+                        } else {
+                            progressMsg.innerHTML = event.data;
+                            progressBar.style.width = "100%";
+                            progressBarText.innerHTML = "100%";
+                            if (event.data.indexOf("records_processed") != -1) {
+                                var msgJSON = JSON.parse(event.data);
+                                var msgString = ("Records processed: " + msgJSON.records_processed + "<br>Inserted: " +
+                                msgJSON.records_inserted + "<br>Updated: " + msgJSON.records_updated +
+                                "<br>Total records in the database: " + msgJSON.records_in_db)
+                                if (msgJSON.failed_api_requests != 0) {
+                                    msgString += ("<br>Failed API requests: " + msgJSON.failed_api_requests +
+                                    " (run this again to attempt these 1-2 more times.)")
+                                }
+                                if (msgJSON.dead_records != 0) {
+                                    msgString += "<br>Videos with no identifying info " + msgJSON.dead_records +
+                                    " (added as unknown)"
+                                }
+                                progressMsg.innerHTML = msgString;
+
+                                takeoutDirectorySubmitButton.removeAttribute('disabled');
+                                event.target.close();
+                                window.removeEventListener('beforeunload', closeEventSource);
+                            } else if (event.data.indexOf("Error") != -1) {
+                                takeoutDirectorySubmitButton.removeAttribute('disabled');
+                                event.target.close();
+                                window.removeEventListener('beforeunload', closeEventSource);
+                            } else if (event.data.indexOf("Inserting") != -1) {
+                                document.querySelector("#progress-bar-container").style.display = "block";
+                                progressBar.style.width = "0%";
+                                progressBarText.innerHTML = "0%";
+                            }
+                        }
+                    };}
             }
         });
         anAJAX.send("takeout-path=" + takeoutDirectoryVal);

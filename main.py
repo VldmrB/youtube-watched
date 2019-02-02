@@ -1,11 +1,11 @@
 import os
-from utils import logging_config
+import sqlite3
 from os.path import join
 from time import sleep
 from flask import Flask, Response, render_template, url_for
 from flask import request, redirect, make_response, flash
 from sql_utils import sqlite_connection
-from convert_takeout import get_all_records
+from utils import logging_config
 
 app = Flask(__name__)
 app.secret_key = '23lkjhv9z8y$!gffflsa1g4[p[p]'
@@ -38,29 +38,38 @@ def index():
     elif not os.path.exists(project_path):
         flash(f'{flash_err} could not find directory {strong(project_path)}')
         return render_template('index.html', path_pattern=path_pattern)
+
     global configure_logging
     if not configure_logging:
-        configure_logging = True
         logging_config(join(project_path, 'events.log'))
+        configure_logging = True
+
     api_key_path = join(project_path, 'api_key')
+    api_key = None
     if os.path.exists(api_key_path):
         with open(api_key_path, 'r') as api_file:
             api_key = True if api_file.read().strip() else None
-    else:
-        api_key = None
 
+    active_thread = None
     if insert_videos_thread and insert_videos_thread.is_alive():
-        thread = 'live'
-    else:
-        thread = None
-    if os.path.exists(join(project_path, 'yt.sqlite')):
-        db = True
-    else:
-        db = None
+        active_thread = 'live'
 
+    db_path = join(project_path, 'yt.sqlite')
+    db = None
+    if os.path.exists(db_path):
+        conn = sqlite_connection(db_path)
+        cur = conn.cursor()
+        try:
+            cur.execute('SELECT id FROM videos')
+            if cur.fetchall():
+                db = True
+            cur.close()
+        except sqlite3.OperationalError:
+            pass
+        conn.close()
     return render_template('index.html', path=project_path, api_key=api_key,
-                           path_pattern=path_pattern, thread=thread,
-                           db=db)
+                           path_pattern=path_pattern,
+                           active_thread=active_thread, db=db)
 
 
 @app.route('/create_project_dir', methods=['POST'])
@@ -118,6 +127,79 @@ def db_progress_stream():
 
 @app.route('/convert_takeout', methods=['POST'])
 def populate_db_form():
+    global insert_videos_thread
+    if insert_videos_thread and insert_videos_thread.is_alive():
+        return ('Wait for the current operation to finish in order to avoid '
+                'database issues'), 200
+
+    from threading import Thread
+    takeout_path = request.form.get('takeout-path')
+
+    project_path = get_project_dir_path_from_cookie()
+    insert_videos_thread = Thread(target=populate_db,
+                                  args=(takeout_path, project_path))
+    insert_videos_thread.start()
+
+    return '', 200
+
+
+def populate_db(takeout_path: str, project_path: str):
+    import sqlite3
+    import write_to_sql
+    import youtube
+    import time
+    from convert_takeout import get_all_records
+    from utils import load_file
+    progress.append('Locating and processing watch-history.html files...')
+    try:
+        records = get_all_records(takeout_path)
+        progress.append('Inserting records...')
+    except FileNotFoundError:
+        progress.append(f'{flash_err} Invalid/non-existent path for '
+                        f'watch-history.html files')
+        raise
+    if records is False:
+        progress.append(f'{flash_err} No watch-history files found in '
+                        f'"{takeout_path}"')
+        raise ValueError('No watch-history files found')
+    try:
+        api_auth = youtube.get_api_auth(
+            load_file(join(project_path, 'api_key')).strip())
+        db_path = join(project_path, 'yt.sqlite')
+        # decl_types = sqlite3.PARSE_DECLTYPES
+        # decl_colnames = sqlite3.PARSE_COLNAMES
+        # declarations are for the timestamps (maybe for more as well, later)
+        conn = sqlite_connection(db_path)
+        # detect_types=decl_types | decl_colnames)
+        write_to_sql.setup_tables(conn, api_auth)
+        tm_start = time.time()
+        for records_processed in write_to_sql.insert_videos(
+                conn, records, api_auth):
+                if isinstance(records_processed, int):
+                    progress.append(str(records_processed))
+                else:
+                    progress.append(records_processed)
+        print(time.time() - tm_start, 'seconds!')
+        conn.close()
+    except youtube.ApiKeyError:
+        progress.append(f'{flash_err} Missing or invalid API key')
+        raise
+    except (sqlite3.OperationalError, sqlite3.DatabaseError) as e:
+        progress.append(f'{flash_err} Fatal database error - {e!r}')
+        raise
+    except FileNotFoundError:
+        progress.append(f'{flash_err} Invalid database path')
+        raise
+    finally:
+        # in case the page is refreshed before this finishes running, to
+        # prevent old progress messages from potentially showing up
+        # in the next run
+        sleep(1)
+        progress.clear()
+
+
+@app.route('/update_records', methods=['POST'])
+def update_records_form():
     from threading import Thread
     takeout_path = request.form.get('takeout-path')
 
@@ -130,7 +212,7 @@ def populate_db_form():
     return ''
 
 
-def populate_db(takeout_path: str, project_path: str):
+def update_db(takeout_path: str, project_path: str):
     import sqlite3
     import write_to_sql
     import youtube
@@ -138,7 +220,7 @@ def populate_db(takeout_path: str, project_path: str):
     from utils import load_file
     progress.append('Locating and processing watch-history.html files...')
     try:
-        records = get_all_records(takeout_path)
+        records = {}
         progress.append('Inserting records...')
     except FileNotFoundError:
         progress.append(f'{flash_err} Invalid/non-existent path for '
@@ -161,10 +243,10 @@ def populate_db(takeout_path: str, project_path: str):
         tm_start = time.time()
         for records_processed in write_to_sql.insert_videos(
                 conn, records, api_auth):
-                if isinstance(records_processed, int):
-                    progress.append(str(records_processed))
-                else:
-                    progress.append(records_processed)
+            if isinstance(records_processed, int):
+                progress.append(str(records_processed))
+            else:
+                progress.append(records_processed)
         print(time.time() - tm_start, 'seconds!')
     except youtube.ApiKeyError:
         progress.append(f'{flash_err} Missing or invalid API key')
@@ -181,10 +263,8 @@ def populate_db(takeout_path: str, project_path: str):
         # in the next run
         sleep(1)
         progress.clear()
-        pass
 
 
 if __name__ == '__main__':
     app.run()
-    # from utils import logging_config
-    # logging_config(r'C:\Users\Vladimir\Desktop\sql_fails.log')
+    pass

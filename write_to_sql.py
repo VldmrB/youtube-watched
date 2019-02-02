@@ -108,7 +108,7 @@ TOPICS_COLUMNS = ['id', 'topic', 'parent_topic_id']
 TAGS_COLUMNS = ['tag']  # id column value is added implicitly by SQLite
 VIDEOS_TAGS_COLUMNS = ['video_id', 'tag_id']
 VIDEOS_TOPICS_COLUMNS = ['video_id', 'topic_id']
-VIDEOS_WATCHED_AT_TIMESTAMPS_COLUMNS = ['video_id', 'watched_at']
+VIDEOS_TIMESTAMPS_COLUMNS = ['video_id', 'watched_at']
 FAILED_REQUESTS_IDS_COLUMNS = ['id', 'attempts']
 DEAD_VIDEOS_IDS_COLUMNS = ['id']
 
@@ -117,14 +117,13 @@ DEAD_VIDEOS_IDS_COLUMNS = ['id']
 # add_channel and add_video are compiled every run due to dynamic col amount
 add_tag_query = generate_insert_query('tags', columns=TAGS_COLUMNS)
 add_tag_to_video_query = generate_insert_query('videos_tags',
-                                               columns=VIDEOS_TAGS_COLUMNS,
-                                               on_conflict_ignore=True)
+                                               columns=VIDEOS_TAGS_COLUMNS)
 add_topic_to_video_query = generate_insert_query('videos_topics',
                                                  columns=VIDEOS_TOPICS_COLUMNS,
                                                  on_conflict_ignore=True)
 add_time_to_video_query = generate_insert_query(
     'videos_timestamps',
-    columns=VIDEOS_WATCHED_AT_TIMESTAMPS_COLUMNS, on_conflict_ignore=True)
+    columns=VIDEOS_TIMESTAMPS_COLUMNS)
 add_failed_request_query = generate_insert_query(
     'failed_requests_ids',
     columns=FAILED_REQUESTS_IDS_COLUMNS)
@@ -169,7 +168,6 @@ def drop_dynamic_tables(conn: sqlite3.Connection):
                          'dead_videos_ids']:
             execute_query(conn, '''DROP TABLE IF EXISTS ''' + table)
     conn.commit()
-    conn.close()
 
 
 def add_channel(conn: sqlite3.Connection,
@@ -218,8 +216,9 @@ def add_tag_to_video(conn: sqlite3.Connection, tag_id: int, video_id: str):
     return execute_query(conn, add_tag_to_video_query, (video_id, tag_id))
 
 
-def add_tags_to_table_and_video(conn: sqlite3.Connection,
-                                tags: list, video_id: str, existing_tags: dict):
+def add_tags_to_table_and_video(conn: sqlite3.Connection, tags: list,
+                                video_id: str, existing_tags: dict,
+                                existing_videos_tags_records: dict = None):
     id_query_string = 'SELECT id FROM tags WHERE tag = ?'
     max_id_query_string = 'SELECT max(id) FROM tags'
     update_tag_id_query = '''UPDATE tags 
@@ -245,7 +244,11 @@ def add_tags_to_table_and_video(conn: sqlite3.Connection,
         else:
             tag_id = existing_tags[tag]
         if tag_id:
-            add_tag_to_video(conn, tag_id, video_id)
+            if existing_videos_tags_records:
+                if tag not in existing_videos_tags_records:
+                    add_tag_to_video(conn, tag_id, video_id)
+            else:
+                add_tag_to_video(conn, tag_id, video_id)
 
 
 def add_topic_to_video(conn: sqlite3.Connection, topic: str, video_id: str):
@@ -253,7 +256,8 @@ def add_topic_to_video(conn: sqlite3.Connection, topic: str, video_id: str):
 
 
 def add_time(conn: sqlite3.Connection, watched_at: datetime, video_id: str):
-    return execute_query(conn, add_time_to_video_query, (video_id, watched_at))
+    return execute_query(conn, add_time_to_video_query, (video_id, watched_at),
+                         False)
 
 
 def add_failed_request(conn: sqlite3.Connection, video_id: str, attempts: int):
@@ -306,7 +310,6 @@ def insert_or_refresh_categories(conn: sqlite3.Connection, api_auth,
                               query_string,
                               (id_, channel_id, title, assignable, etag))
         conn.commit()
-    conn.close()
 
 
 def insert_parent_topics(conn: sqlite3.Connection):
@@ -324,7 +327,6 @@ def insert_parent_topics(conn: sqlite3.Connection):
             # hence the unconditional break
 
     conn.commit()
-    conn.close()
 
 
 def insert_sub_topics(conn: sqlite3.Connection):
@@ -343,7 +345,6 @@ def insert_sub_topics(conn: sqlite3.Connection):
             execute_query(conn, query_string, insert_tuple)
 
     conn.commit()
-    conn.close()
 
 
 def setup_tables(conn: sqlite3.Connection, api_auth):
@@ -356,7 +357,6 @@ def setup_tables(conn: sqlite3.Connection, api_auth):
     insert_sub_topics(conn)
 
     conn.commit()
-    conn.close()
 
 
 def insert_videos(conn, records: dict, api_auth):
@@ -369,6 +369,12 @@ def insert_videos(conn, records: dict, api_auth):
     cur.execute("""SELECT * FROM tags;""")
     existing_tags = {v: k for k, v in cur.fetchall()}
     cur.execute("""SELECT * FROM videos_timestamps;""")
+    timestamps = {}
+    for timestamp_record in cur.fetchall():
+        timestamps.setdefault(timestamp_record[0], [])
+        timestamps[timestamp_record[0]].append(timestamp_record[1])
+    print(timestamps['unknown'])
+
     cur.execute("""SELECT id FROM dead_videos_ids;""")
     dead_videos_ids = [dead_video[0] for dead_video in cur.fetchall()]
     cur.execute("""SELECT * FROM failed_requests_ids;""")
@@ -382,9 +388,12 @@ def insert_videos(conn, records: dict, api_auth):
         unknown_record = records.pop('unknown')
         unknown_record['id'] = 'unknown'
         unknown_record['status'] = 'inactive'
+        unknown_timestamps = unknown_record.pop('timestamps')
+        timestamps.setdefault('unknown', [])
         add_channel(conn, 'unknown', 'unknown')
         add_video(conn, unknown_record)
-        for timestamp in unknown_record.pop('timestamps'):
+        for timestamp in unknown_timestamps:
+            if timestamp not in timestamps['unknown']:
                 add_time(conn, timestamp, 'unknown')
                 
     total_records = len(records)
@@ -413,9 +422,10 @@ def insert_videos(conn, records: dict, api_auth):
                 video in question was still available when the older Takeout was 
                 generated, but was deleted by the time the newer Takeout was.
             '''
-            timestamps = record.pop('timestamps')
-            for timestamp in timestamps:
-                add_time(conn, timestamp, video_id)
+            timestamps.setdefault(video_id, [])
+            for timestamp in record.pop('timestamps'):
+                if timestamp not in timestamps[video_id]:
+                    add_time(conn, timestamp, video_id)
 
             if video_id in dead_videos_ids and 'title' in record:
                 # Older Takeout file which for some reason was added out of
@@ -503,7 +513,7 @@ def insert_videos(conn, records: dict, api_auth):
         else:
             tags = None
 
-        timestamps = record.pop('timestamps')
+        current_timestamps = record.pop('timestamps')
 
         if video_id in video_ids:  # passing this check means the API request
             # has been successfully made on this pass, whereas previous
@@ -517,8 +527,10 @@ def insert_videos(conn, records: dict, api_auth):
                 video_ids.append(video_id)
                 inserted += 1
 
-        for timestamp in timestamps:
-            add_time(conn, timestamp, video_id)
+        timestamps.setdefault(video_id, [])
+        for timestamp in current_timestamps:
+            if timestamp not in timestamps[video_id]:
+                add_time(conn, timestamp, video_id)
 
         if tags:
             add_tags_to_table_and_video(conn, tags, video_id, existing_tags)
@@ -532,7 +544,6 @@ def insert_videos(conn, records: dict, api_auth):
         # some loop. An atomic insertion of sorts
 
     conn.commit()
-    conn.close()
 
     yield json.dumps(
         {"records_processed": records_passed,
@@ -557,6 +568,11 @@ def update_videos(conn: sqlite3.Connection, api_auth,
     channels = {k: v for k, v in cur.fetchall()}
     cur.execute("""SELECT * FROM tags;""")
     existing_tags = {v: k for k, v in cur.fetchall()}
+    cur.execute("""SELECT * FROM videos_tags""")
+    existing_videos_tags = {}
+    for video_tag_record in cur.fetchall():
+        existing_videos_tags.setdefault(video_tag_record[0], [])
+        existing_videos_tags[video_tag_record[0]].append(video_tag_record[1])
     cur.execute("""SELECT * FROM failed_requests_ids;""")
     failed_requests_ids = {k: v for k, v in cur.fetchall()}
     cur.close()
@@ -579,6 +595,7 @@ def update_videos(conn: sqlite3.Connection, api_auth,
             continue
         record = dict(record)
         video_id = record['id']
+
         for attempt in range(1, 6):
             api_response = youtube.get_video_info(video_id, api_auth)
             time.sleep(0.01*attempt**attempt)
@@ -619,11 +636,13 @@ def update_videos(conn: sqlite3.Connection, api_auth,
         record['last_updated'] = datetime.utcnow().replace(microsecond=0)
         if 'tags' in record:
             tags = record.pop('tags')
-            add_tags_to_table_and_video(conn, tags, video_id, existing_tags)
+            add_tags_to_table_and_video(conn, tags, video_id, existing_tags,
+                                        existing_videos_tags)
             # perhaps, the record should also be checked for tags that have
             # been removed from the updated version and have them removed from
-            # the DB as well, but for a few reasons, it seems okay
-            # not to do that for now
+            # the DB as well. However, keeping a fuller record, despite what
+            # the video's uploader/author might think about its accuracy,
+            # seems like a better option
         if 'channel_title' in record:
             channel_title = record.pop('channel_title')
             channel_id = record['channel_id']
@@ -640,7 +659,7 @@ def update_videos(conn: sqlite3.Connection, api_auth,
         conn.commit()
 
     conn.commit()
-    conn.close()
+    conn.row_factory = None
 
     yield json.dumps(
         {"records_processed": records_passed,
