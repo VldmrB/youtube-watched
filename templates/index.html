@@ -259,12 +259,12 @@
                             var msgString = ("Records processed: " + msgJSON.records_processed + "<br>Inserted: " +
                             msgJSON.records_inserted + "<br>Updated: " + msgJSON.records_updated +
                             "<br>Total records in the database: " + msgJSON.records_in_db)
-                            if (msgJSON.failed_records != 0) {
-                                msgString += ("<br>Failed API requests: " + msgJSON.failed_records +
+                            if (msgJSON.failed_api_requestss != 0) {
+                                msgString += ("<br>Failed API requests: " + msgJSON.failed_api_requestss +
                                 " (run this again to attempt these 1-2 more times.)")
                             }
                             if (msgJSON.dead_records != 0) {
-                                msgString += "<br>Videos with no identifying info " + msgJSON.failed_records +
+                                msgString += "<br>Videos with no identifying info " + msgJSON.dead_records +
                                 " (added as unknown)"
                             }
                             progressMsg.innerHTML = msgString;
