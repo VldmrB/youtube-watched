@@ -290,9 +290,6 @@ def delete_dead_video(conn: sqlite3.Connection, video_id):
 
 def insert_or_refresh_categories(conn: sqlite3.Connection, api_auth,
                                  refresh: bool = True):
-    def bool_adapt(bool_value: bool): return str(bool_value)
-
-    sqlite3.register_adapter(bool, bool_adapt)
     categories = youtube.get_categories(api_auth)
     query_string = generate_insert_query('categories',
                                          columns=CATEGORIES_COLUMNS,
@@ -303,7 +300,7 @@ def insert_or_refresh_categories(conn: sqlite3.Connection, api_auth,
                 id_ = category_dict['id']
                 channel_id = category_dict['snippet']['channelId']
                 title = category_dict['snippet']['title']
-                assignable = category_dict['snippet']['assignable']
+                assignable = str(category_dict['snippet']['assignable'])
                 etag = category_dict['etag']
                 execute_query(conn,
                               query_string,
@@ -603,10 +600,17 @@ def update_videos(conn: sqlite3.Connection, api_auth,
                     delete_failed_request(conn, video_id)
                 if api_response['items']:
                     api_video_data = wrangle_video_record(api_response['items'])
+                    '''
+                    Below currently commented out as the connection used will 
+                    no longer have types detected, which means timestamps are 
+                    retrieved as strings, not datetime objects.
+                    Keeping the code in case the types will be detected again 
+                    -----------
                     if 'published_at' in api_video_data:
                         # always the same, but will compare as different due to
                         # the same value from the record being of datetime type
                         api_video_data.pop('published_at')
+                    '''
                     for key in api_video_data:
                         # in case the response is messed up and has empty/zero
                         # values. Not sure if possible, but being safe.
