@@ -5,6 +5,15 @@ from typing import Union
 logger = logging.getLogger(__name__)
 
 
+def sqlite_connection(db_path: str, **kwargs) -> sqlite3.Connection:
+    conn = sqlite3.connect(db_path, **kwargs)
+    cur = conn.cursor()
+    cur.execute('PRAGMA foreign_keys=ON;')
+    conn.commit()
+    cur.close()
+    return conn
+
+
 def generate_insert_query(table: str,
                           columns: Union[list, tuple],
                           on_conflict_ignore=False)-> str:

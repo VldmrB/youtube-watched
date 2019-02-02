@@ -6,7 +6,7 @@ import youtube
 from datetime import datetime
 from sql_utils import log_query_error, execute_query
 from sql_utils import generate_insert_query, generate_unconditional_update_query
-from utils import get_final_key_paths, convert_duration, sqlite_connection
+from utils import get_final_key_paths, convert_duration
 from config import video_keys_and_columns
 from topics import topics_by_category
 
@@ -545,7 +545,8 @@ def insert_videos(conn, records: dict, api_auth):
     logger.info('-'*100 + f'\nPopulating finished')
 
 
-def update_videos(conn: sqlite3.Connection, api_auth):
+def update_videos(conn: sqlite3.Connection, api_auth,
+                  update_age_cutoff=1_209_600):
     records_passed, updated, failed_api_requests = 0, 0, 0
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
@@ -559,7 +560,7 @@ def update_videos(conn: sqlite3.Connection, api_auth):
     cur.execute("""SELECT * FROM failed_requests_ids;""")
     failed_requests_ids = {k: v for k, v in cur.fetchall()}
     cur.close()
-
+    today = datetime.today()
     total_records = len(records)
     sub_percent = total_records / 1000
     sub_percent_int = int(sub_percent)
@@ -567,12 +568,15 @@ def update_videos(conn: sqlite3.Connection, api_auth):
     logger.info(f'\nStarting records\' updating...\n' + '-'*100)
     for record in records:
         records_passed += 1
-        if records_passed == 4:
+        if records_passed == 5:
             raise SystemExit('Stop. Hammer time!')
 
         if records_passed % sub_percent_int == 0:
             # print(f'Processing entry # {records_passed}')
             yield (records_passed // sub_percent)/10
+
+        if (today - record['last_updated']).total_seconds() < update_age_cutoff:
+            continue
         record = dict(record)
         video_id = record['id']
         for attempt in range(1, 6):
@@ -585,6 +589,11 @@ def update_videos(conn: sqlite3.Connection, api_auth):
                     api_video_data = wrangle_video_record(api_response['items'])
                     if 'published_at' in api_video_data:
                         api_video_data.pop('published_at')
+                    for key in api_video_data:
+                        # in case the response is messed up and has empty/zero
+                        # values. Not sure if possible, but being safe
+                        if not api_video_data[key]:
+                            api_video_data.pop(key)
                     record.update(api_video_data)
                 else:
                     record['status'] = 'inactive'
@@ -634,39 +643,6 @@ def update_videos(conn: sqlite3.Connection, api_auth):
     logger.info('-'*100 + f'\nUpdating finished')
 
 
-def mock_records(db_path: str):
-    conn = sqlite_connection(db_path)
-    add_channel(conn, 'UCgkzrMGEbZemPI4hkz0Z9Bw', 'Jujimufu')
-    add_channel(conn, 'unknown')
-    vid = {"title": "WORLD RECORD GRIP BRIAN SHAW (rare footage)",
-           "channel_id": "UCgkzrMGEbZemPI4hkz0Z9Bw",
-           "id": '9EarvZN3e0M'}
-    unknown_vid = {"title": "unknown",
-                   "channel_id": "unknown",
-                   "id": 'unknown'}
-    deleted_vid = {"title": "unknown",
-                   "channel_id": "unknown",
-                   "id": 'bB0nnxaFOgw'}
-    add_video(conn, vid)
-    add_video(conn, unknown_vid)
-    add_video(conn, deleted_vid)
-    add_dead_video(conn, deleted_vid['id'])
-    add_failed_request(conn, '9EarvZN3e0M', 1)
-
-    add_time(conn,
-             datetime.strptime("Nov 19, 2018, 8:04:38 PM EST"[:-4],
-                               '%b %d, %Y, %I:%M:%S %p'), '9EarvZN3e0M')
-    add_time(conn,
-             datetime.strptime("Nov 16, 2018, 8:53:37 AM EST"[:-4],
-                               '%b %d, %Y, %I:%M:%S %p'), 'unknown')
-
-    add_time(conn,
-             datetime.strptime("Nov 15, 2018, 11:04:01 PM EST"[:-4],
-                               '%b %d, %Y, %I:%M:%S %p'), deleted_vid['id'])
-    conn.commit()
-    conn.close()
-
-
 if __name__ == '__main__':
     import cProfile
     from os.path import join
@@ -675,8 +651,8 @@ if __name__ == '__main__':
         api_key = file.read().strip()
     DB_PATH = join(test_dir, 'yt.sqlite')
     auth = youtube.get_api_auth(api_key)
-    cProfile.run(
-        r"insert_videos(DB_PATH, get_all_records(r'D:\Downloads'), auth)",
-        r'C:\Users\Vladimir\Desktop\results.txt'
-    )
+    # cProfile.run(
+    #     r"insert_videos(DB_PATH, get_all_records(r'D:\Downloads'), auth)",
+    #     r'C:\Users\Vladimir\Desktop\results.txt'
+    # )
     cProfile.run(r"update_videos(DB_PATH, auth)")

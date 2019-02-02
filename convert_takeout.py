@@ -3,7 +3,7 @@ import re
 from bs4 import BeautifulSoup as BSoup
 from datetime import datetime
 from typing import Union
-from utils import get_video_id
+from utils import extract_video_id_from_url
 
 
 """
@@ -178,7 +178,7 @@ def from_divs_to_dict(path: str, occ_dict: dict = None,
                 watched_at = watched_at[57:]
         else:
             url = div.find(href=watch_url_re)
-            video_id = get_video_id(url['href'])
+            video_id = extract_video_id_from_url(url['href'])
             video_title = url.get_text(strip=True)
             if url['href'] != video_title:
                 default_values['title'] = video_title
