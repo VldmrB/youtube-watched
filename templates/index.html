@@ -84,7 +84,8 @@
                         event.preventDefault();
                         var dirInputGroup = document.querySelector("#project-dir-input-group");
                         if (dirInputGroup.children.length === 2) {
-                            var sameDirError = document.querySelector("<div>Already set to this directory</div>");
+                            var sameDirError = document.createElement("div");
+                            sameDirError.innerHTML = "Already set to this directory";
                             sameDirError.style.color = "red";
                             dirInputGroup.append(sameDirError);
                             setTimeout(function(){ sameDirError.remove(); }, 2000);
@@ -148,8 +149,8 @@
                     Insert videos' data into the database. This may take a while.
                     <br>
                     Information for all the ID bearing video records from Google Takeout will be requested
-                    via YouTube API. The rest will be inserted as unknown, or with whatever limited information they come with
-                    in the watch-history.html file(s).
+                    via YouTube API. The rest will be inserted as unknown, or with whatever limited information they
+                    come with in the watch-history.html file(s).
                 </div>
                 <div id="takeout-single-file-description">
                     <br>
@@ -170,8 +171,8 @@
                         <br>
                         --- or ---
                         <br>
-                        manually move the actual watch-history files into one directory while appending a number at the end
-                        of each name, e.g. watch-history_001.html, from oldest to newest.
+                        manually move the actual watch-history files into one directory while appending a number
+                        at the end of each name, e.g. watch-history_001.html, from oldest to newest.
                     </p>
                     The files will only be located within the given directory if any of the following is inside:
                     <ul>
@@ -281,8 +282,8 @@
                                                 " (run this again to attempt these 1-2 more times.)")
                                         }
                                         if (msgJSON.dead_records !== 0) {
-                                            msgString += "<br>Videos with no identifying info: " + msgJSON.dead_records +
-                                                " (added as unknown)"
+                                            msgString += "<br>Videos with no identifying info: " +
+                                                msgJSON.dead_records + " (added as unknown)"
                                         }
                                         progressMsg.innerHTML = msgString;
 
