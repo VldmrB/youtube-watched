@@ -1,11 +1,17 @@
-.path {
-    font-weight: bold;
-    margin-right: 0.3em;
+* {
+    font-size: 16px;
+    box-sizing: border-box;
+    margin-top: 2px;
+    margin-bottom: 2px;
 }
 
-.shw-btn {
-    margin-top: 0.5em;
-    margin-bottom: 0.5em;
+.path {
+    font-weight: bold;
+    margin-right: 0.5em;
+}
+
+.hidden {
+    display: none;
 }
 
 #takeout-setup {
@@ -13,15 +19,8 @@
 }
 
 .link-btn, .link-btn:visited {
-    color: #007BFF;
-}
-
-.link-btn:hover {
-}
-
-.btn {
-    margin-top: 0.3em;
-    margin-bottom: 0.3em;
+    /*color: #007BFF;*/
+    color: dodgerblue;
 }
 
 #progress-bar-container {
@@ -36,6 +35,11 @@
     margin-bottom: 10px;
 }
 
+#progress-bar-text {
+    width: 305px;
+    text-align: center;
+}
+
 #progress-bar {
     position: relative;
     background-color: #00cc00;
@@ -45,15 +49,46 @@
     transition: all 0.1s ease;
 }
 
-#progress-bar-text {
-    width: 305px;
-    text-align: center;
-}
-
 #wait-for-db {
     color: red;
 }
 
-/*.hidden {*/
-    /*display: none;*/
-/*}*/
+::-webkit-input-placeholder { /* Chrome/Opera/Safari */
+}
+::-moz-placeholder { /* Firefox 19+ */
+}
+:-ms-input-placeholder { /* IE 10+ */
+}
+
+.button, .single-field-form-inputs>input[type=submit] {
+    border: 1px solid dodgerblue;
+    background-color: white;
+    height: 30px;
+}
+
+.button:hover {
+    background-color: dodgerblue;
+    color: white;
+    transition: 0.05s;
+}
+
+.single-field-button {
+    border-left: none;
+}
+
+.single-field-form-inputs>input {
+    float: left;
+    vertical-align: middle;
+    height: 30px;
+}
+
+.single-field-form-inputs>input[type=submit] {
+    border-left: none;
+}
+
+.single-field-form-container {
+    clear: both;
+    display: table;
+    content: "";
+}
+

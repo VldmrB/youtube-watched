@@ -29,15 +29,18 @@
                 });
             inputField.focus();
         }
-        function toggleButtonTextToCancel(buttonId, mainInputId, formId) {
+        function toggleElementVisibility(buttonId, mainInputId, elementToToggle) {
             var button = document.querySelector("#" + buttonId);
             var buttonText = button.innerHTML;
             var buttonWidth = button.offsetWidth;
-            var formElement = document.querySelector("#" + formId);
+            {#var buttonMargin = button.offsetLeft * 2;#}
+            var formElement = document.querySelector("#" + elementToToggle);
             button.addEventListener("click", function() {
+                console.log('Width: ' + buttonWidth, window.getComputedStyle(button).getPropertyValue('padding-left'));
                 if (button.innerHTML === buttonText) {
                     formElement.classList.toggle("hidden");
                     button.style.width = buttonWidth.toString() + 'px';
+                    console.log(button.offsetWidth, window.getComputedStyle(button).getPropertyValue('padding-left'));
                     button.innerHTML = "Cancel";
                     setTimeout( function(){document.querySelector("#" + mainInputId).focus();}, 1);
                 } else {
@@ -56,23 +59,20 @@
         <div id="project-dir-clarification">
             {% if path %}
                 Project directory: <span id="project-dir-path" class="path">{{ path }}</span>
-                <button id="show-project-form-button"
-                        class="btn btn-outline-primary btn-sm shw-btn"
-                        data-toggle="collapse"
-                        data-target="#project-dir-form">Change...</button>
+                <button id="show-project-form-button" class="button">Change...</button>
             {% else %}
                 <div>Create a project directory (or enter a previously created one).</div>
 
             {% endif %}
         </div>
-        <form id="project-dir-form" class="collapse form-inline"
-              action="{{ url_for('create_project_dir') }}" method=post>
-            <div id="project-dir-input-group" class="col-xs-3">
-                <input id="project-dir-input" class="form-control" name="project-dir"
-                       placeholder="Directory path..." pattern="{{ path_pattern }}" required>
-                <input class="form-control" type="submit" value="Submit">
-            </div>
-        </form>
+        <div class="single-field-form-container">
+            <form id="project-dir-form" class="hidden single-field-form-inputs"
+                  action="{{ url_for('create_project_dir') }}" method=post>
+                    <input id="project-dir-input" class="" name="project-dir"
+                           placeholder="Directory path..." pattern="{{ path_pattern }}" required>
+                    <input class="" type="submit" value="Submit">
+            </form>
+        </div>
         <script>
             setPathValidation("#project-dir-input", "#project-dir-input-group input[type='submit']");
             {% if path %}
@@ -91,9 +91,9 @@
                             setTimeout(function(){ sameDirError.remove(); }, 2000);
                         }}
                 });
-                toggleButtonTextToCancel("show-project-form-button", "project-dir-input", "project-dir-form");
+                toggleElementVisibility("show-project-form-button", "project-dir-input", "project-dir-form");
             {% else %}
-                document.querySelector("#project-dir-form").classList.add("show");
+                document.querySelector("#project-dir-form").classList.remove("hidden");
                 document.querySelector("#project-dir-form input[name='project-dir']").focus();
             {% endif %}
         </script>
@@ -102,10 +102,7 @@
         <div id="api-key-section">
             <div id="api-key-clarification">
                 {% if api_key %}
-                    <button id="api-key-form-button"
-                            class="btn btn-outline-primary btn-sm shw-btn"
-                            data-toggle="collapse"
-                            data-target="#api-key-form">Change API key...</button>
+                    <button id="api-key-form-button" class="button">Change API key...</button>
                 {% else %}
                     Add a <a href="https://support.google.com/googleapi/answer/6158862?hl=en"
                              target="_blank">Google API key.</a>
@@ -114,19 +111,19 @@
                     The key is needed to make requests to Youtube Data API for information on each video.
                 {% endif %}
             </div>
-            <form id="api-key-form" class="collapse form-inline"
-                  action="{{ url_for('setup_api_key') }}" method=post>
-                <div class="col-xs-3">
-                    <input id="api-key-input" type="password" class="form-control" name="api-key"
-                           placeholder="API key..." required>
-                    <input class="form-control" type="submit" value="Submit">
-                </div>
-            </form>
+            <div class="single-field-form-container">
+                <form id="api-key-form" class="hidden single-field-form-inputs"
+                      action="{{ url_for('setup_api_key') }}" method=post>
+                        <input id="api-key-input" type="password" class="" name="api-key"
+                               placeholder="API key..." required>
+                        <input class="" type="submit" value="Submit">
+                </form>
+            </div>
             <script>
                 {% if api_key %}
-                    toggleButtonTextToCancel("api-key-form-button", "api-key-input", "api-key-form");
+                    toggleElementVisibility("api-key-form-button", "api-key-input", "api-key-form");
                 {% else %}
-                    document.querySelector("#api-key-form").classList.add("show");
+                    document.querySelector("#api-key-form").classList.remove("hidden");
                     document.querySelector("#api-key-form input[name='api-key']").focus();
                 {% endif %}
             </script>
@@ -136,15 +133,11 @@
     {% if api_key %}
         <div id="takeout-section">
             {% if db %}
-                <button id="takeout-setup-button"
-                        class="btn btn-outline-primary btn-sm shw-btn"
-                        data-toggle="collapse"
-                        data-target="#takeout-setup">Additional Takeout...</button>
-                <button id="update-records-button"
-                        class="btn btn-outline-primary btn-sm shw-btn">Update existing records</button>
+                <button id="takeout-setup-button" class="button">Additional Takeout...</button>
+                <button id="update-records-button" class="button">Update existing records</button>
             {% else %}
             {% endif %}
-            <div id="takeout-setup" class="collapse" >
+            <div id="takeout-setup" class="hidden">
                 <div id="takeout-clarification">
                     Insert videos' data into the database. This may take a while.
                     <br>
@@ -156,10 +149,9 @@
                     <br>
                     Enter the path to the watch-history.html file from Google Takeout.
                     <br>
-                    <a href="#" class="link-btn" data-toggle="collapse"
-                       data-target="#takeout-multiple-files-description">For multiple files...</a>
+                    <a href="#" class="link-btn">For multiple files...</a>
                 </div>
-                <div id="takeout-multiple-files-description" class="collapse">
+                <div id="takeout-multiple-files-description" class="hidden">
                     Enter the path to the directory with the files.
                     <p>
                         It's essential they are ordered from old to new for accurate processing.
@@ -186,14 +178,14 @@
                         those in the same place, but not in Takeout directories.
                     </p>
                 </div>
-                <form id="takeout-form" class="form-inline"
-                      action="{{ url_for('populate_db_form') }}" method=post>
-                    <div class="col-xs-3">
-                        <input id="takeout-input" class="form-control" name="takeout-path"
-                               placeholder="Takeout directory path..." required>
-                        <input class="form-control" type="submit" value="Submit">
-                    </div>
-                </form>
+                <div class="single-field-form-container">
+                    <form id="takeout-form" class="single-field-form-inputs"
+                          action="{{ url_for('populate_db_form') }}" method=post>
+                            <input id="takeout-input" class="" name="takeout-path"
+                                   placeholder="Takeout directory path..." required>
+                            <input class="" type="submit" value="Submit">
+                    </form>
+                </div>
             </div>
             <div id="db-progress">
                 <div id="progress-bar-container" style="display:none;">
@@ -208,7 +200,8 @@
                 var multipleFilesLink = document.querySelector(".link-btn");
                 var multipleFilesDescriptionDiv = document.querySelector("#takeout-multiple-files-description");
                 multipleFilesLink.addEventListener("click", function() {
-                    if (multipleFilesDescriptionDiv.classList.contains("show")) {
+                    multipleFilesDescriptionDiv.classList.toggle('hidden');
+                    if (multipleFilesDescriptionDiv.classList.contains("hidden")) {
                         multipleFilesLink.innerHTML = "For multiple files...";
                     } else {
                         multipleFilesLink.innerHTML = "For multiple files:";
@@ -217,7 +210,7 @@
 
                 setPathValidation("#takeout-input", "#takeout-form input[type='submit']");
                 {% if db %}
-                    toggleButtonTextToCancel("takeout-setup-button", "takeout-input", "takeout-form");
+                    toggleElementVisibility("takeout-setup-button", "takeout-input", "takeout-setup");
                 {% else %}
                     document.querySelector("#takeout-setup").classList.add('show');
                     document.querySelector("#takeout-form input[name='takeout-path']").focus();
