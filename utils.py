@@ -169,7 +169,7 @@ def logging_config(log_file_path: str,
                                                 (1024**2)*3, 5)
     file_handler.setLevel(file_level)
     file_handler.setFormatter(log_format)
-    if native_app_logger_to_file:
+    if not native_app_logger_to_file:
         file_handler.addFilter(BlackListFilter())
 
     console_out = logging.StreamHandler(stream=sys.stdout)

@@ -184,8 +184,7 @@ def add_channel(conn: sqlite3.Connection,
 def update_channel(conn: sqlite3.Connection,
                    channel_id: str, channel_name: str):
     execute_query(conn,
-                  '''UPDATE TABLE channels 
-                  SET title = ?
+                  '''UPDATE channels SET title = ?
                   WHERE id = ?''', (channel_name, channel_id))
 
 
@@ -295,24 +294,19 @@ def insert_or_refresh_categories(conn: sqlite3.Connection, api_auth,
                                          columns=CATEGORIES_COLUMNS,
                                          on_conflict_ignore=True)
     if refresh or not execute_query(conn, 'SELECT * FROM categories'):
-        if execute_query(conn, 'DELETE FROM categories;'):
+        if execute_query(conn, 'DELETE FROM categories WHERE id IS NOT NULL;'):
             for category_dict in categories['items']:
                 id_ = category_dict['id']
                 channel_id = category_dict['snippet']['channelId']
                 title = category_dict['snippet']['title']
                 assignable = str(category_dict['snippet']['assignable'])
                 etag = category_dict['etag']
-                execute_query(conn,
-                              query_string,
-                              (id_, channel_id, title, assignable, etag))
+                execute_query(conn, query_string, (id_, channel_id, title, assignable, etag))
         conn.commit()
 
 
 def insert_parent_topics(conn: sqlite3.Connection):
-    query_string = generate_insert_query('parent_topics',
-                                         columns=PARENT_TOPICS_COLUMNS,
-                                         on_conflict_ignore=True)
-
+    query_string = generate_insert_query('parent_topics', columns=PARENT_TOPICS_COLUMNS, on_conflict_ignore=True)
     for topic_dict in topics_by_category.values():
         for k, v in topic_dict.items():
             parent_topic_str = ' (parent topic)'
@@ -326,10 +320,7 @@ def insert_parent_topics(conn: sqlite3.Connection):
 
 
 def insert_sub_topics(conn: sqlite3.Connection):
-    query_string = generate_insert_query('topics',
-                                         columns=TOPICS_COLUMNS,
-                                         on_conflict_ignore=True)
-
+    query_string = generate_insert_query('topics', columns=TOPICS_COLUMNS, on_conflict_ignore=True)
     for topic_dict in topics_by_category.values():
         parent_topic_str = ' (parent topic)'
         parent_topic_name = None
@@ -369,7 +360,6 @@ def insert_videos(conn, records: dict, api_auth):
     for timestamp_record in cur.fetchall():
         timestamps.setdefault(timestamp_record[0], [])
         timestamps[timestamp_record[0]].append(timestamp_record[1])
-    print(timestamps['unknown'])
 
     cur.execute("""SELECT id FROM dead_videos_ids;""")
     dead_videos_ids = [dead_video[0] for dead_video in cur.fetchall()]
@@ -386,8 +376,10 @@ def insert_videos(conn, records: dict, api_auth):
         unknown_record['status'] = 'inactive'
         unknown_timestamps = unknown_record.pop('timestamps')
         timestamps.setdefault('unknown', [])
-        add_channel(conn, 'unknown', 'unknown')
-        add_video(conn, unknown_record)
+        if 'unknown' not in channels:
+            add_channel(conn, 'unknown', 'unknown')
+        if 'unknown' not in video_ids:
+            add_video(conn, unknown_record)
         for timestamp in unknown_timestamps:
             if timestamp not in timestamps['unknown']:
                 add_time(conn, timestamp, 'unknown')
