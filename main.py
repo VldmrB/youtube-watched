@@ -1,5 +1,6 @@
 import os
 import sqlite3
+import json
 from os.path import join
 from time import sleep
 from flask import Flask, Response, render_template, url_for
@@ -50,26 +51,35 @@ def index():
         with open(api_key_path, 'r') as api_file:
             api_key = True if api_file.read().strip() else None
 
-    active_thread = None
-    if insert_videos_thread and insert_videos_thread.is_alive():
-        active_thread = 'live'
-
     db_path = join(project_path, 'yt.sqlite')
     db = None
     if os.path.exists(db_path):
         conn = sqlite_connection(db_path)
         cur = conn.cursor()
         try:
-            cur.execute('SELECT id FROM videos')
-            if cur.fetchall():
-                db = True
+            cur.execute("SELECT 'id' FROM videos")
+            total_records = len(cur.fetchall())
+            if total_records:
+                db = {}
+                records = f'{total_records} records'
+                db['records'] = records
+                cur.execute('SELECT id FROM channels')
+                total_channels = len(cur.fetchall())
+                channels = f'{total_channels} channels'
+                db['channels'] = channels
+                cur.execute('SELECT id FROM tags')
+                total_tags = cur.fetchall()
+                if total_tags:  # a tiny chance of Takeout with 1-5 records 
+                    # with no tags...
+                    tags = f'{total_tags} unique tags'
+                    db['tags'] = tags
+                db = json.dumps(db)
             cur.close()
         except sqlite3.OperationalError:
             pass
         conn.close()
     return render_template('index.html', path=project_path, api_key=api_key,
-                           path_pattern=path_pattern,
-                           active_thread=active_thread, db=db)
+                           path_pattern=path_pattern, db=db)
 
 
 @app.route('/create_project_dir', methods=['POST'])
@@ -194,7 +204,7 @@ def populate_db(takeout_path: str, project_path: str):
         # in case the page is refreshed before this finishes running, to
         # prevent old progress messages from potentially showing up
         # in the next run
-        sleep(1)
+        sleep(0.5)
         progress.clear()
 
 

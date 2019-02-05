@@ -1,28 +1,28 @@
 .path {
     font-weight: bold;
     margin-right: 0.3em;
-    }
+}
 
 .shw-btn {
     margin-top: 0.5em;
     margin-bottom: 0.5em;
-    }
+}
 
 #takeout-setup {
     width: 50em;
-    }
+}
 
 .link-btn, .link-btn:visited {
     color: #007BFF;
-    }
+}
 
 .link-btn:hover {
-    }
+}
 
 .btn {
     margin-top: 0.3em;
     margin-bottom: 0.3em;
-    }
+}
 
 #progress-bar-container {
     width: 306px;
@@ -34,24 +34,26 @@
     text-align: center;
     margin-top: 10px;
     margin-bottom: 10px;
-    }
+}
 
 #progress-bar {
     position: relative;
     background-color: #00cc00;
-    width: 0%;
+    width: 0;
     border-radius: 2px;
-    /*border-color: Black;*/
     height: 25px;
     transition: all 0.1s ease;
-    }
+}
 
 #progress-bar-text {
     width: 305px;
     text-align: center;
-    }
-
+}
 
 #wait-for-db {
     color: red;
-    }
+}
+
+/*.hidden {*/
+    /*display: none;*/
+/*}*/
