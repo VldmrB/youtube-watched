@@ -188,10 +188,6 @@ def update_channel(conn: sqlite3.Connection,
                   WHERE id = ?''', (channel_name, channel_id))
 
 
-def add_tag(conn: sqlite3.Connection, tag: str):
-    return execute_query(conn, add_tag_query, (tag,))
-
-
 def add_video(conn: sqlite3.Connection, cols_vals: dict):
     query_string = generate_insert_query('videos', list(cols_vals.keys()))
     values = cols_vals.values()
@@ -210,6 +206,10 @@ def update_video(conn: sqlite3.Connection, cols_vals: dict):
     return execute_query(conn, query_string, tuple(values))
 
 
+def add_tag(conn: sqlite3.Connection, tag: str):
+    return execute_query(conn, add_tag_query, (tag,))
+
+
 def add_tag_to_video(conn: sqlite3.Connection, tag_id: int, video_id: str):
     return execute_query(conn, add_tag_to_video_query, (video_id, tag_id))
 
@@ -226,7 +226,7 @@ def add_tags_to_table_and_video(conn: sqlite3.Connection, tags: list,
             tag_id = None
             if add_tag(conn, tag):
                 try:
-                    tag_id = execute_query(conn, id_query_string, (tag,))[0]
+                    tag_id = execute_query(conn, id_query_string, (tag,))[0][0]
                 except (TypeError, sqlite3.Error) as e:
                     log_query_error(e, id_query_string, tag)
                     # todo this is thrown because sometimes the tag_id
@@ -235,7 +235,7 @@ def add_tags_to_table_and_video(conn: sqlite3.Connection, tags: list,
                     # It's likely fixed now (after changing the select
                     # query a bit) and won't error out anymore, but
                     # needs to be confirmed first
-                    tag_id = execute_query(conn, max_id_query_string)[0] + 1
+                    tag_id = execute_query(conn, max_id_query_string)[0][0] + 1
                     execute_query(conn, update_tag_id_query, (tag_id, tag))
                 finally:
                     existing_tags[tag] = tag_id
