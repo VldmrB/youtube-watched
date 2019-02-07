@@ -13,10 +13,6 @@ app.secret_key = '23lkjhv9z8y$!gffflsa1g4[p[p]'
 
 flash_err = '<span style="color:Red;font-weight:bold">Error:</span>'
 flash_note = '<span style="color:Blue;font-weight:bold">Note:</span>'
-if os.name == 'nt':
-    path_pattern = '[.a-zA-Z0-9_][^/?<>|*"]+'
-else:
-    path_pattern = '.+'
 
 configure_logging = False
 insert_videos_thread = None
@@ -35,10 +31,10 @@ def get_project_dir_path_from_cookie():
 def index():
     project_path = get_project_dir_path_from_cookie()
     if not project_path:
-        return render_template('index.html', path_pattern=path_pattern)
+        return make_response(redirect(url_for('setup_project')))
     elif not os.path.exists(project_path):
         flash(f'{flash_err} could not find directory {strong(project_path)}')
-        return render_template('index.html', path_pattern=path_pattern)
+        return render_template('index.html')
 
     global configure_logging
     if not configure_logging:
@@ -79,7 +75,20 @@ def index():
             pass
         conn.close()
     return render_template('index.html', path=project_path, api_key=api_key,
-                           path_pattern=path_pattern, db=db)
+                           db=db)
+
+
+@app.route('/setup_project')
+def setup_project():
+    return render_template('new_project.html')
+
+
+@app.route('/setup_project_form', methods=['POST'])
+def setup_project_form():
+    project_path = request.form['project-dir-input'].strip()
+    api_key = request.form['api-key-input'].strip()
+    takeout_path = request.form['takeout-dir-input'].strip()
+    return '', 204
 
 
 @app.route('/create_project_dir', methods=['POST'])
@@ -143,7 +152,7 @@ def populate_db_form():
                 'database issues'), 200
 
     from threading import Thread
-    takeout_path = request.form.get('takeout-path')
+    takeout_path = request.form.get('takeout-dir')
 
     project_path = get_project_dir_path_from_cookie()
     insert_videos_thread = Thread(target=populate_db,

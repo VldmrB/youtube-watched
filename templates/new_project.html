@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block favicon_stylesheet %}
+    {{ super() }}
+{% endblock %}
+{% block title %}Project setup{% endblock %}
+
+{% block body %}
+    <div id="setup-project-container">
+        <div id="setup-project-form-container">
+            <form id="setup-project-form"
+                  action="{{ url_for("setup_project_form") }}" method="post">
+                <span>
+                    <label>Project directory</label>
+                    <input id="project-dir-input" name="project-dir" placeholder="Project path"
+                           pattern="{{ path_pattern }}" required>
+                </span>
+                <span>
+                    <label for="api-key-input">Google API key</label>
+                        <input id="api-key-input" type="password" name="api-key" placeholder="API key" required>
+                </span>
+                <span>
+                    <label> Takeout file(s)</label>
+                    <input id="takeout-dir-input" name="takeout-dir" placeholder="Takeout path"
+                           pattern="{{ path_pattern }}" required>
+                </span>
+                <input id="new-project-submit-button" class="button" type="submit" value="Create project">
+            </form>
+        </div>
+    {% include "help.html" %}
+    </div>
+{% endblock %}
