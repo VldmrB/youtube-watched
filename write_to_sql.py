@@ -301,12 +301,15 @@ def insert_or_refresh_categories(conn: sqlite3.Connection, api_auth,
                 title = category_dict['snippet']['title']
                 assignable = str(category_dict['snippet']['assignable'])
                 etag = category_dict['etag']
-                execute_query(conn, query_string, (id_, channel_id, title, assignable, etag))
+                execute_query(conn, query_string, (id_, channel_id, title,
+                                                   assignable, etag))
         conn.commit()
 
 
 def insert_parent_topics(conn: sqlite3.Connection):
-    query_string = generate_insert_query('parent_topics', columns=PARENT_TOPICS_COLUMNS, on_conflict_ignore=True)
+    query_string = generate_insert_query('parent_topics',
+                                         columns=PARENT_TOPICS_COLUMNS,
+                                         on_conflict_ignore=True)
     for topic_dict in topics_by_category.values():
         for k, v in topic_dict.items():
             parent_topic_str = ' (parent topic)'
@@ -320,7 +323,8 @@ def insert_parent_topics(conn: sqlite3.Connection):
 
 
 def insert_sub_topics(conn: sqlite3.Connection):
-    query_string = generate_insert_query('topics', columns=TOPICS_COLUMNS, on_conflict_ignore=True)
+    query_string = generate_insert_query('topics', columns=TOPICS_COLUMNS,
+                                         on_conflict_ignore=True)
     for topic_dict in topics_by_category.values():
         parent_topic_str = ' (parent topic)'
         parent_topic_name = None

@@ -1,0 +1,93 @@
+<div id="help-container">
+    <div class="help-item">
+        <h3>Project directory</h3>
+        <p>Where all the data will be stored.</p>
+    </div>
+
+    <div class="help-item">
+        <h3>Google API key</h3>
+        <p>
+            For making requests to Youtube Data API for information on each video
+            <a class="link-btn link-btn:visited"
+               href="https://support.google.com/googleapi/answer/6158862?hl=en"
+               target="_blank">(how to get one)</a>.
+        </p>
+    </div>
+
+    <div class="help-item">
+        <h3>Takeout</h3>
+        <div id="takeout-single-file-description">
+            Path to the watch-history.html file from Google Takeout. No other files from that folder are
+            needed.
+            <br>
+            <a href="#" id="multiple-files-link" class="link-btn">For multiple Takeout downloads...</a>
+        </div>
+        <div id="takeout-multiple-files-description" class="hidden">
+            <p>
+                Enter the path to the directory with the files. Files with partially overlapping records are
+                fine.
+            </p>
+            <p>
+                It's best to either extract each Takeout archive to a directory with the same name as the
+                archive and then point to the directory containing all of them
+                <br>
+                --- or ---
+                <br>
+                manually move the actual watch-history files into one directory while appending a number
+                at the end of each name, e.g. watch-history_001.html, from oldest to newest.
+            </p>
+            The files will only be located within the given directory if any of the following is inside:
+            <ul>
+                <li>watch-history files themselves</li>
+                <li>Directories of the download archives, extracted with the same
+                    name as the archives e.g. "takeout-20181120T163352Z-001"</li>
+            </ul>
+            <p>
+                The search will become confined to one of these types after the first match, e.g. if a
+                watch-history file is found in the very directory that was passed, it'll continue looking for
+                those in the same place, but not in Takeout directories.
+            </p>
+        </div>
+        <script>
+            toggleElementVisibility('multiple-files-link', "takeout-multiple-files-description",
+                "For multiple Takeout downloads:");
+        </script>
+    </div>
+
+    <hr>
+
+    <div class="help-item">
+        <h3>Data retrieval and insertion process</h3>
+        <p>
+            Depending on the amount of video records, the process will likely take 30+ minutes. ~15k records
+            will create a database of ~40MB.
+        </p>
+        <p>
+            Should the process get interrupted for any reason, it's safe to restart it using the same Takeout
+            files; no duplicates will be created.
+        </p>
+        <p>
+            Google API standard daily quota is 1M query points. Each video request (at least a successful one)
+            seems to use 11 points.
+        </p>
+    </div>
+
+    <div class="help-item">
+        <h3>Takeout quirks and need-to-know</h3>
+        <p>
+            Takeout works strangely (badly). The three times I've used it, it
+            returned varying numbers of records, the second time returning fewer than the first and the last
+            returning more than the first two, including records older than the ones in the first two as well as
+            records sprinkled throughout the whole watch history that too were missing from the first two
+            Takeouts. The oldest records available were from the start of 2014.
+        </p>
+        It does not seem to return a full watch history in any case, when compared to the
+        History page on Youtube, though the difference is not drastic.
+        <p>
+        </p>
+        <p>
+            If a video has been deleted, its only data will be the timestamp of when it was watched and
+            sometimes its id. These will be inserted as 'unknown'.
+        </p>
+    </div>
+</div>

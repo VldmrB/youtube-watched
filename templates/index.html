@@ -4,139 +4,60 @@
 {% block title %} {{ super() }} {% endblock %}
 
 {% block body %}
-    <script>
-        var forbiddenCharacters = "/?<>|*\"";
-        function setPathValidation(inputFieldSelector, submitFieldSelector) {
-            var inputField = document.querySelector(inputFieldSelector);
-            var submitField = document.querySelector(submitFieldSelector);
-            inputField.addEventListener("keyup",
-                function() {
-                    if (inputField.value !== "") {
-                        for (var i = 0; i < forbiddenCharacters.length; i++) {
-                            if (inputField.value.includes(forbiddenCharacters[i])) {
-                                inputField.setCustomValidity("Characters /?<>|*\" are not allowed.");
-                                submitField.setAttribute("disabled", true);
-                                inputField.style.border.color = "red";
-                                inputField.style.border.width = "5px";
-                                break;
-                            } else {
-                                inputField.style.border.color = "default";
-                                submitField.removeAttribute("disabled");
-                                inputField.setCustomValidity("");
-                            }
-                        }
-                    }
-                });
-            inputField.focus();
-        }
-        function toggleElementVisibility(buttonId, mainInputId, elementToToggle) {
-            var button = document.querySelector("#" + buttonId);
-            var buttonText = button.innerHTML;
-            var buttonWidth = button.offsetWidth;
-            {#var buttonMargin = button.offsetLeft * 2;#}
-            var formElement = document.querySelector("#" + elementToToggle);
-            button.addEventListener("click", function() {
-                console.log('Width: ' + buttonWidth, window.getComputedStyle(button).getPropertyValue('padding-left'));
-                if (button.innerHTML === buttonText) {
-                    formElement.classList.toggle("hidden");
-                    button.style.width = buttonWidth.toString() + 'px';
-                    console.log(button.offsetWidth, window.getComputedStyle(button).getPropertyValue('padding-left'));
-                    button.innerHTML = "Cancel";
-                    setTimeout( function(){document.querySelector("#" + mainInputId).focus();}, 1);
-                } else {
-                    button.innerHTML = buttonText;
-                    formElement.classList.toggle("hidden");
-                }
-            });
-        }
-    </script>
-    <div id="project-dir-section">
-        {% with messages = get_flashed_messages() %} {% if messages %}
-            {% for message in messages %}
-                <div>{{ message| safe }}</div>
-            {% endfor %}
-        {% endif %} {% endwith %}
-        <div id="project-dir-clarification">
-            {% if path %}
-                Project directory: <span id="project-dir-path" class="path">{{ path }}</span>
-                <button id="show-project-form-button" class="button">Change...</button>
-            {% else %}
-                <div>Create a project directory (or enter a previously created one).</div>
-
-            {% endif %}
-        </div>
-        <div class="single-field-form-container">
-            <form id="project-dir-form" class="hidden single-field-form-inputs"
-                  action="{{ url_for('create_project_dir') }}" method=post>
-                    <input id="project-dir-input" class="" name="project-dir"
-                           placeholder="Directory path..." pattern="{{ path_pattern }}" required>
-                    <input class="" type="submit" value="Submit">
-            </form>
-        </div>
-        <script>
-            setPathValidation("#project-dir-input", "#project-dir-input-group input[type='submit']");
-            {% if path %}
-                document.querySelector("#project-dir-form").addEventListener("submit", function(event) {
-                    var newDirValue = document.querySelector("#project-dir-input").value;
-                    if (newDirValue !== document.querySelector("#project-dir-path").innerHTML) {
-                        confirm('Switch to ' + newDirValue + '?\nThe old one and its data will still be there.')
-                    } else {
-                        event.preventDefault();
-                        var dirInputGroup = document.querySelector("#project-dir-input-group");
-                        if (dirInputGroup.children.length === 2) {
-                            var sameDirError = document.createElement("div");
-                            sameDirError.innerHTML = "Already set to this directory";
-                            sameDirError.style.color = "red";
-                            dirInputGroup.append(sameDirError);
-                            setTimeout(function(){ sameDirError.remove(); }, 2000);
-                        }}
-                });
-                toggleElementVisibility("show-project-form-button", "project-dir-input", "project-dir-form");
-            {% else %}
-                document.querySelector("#project-dir-form").classList.remove("hidden");
-                document.querySelector("#project-dir-form input[name='project-dir']").focus();
-            {% endif %}
-        </script>
-    </div>
-    {% if path %}
-        <div id="api-key-section">
-            <div id="api-key-clarification">
-                {% if api_key %}
-                    <button id="api-key-form-button" class="button">Change API key...</button>
+    <div id="grid">
+        <div id="project-dir-section">
+            {% with messages = get_flashed_messages() %} {% if messages %}
+                {% for message in messages %}
+                    <div>{{ message| safe }}</div>
+                {% endfor %}
+            {% endif %} {% endwith %}
+            <div id="project-dir-clarification">
+                {% if path %}
+                    Project directory: <span id="project-dir-path" class="path">{{ path }}</span>
                 {% else %}
-                    Add a <a href="https://support.google.com/googleapi/answer/6158862?hl=en"
-                             target="_blank">Google API key.</a>
-                    Alternatively, create a file "api_key" in the project directory and paste it there.
-                    <br>
-                    The key is needed to make requests to Youtube Data API for information on each video.
+                    <div>Create a project directory (or enter a previously created one).</div>
                 {% endif %}
             </div>
-            <div class="single-field-form-container">
-                <form id="api-key-form" class="hidden single-field-form-inputs"
-                      action="{{ url_for('setup_api_key') }}" method=post>
-                        <input id="api-key-input" type="password" class="" name="api-key"
-                               placeholder="API key..." required>
-                        <input class="" type="submit" value="Submit">
-                </form>
-            </div>
             <script>
-                {% if api_key %}
-                    toggleElementVisibility("api-key-form-button", "api-key-input", "api-key-form");
+                {% if path %}
+                    document.querySelector("#project-setup-form").addEventListener("submit", function(event) {
+                        let newDirValue = document.querySelector("#project-dir-input").value;
+                        if (newDirValue !== document.querySelector("#project-dir-path").innerHTML) {
+                            confirm('Switch to ' + newDirValue + '?\nThe old one and its data will still be there.')
+                        } else {
+                            event.preventDefault();
+                            let dirInputGroup = document.querySelector("#project-dir-input-group");
+                            if (dirInputGroup.children.length === 2) {
+                                let sameDirError = document.createElement("div");
+                                sameDirError.innerHTML = "Already set to this directory";
+                                sameDirError.style.color = "red";
+                                dirInputGroup.append(sameDirError);
+                                setTimeout(function(){ sameDirError.remove(); }, 2000);
+                            }}
+                    });
                 {% else %}
-                    document.querySelector("#api-key-form").classList.remove("hidden");
-                    document.querySelector("#api-key-form input[name='api-key']").focus();
+                    document.querySelector("#project-setup-form").classList.remove("hidden");
+                    document.querySelector("#project-setup-form input[name='project-dir']").focus();
                 {% endif %}
             </script>
         </div>
-    {% endif %}
+        <div id="api-key-clarification">
+            Add a <a href="https://support.google.com/googleapi/answer/6158862?hl=en"
+                     target="_blank">Google API key.</a>
+            The key is needed to make requests to Youtube Data API for information on each video.
+        </div>
+        <div id="api-key-form-container" class="hidden">
+            <form id="api-key-form" class=" single-field-form-inputs"
+                  action="{{ url_for('setup_api_key') }}" method=post>
+                <input id="api-key-input" type="password" name="api-key"
+                       placeholder="API key..." required>
+                <input class="" type="submit" value="Submit">
+            </form>
+        </div>
 
-    {% if api_key %}
         <div id="takeout-section">
-            {% if db %}
-                <button id="takeout-setup-button" class="button">Additional Takeout...</button>
-                <button id="update-records-button" class="button">Update existing records</button>
-            {% else %}
-            {% endif %}
+            <button id="takeout-setup-button" class="button">Additional Takeout...</button>
+            <button id="update-records-button" class="button">Update existing records</button>
             <div id="takeout-setup" class="hidden">
                 <div id="takeout-clarification">
                     Insert videos' data into the database. This may take a while.
@@ -181,9 +102,9 @@
                 <div class="single-field-form-container">
                     <form id="takeout-form" class="single-field-form-inputs"
                           action="{{ url_for('populate_db_form') }}" method=post>
-                            <input id="takeout-input" class="" name="takeout-path"
-                                   placeholder="Takeout directory path..." required>
-                            <input class="" type="submit" value="Submit">
+                        <input id="takeout-input" class="" name="takeout-path"
+                               placeholder="Takeout directory path..." required>
+                        <input class="" type="submit" value="Submit">
                     </form>
                 </div>
             </div>
@@ -196,38 +117,18 @@
                 <div id="progress-msg"></div>
                 <div id="wait-for-db"></div>
             </div>
-            <script>
-                var multipleFilesLink = document.querySelector(".link-btn");
-                var multipleFilesDescriptionDiv = document.querySelector("#takeout-multiple-files-description");
-                multipleFilesLink.addEventListener("click", function() {
-                    multipleFilesDescriptionDiv.classList.toggle('hidden');
-                    if (multipleFilesDescriptionDiv.classList.contains("hidden")) {
-                        multipleFilesLink.innerHTML = "For multiple files...";
-                    } else {
-                        multipleFilesLink.innerHTML = "For multiple files:";
-                    }
-                });
-
-                setPathValidation("#takeout-input", "#takeout-form input[type='submit']");
-                {% if db %}
-                    toggleElementVisibility("takeout-setup-button", "takeout-input", "takeout-setup");
-                {% else %}
-                    document.querySelector("#takeout-setup").classList.add('show');
-                    document.querySelector("#takeout-form input[name='takeout-path']").focus();
-                {% endif %}
-            </script>
         </div>
         <script>
-            var progressMsg = document.querySelector("#progress-msg");
-            var progressBar = document.querySelector("#progress-bar");
-            var progressBarText = document.querySelector("#progress-bar-text span");
-            var progressWait = document.querySelector("#wait-for-db");
-            var takeoutSubmit = document.querySelector("#takeout-form");
+            let progressMsg = document.querySelector("#progress-msg");
+            let progressBar = document.querySelector("#progress-bar");
+            let progressBarText = document.querySelector("#progress-bar-text span");
+            let progressWait = document.querySelector("#wait-for-db");
+            let takeoutSubmit = document.querySelector("#takeout-form");
             takeoutSubmit.addEventListener("submit", function(event) {
                 event.preventDefault();
-                var takeoutDirectoryVal = document.querySelector("#takeout-input").value;
-                var takeoutDirectorySubmitButton = takeoutSubmit.querySelector("input[type='submit']");
-                var anAJAX = new XMLHttpRequest();
+                let takeoutDirectoryVal = document.querySelector("#takeout-input").value;
+                let takeoutDirectorySubmitButton = takeoutSubmit.querySelector("input[type='submit']");
+                let anAJAX = new XMLHttpRequest();
                 anAJAX.open("POST", "{{ url_for('populate_db_form') }}");
 
                 anAJAX.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
@@ -241,7 +142,7 @@
                         } else {
                             document.querySelector("#progress-bar-container").style.display = "none";
                             takeoutDirectorySubmitButton.setAttribute('disabled', 'true');  // todo check if this works
-                            var progress = new EventSource("{{ url_for('db_progress_stream') }}");
+                            let progress = new EventSource("{{ url_for('db_progress_stream') }}");
                             function closeEventSource (event) {
                                 event.preventDefault();
                                 console.log(progress);
@@ -250,7 +151,7 @@
                             window.addEventListener('beforeunload', closeEventSource);
                             progress.onmessage = function (event) {
                                 if (event.data.length < 6) {
-                                    var progressVal = event.data + "%";
+                                    let progressVal = event.data + "%";
                                     progressBar.style.width = progressVal;
                                     progressBarText.innerHTML = progressVal;
                                 } else {
@@ -258,7 +159,7 @@
                                     progressBar.style.width = "100%";
                                     progressBarText.innerHTML = "100%";
                                     if (event.data.indexOf("records_processed") !== -1) {
-                                        var msgJSON = JSON.parse(event.data);
+                                        let msgJSON = JSON.parse(event.data);
                                         console.log(msgJSON);
                                         /** @namespace  msgJSON.records_processed **/
                                         /** @namespace msgJSON.records_inserted **/
@@ -266,7 +167,7 @@
                                         /** @namespace msgJSON.records_in_db **/
                                         /** @namespace  msgJSON.dead_records */
                                         /** @namespace msgJSON.failed_api_requests **/
-                                        var msgString = ("Records processed: " + msgJSON.records_processed +
+                                        let msgString = ("Records processed: " + msgJSON.records_processed +
                                             "<br>Inserted: " + msgJSON.records_inserted +
                                             "<br>Updated: " + msgJSON.records_updated +
                                             "<br>Total records in the database: " + msgJSON.records_in_db);
@@ -299,6 +200,5 @@
                 anAJAX.send("takeout-path=" + takeoutDirectoryVal);
             });
         </script>
-    {% endif %}  <!-- if api_key ends here -->
-
+    </div>
 {% endblock %}
