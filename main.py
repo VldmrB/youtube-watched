@@ -11,11 +11,12 @@ from utils import logging_config
 app = Flask(__name__)
 app.secret_key = '23lkjhv9z8y$!gffflsa1g4[p[p]'
 
-flash_err = '<span style="color:Red;font-weight:bold">Error:</span>'
+flash_err = '<span style="color:Red;font-weight:bold;">Error:</span>'
 flash_note = '<span style="color:Blue;font-weight:bold">Note:</span>'
 
 configure_logging = False
 insert_videos_thread = None
+close_thread = False
 progress = []
 
 
@@ -31,21 +32,15 @@ def get_project_dir_path_from_cookie():
 def index():
     project_path = get_project_dir_path_from_cookie()
     if not project_path:
-        return make_response(redirect(url_for('setup_project')))
+        return redirect(url_for('setup_project'))
     elif not os.path.exists(project_path):
         flash(f'{flash_err} could not find directory {strong(project_path)}')
-        return render_template('index.html')
+        return redirect(url_for('setup_project'))
 
     global configure_logging
     if not configure_logging:
         logging_config(join(project_path, 'events.log'))
         configure_logging = True
-
-    api_key_path = join(project_path, 'api_key')
-    api_key = None
-    if os.path.exists(api_key_path):
-        with open(api_key_path, 'r') as api_file:
-            api_key = True if api_file.read().strip() else None
 
     db_path = join(project_path, 'yt.sqlite')
     db = None
@@ -74,8 +69,12 @@ def index():
         except sqlite3.OperationalError:
             pass
         conn.close()
-    return render_template('index.html', path=project_path, api_key=api_key,
-                           db=db)
+    if not request.cookies.get('description-seen'):
+        resp = make_response(render_template('index.html', path=project_path,
+                                             description=True, db=db))
+        resp.set_cookie('description-seen', 'True', max_age=31_536_000)
+        return resp
+    return render_template('index.html', path=project_path, db=db)
 
 
 @app.route('/setup_project')
@@ -85,18 +84,9 @@ def setup_project():
 
 @app.route('/setup_project_form', methods=['POST'])
 def setup_project_form():
-    project_path = request.form['project-dir-input'].strip()
-    api_key = request.form['api-key-input'].strip()
-    takeout_path = request.form['takeout-dir-input'].strip()
-    return '', 204
-
-
-@app.route('/create_project_dir', methods=['POST'])
-def create_project_dir():
     project_path = request.form['project-dir'].strip()
-    if not project_path:
-        flash(f'{flash_err} path cannot be empty')
-        return redirect(url_for('index'))
+    api_key = request.form['api-key'].strip()
+
     resp = make_response(redirect(url_for('index')))
 
     try:
@@ -107,25 +97,19 @@ def create_project_dir():
         dirs_to_make = ['logs', 'graphs']
         for dir_ in dirs_to_make:
             os.mkdir(join(project_path, dir_))
+
+        with open(join(project_path, 'api_key'), 'w') as api_file:
+            api_file.write(api_key)
     except FileNotFoundError:
         raise
     except FileExistsError:
         pass
     except OSError:
         flash(f'{flash_err} {strong(project_path)} is not a valid path')
-        return redirect(url_for('index'))
+        return redirect('setup_project')
     resp.set_cookie('project-dir', project_path, max_age=31_536_000)
+
     return resp
-
-
-@app.route('/setup_api_key', methods=['POST'])
-def setup_api_key():
-    api_key = request.form['api-key']
-    project_path = get_project_dir_path_from_cookie()
-    with open(join(project_path, 'api_key'), 'w') as api_file:
-        api_file.write(api_key)
-
-    return redirect(url_for('index'))
 
 
 def db_stream_event():
@@ -133,13 +117,14 @@ def db_stream_event():
         if progress:
             cur_val = str(progress.pop(0))
             yield 'data: ' + cur_val + '\n'*2
-            if 'records_processed' in cur_val:
+            if 'records_processed' in cur_val or 'Error' in cur_val:
+                progress.clear()
                 break
         else:
             sleep(0.05)
 
 
-@app.route('/get_progress')
+@app.route('/db_progress_stream')
 def db_progress_stream():
     return Response(db_stream_event(), mimetype="text/event-stream")
 
@@ -152,7 +137,7 @@ def populate_db_form():
                 'database issues'), 200
 
     from threading import Thread
-    takeout_path = request.form.get('takeout-dir')
+    takeout_path = request.form['takeout-dir']
 
     project_path = get_project_dir_path_from_cookie()
     insert_videos_thread = Thread(target=populate_db,
@@ -169,6 +154,8 @@ def populate_db(takeout_path: str, project_path: str):
     import time
     from convert_takeout import get_all_records
     from utils import load_file
+
+    global close_thread
     progress.append('Locating and processing watch-history.html files...')
     try:
         records = get_all_records(takeout_path)
@@ -194,10 +181,14 @@ def populate_db(takeout_path: str, project_path: str):
         tm_start = time.time()
         for records_processed in write_to_sql.insert_videos(
                 conn, records, api_auth):
-                if isinstance(records_processed, int):
-                    progress.append(str(records_processed))
-                else:
-                    progress.append(records_processed)
+            if close_thread:
+                close_thread = False
+                print('Stopped the thread!')
+                return
+            if isinstance(records_processed, int):
+                progress.append(str(records_processed))
+            else:
+                progress.append(records_processed)
         print(time.time() - tm_start, 'seconds!')
         conn.close()
     except youtube.ApiKeyError:
@@ -209,12 +200,6 @@ def populate_db(takeout_path: str, project_path: str):
     except FileNotFoundError:
         progress.append(f'{flash_err} Invalid database path')
         raise
-    finally:
-        # in case the page is refreshed before this finishes running, to
-        # prevent old progress messages from potentially showing up
-        # in the next run
-        sleep(0.5)
-        progress.clear()
 
 
 @app.route('/update_records', methods=['POST'])
@@ -228,6 +213,14 @@ def update_records_form():
                                   args=(takeout_path, project_path))
     insert_videos_thread.start()
 
+    return ''
+
+
+@app.route('/cancel_db_process', methods=['POST'])
+def cancel_db_process():
+    global close_thread
+    close_thread = True
+    progress.append('Error')  # a condition in db_event will cause the
     return ''
 
 
