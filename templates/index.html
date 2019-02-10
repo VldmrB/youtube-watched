@@ -4,201 +4,39 @@
 {% block title %} {{ super() }} {% endblock %}
 
 {% block body %}
-    <div id="grid">
-        <div id="project-dir-section">
-            {% with messages = get_flashed_messages() %} {% if messages %}
-                {% for message in messages %}
-                    <div>{{ message| safe }}</div>
-                {% endfor %}
-            {% endif %} {% endwith %}
-            <div id="project-dir-clarification">
-                {% if path %}
-                    Project directory: <span id="project-dir-path" class="path">{{ path }}</span>
-                {% else %}
-                    <div>Create a project directory (or enter a previously created one).</div>
-                {% endif %}
-            </div>
-            <script>
-                {% if path %}
-                    document.querySelector("#project-setup-form").addEventListener("submit", function(event) {
-                        let newDirValue = document.querySelector("#project-dir-input").value;
-                        if (newDirValue !== document.querySelector("#project-dir-path").innerHTML) {
-                            confirm('Switch to ' + newDirValue + '?\nThe old one and its data will still be there.')
-                        } else {
-                            event.preventDefault();
-                            let dirInputGroup = document.querySelector("#project-dir-input-group");
-                            if (dirInputGroup.children.length === 2) {
-                                let sameDirError = document.createElement("div");
-                                sameDirError.innerHTML = "Already set to this directory";
-                                sameDirError.style.color = "red";
-                                dirInputGroup.append(sameDirError);
-                                setTimeout(function(){ sameDirError.remove(); }, 2000);
-                            }}
-                    });
-                {% else %}
-                    document.querySelector("#project-setup-form").classList.remove("hidden");
-                    document.querySelector("#project-setup-form input[name='project-dir']").focus();
-                {% endif %}
-            </script>
+    <div id="project-section">
+        {% include "flash_messages.html" %}
+        <div id="project-dir-path">
+            Project directory: <span id="project-dir-path" class="path">{{ path }}</span>
         </div>
-        <div id="api-key-clarification">
-            Add a <a href="https://support.google.com/googleapi/answer/6158862?hl=en"
-                     target="_blank">Google API key.</a>
-            The key is needed to make requests to Youtube Data API for information on each video.
-        </div>
-        <div id="api-key-form-container" class="hidden">
-            <form id="api-key-form" class=" single-field-form-inputs"
-                  action="{{ url_for('setup_api_key') }}" method=post>
-                <input id="api-key-input" type="password" name="api-key"
-                       placeholder="API key..." required>
-                <input class="" type="submit" value="Submit">
-            </form>
-        </div>
+    </div>
 
-        <div id="takeout-section">
+    <div id="takeout-section" data-full="{{ 'True' if db else '' }}">
+        {% if db %}
             <button id="takeout-setup-button" class="button">Additional Takeout...</button>
             <button id="update-records-button" class="button">Update existing records</button>
-            <div id="takeout-setup" class="hidden">
-                <div id="takeout-clarification">
-                    Insert videos' data into the database. This may take a while.
-                    <br>
-                    Information for all the ID bearing video records from Google Takeout will be requested
-                    via YouTube API. The rest will be inserted as unknown, or with whatever limited information they
-                    come with in the watch-history.html file(s).
-                </div>
-                <div id="takeout-single-file-description">
-                    <br>
-                    Enter the path to the watch-history.html file from Google Takeout.
-                    <br>
-                    <a href="#" class="link-btn">For multiple files...</a>
-                </div>
-                <div id="takeout-multiple-files-description" class="hidden">
-                    Enter the path to the directory with the files.
-                    <p>
-                        It's essential they are ordered from old to new for accurate processing.
-                        (files with partially overlapping records are fine)
-                    </p>
-                    <p>
-                        It's best to either extract each Takeout archive to a directory with the same name as the
-                        archive and then point to the directory containing all of them
-                        <br>
-                        --- or ---
-                        <br>
-                        manually move the actual watch-history files into one directory while appending a number
-                        at the end of each name, e.g. watch-history_001.html, from oldest to newest.
-                    </p>
-                    The files will only be located within the given directory if any of the following is inside:
-                    <ul>
-                        <li>watch-history files themselves</li>
-                        <li>Directories of the download archives, extracted with the same
-                            name as the archives e.g. "takeout-20181120T163352Z-001"</li>
-                    </ul>
-                    <p>
-                        The search will become confined to one of these types after the first match, e.g. if a
-                        watch-history file is found in the very directory that was passed, it'll continue looking for
-                        those in the same place, but not in Takeout directories.
-                    </p>
-                </div>
-                <div class="single-field-form-container">
-                    <form id="takeout-form" class="single-field-form-inputs"
-                          action="{{ url_for('populate_db_form') }}" method=post>
-                        <input id="takeout-input" class="" name="takeout-path"
-                               placeholder="Takeout directory path..." required>
-                        <input class="" type="submit" value="Submit">
-                    </form>
-                </div>
-            </div>
-            <div id="db-progress">
-                <div id="progress-bar-container" style="display:none;">
+        {% endif %}
+        <div id="takeout-setup" class="hidden">
+            <form id="takeout-form" class="single-field-form-inputs"
+                  action="{{ url_for('populate_db_form') }}" method="POST">
+                <input id="takeout-input" name="takeout-dir" placeholder="Takeout path" required>
+                <input class="button" type="submit" value="Add Takeout data">
+            </form>
+            {% include "takeout_help.html" %}
+        </div>
+        <div id="db-progress">
+            <div id="progress-bar-container" style="display:none;">
+                <div id="progress-bar-rectangle">
                     <div id="progress-bar">
                         <div id="progress-bar-text"><span></span></div>
                     </div>
                 </div>
-                <div id="progress-msg"></div>
-                <div id="wait-for-db"></div>
+                <button id="takeout-cancel-button" class="button-cancel">Stop</button>
             </div>
+            <div id="progress-msg"></div>
+            <div id="wait-for-db"></div>
         </div>
-        <script>
-            let progressMsg = document.querySelector("#progress-msg");
-            let progressBar = document.querySelector("#progress-bar");
-            let progressBarText = document.querySelector("#progress-bar-text span");
-            let progressWait = document.querySelector("#wait-for-db");
-            let takeoutSubmit = document.querySelector("#takeout-form");
-            takeoutSubmit.addEventListener("submit", function(event) {
-                event.preventDefault();
-                let takeoutDirectoryVal = document.querySelector("#takeout-input").value;
-                let takeoutDirectorySubmitButton = takeoutSubmit.querySelector("input[type='submit']");
-                let anAJAX = new XMLHttpRequest();
-                anAJAX.open("POST", "{{ url_for('populate_db_form') }}");
-
-                anAJAX.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
-                anAJAX.addEventListener("readystatechange", function () {
-                    if (this.readyState === 4 && this.status === 200) {
-                        if (this.responseText.indexOf("Wait for") !== -1) {
-                            if (progressWait.innerHTML === "") {
-                                progressWait.innerHTML = this.responseText;
-                                setTimeout(function() {progressWait.innerHTML = "";}, 3000);
-                            }
-                        } else {
-                            document.querySelector("#progress-bar-container").style.display = "none";
-                            takeoutDirectorySubmitButton.setAttribute('disabled', 'true');  // todo check if this works
-                            let progress = new EventSource("{{ url_for('db_progress_stream') }}");
-                            function closeEventSource (event) {
-                                event.preventDefault();
-                                console.log(progress);
-                                progress.close();
-                            }
-                            window.addEventListener('beforeunload', closeEventSource);
-                            progress.onmessage = function (event) {
-                                if (event.data.length < 6) {
-                                    let progressVal = event.data + "%";
-                                    progressBar.style.width = progressVal;
-                                    progressBarText.innerHTML = progressVal;
-                                } else {
-                                    progressMsg.innerHTML = event.data;
-                                    progressBar.style.width = "100%";
-                                    progressBarText.innerHTML = "100%";
-                                    if (event.data.indexOf("records_processed") !== -1) {
-                                        let msgJSON = JSON.parse(event.data);
-                                        console.log(msgJSON);
-                                        /** @namespace  msgJSON.records_processed **/
-                                        /** @namespace msgJSON.records_inserted **/
-                                        /** @namespace msgJSON.records_updated **/
-                                        /** @namespace msgJSON.records_in_db **/
-                                        /** @namespace  msgJSON.dead_records */
-                                        /** @namespace msgJSON.failed_api_requests **/
-                                        let msgString = ("Records processed: " + msgJSON.records_processed +
-                                            "<br>Inserted: " + msgJSON.records_inserted +
-                                            "<br>Updated: " + msgJSON.records_updated +
-                                            "<br>Total records in the database: " + msgJSON.records_in_db);
-                                        if (msgJSON.failed_api_requests !== 0) {
-                                            msgString += ("<br>Failed API requests: " + msgJSON.failed_api_requests +
-                                                " (run this again to attempt these 1-2 more times.)")
-                                        }
-                                        if (msgJSON.dead_records !== 0) {
-                                            msgString += "<br>Videos with no identifying info: " +
-                                                msgJSON.dead_records + " (added as unknown)"
-                                        }
-                                        progressMsg.innerHTML = msgString;
-
-                                        takeoutDirectorySubmitButton.removeAttribute('disabled');
-                                        progress.close();
-                                        window.removeEventListener('beforeunload', closeEventSource);
-                                    } else if (event.data.indexOf("Error") !== -1) {
-                                        takeoutDirectorySubmitButton.removeAttribute('disabled');
-                                        progress.close();
-                                        window.removeEventListener('beforeunload', closeEventSource);
-                                    } else if (event.data.indexOf("Inserting") !== -1) {
-                                        document.querySelector("#progress-bar-container").style.display = "block";
-                                        progressBar.style.width = "0%";
-                                        progressBarText.innerHTML = "0%";
-                                    }
-                                }
-                            };}
-                    }
-                });
-                anAJAX.send("takeout-path=" + takeoutDirectoryVal);
-            });
-        </script>
     </div>
+    <script src="{{ url_for('static', filename='manage_takeout.js') }}">
+    </script>
 {% endblock %}

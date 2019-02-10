@@ -1,24 +1,8 @@
-<div id="help-container">
+    <a href="#" id="takeout-help-link" class="link-btn">How this works{{ ':' if description or not db else '...' }}</a>
+<div id="takeout-help" class="{{ '' if description or not db else 'hidden' }}">
     <div class="help-item">
-        <h3>Project directory</h3>
-        <p>Where all the data will be stored.</p>
-    </div>
-
-    <div class="help-item">
-        <h3>Google API key</h3>
-        <p>
-            For making requests to Youtube Data API for information on each video
-            <a class="link-btn link-btn:visited"
-               href="https://support.google.com/googleapi/answer/6158862?hl=en"
-               target="_blank">(how to get one)</a>.
-        </p>
-    </div>
-
-    <div class="help-item">
-        <h3>Takeout</h3>
         <div id="takeout-single-file-description">
-            Path to the watch-history.html file from Google Takeout. No other files from that folder are
-            needed.
+            Enter the path to the watch-history.html file from Google Takeout.
             <br>
             <a href="#" id="multiple-files-link" class="link-btn">For multiple Takeout downloads...</a>
         </div>
@@ -48,14 +32,8 @@
                 those in the same place, but not in Takeout directories.
             </p>
         </div>
-        <script>
-            toggleElementVisibility('multiple-files-link', "takeout-multiple-files-description",
-                "For multiple Takeout downloads:");
-        </script>
     </div>
-
     <hr>
-
     <div class="help-item">
         <h3>Data retrieval and insertion process</h3>
         <p>
@@ -71,7 +49,6 @@
             seems to use 11 points.
         </p>
     </div>
-
     <div class="help-item">
         <h3>Takeout quirks and need-to-know</h3>
         <p>
@@ -79,7 +56,8 @@
             returned varying numbers of records, the second time returning fewer than the first and the last
             returning more than the first two, including records older than the ones in the first two as well as
             records sprinkled throughout the whole watch history that too were missing from the first two
-            Takeouts. The oldest records available were from the start of 2014.
+            Takeouts. The oldest records were from the start of 2014, with the Youtube account being created and
+            first used sometime in 2011.
         </p>
         It does not seem to return a full watch history in any case, when compared to the
         History page on Youtube, though the difference is not drastic.
@@ -90,4 +68,10 @@
             sometimes its id. These will be inserted as 'unknown'.
         </p>
     </div>
+    <script>
+        toggleElementVisibility('multiple-files-link', "takeout-multiple-files-description",
+            "For multiple Takeout downloads:");
+        toggleElementVisibility("takeout-help-link", "takeout-help",
+            "How this works{{ '...' if description or not db else ':' }}");
+    </script>
 </div>
