@@ -116,9 +116,9 @@ def db_stream_event():
     while True:
         if progress:
             cur_val = str(progress.pop(0))
+            # print(cur_val, 'yep')
             yield 'data: ' + cur_val + '\n'*2
             if 'records_processed' in cur_val or 'Error' in cur_val:
-                progress.clear()
                 break
         else:
             sleep(0.05)
@@ -127,6 +127,14 @@ def db_stream_event():
 @app.route('/db_progress_stream')
 def db_progress_stream():
     return Response(db_stream_event(), mimetype="text/event-stream")
+
+
+@app.route('/cancel_db_process', methods=['POST'])
+def cancel_db_process():
+    if insert_videos_thread and insert_videos_thread.is_alive():
+        global close_thread
+        close_thread = True
+    return ''
 
 
 @app.route('/convert_takeout', methods=['POST'])
@@ -144,7 +152,7 @@ def populate_db_form():
                                   args=(takeout_path, project_path))
     insert_videos_thread.start()
 
-    return '', 200
+    return ''
 
 
 def populate_db(takeout_path: str, project_path: str):
@@ -156,6 +164,7 @@ def populate_db(takeout_path: str, project_path: str):
     from utils import load_file
 
     global close_thread
+    progress.clear()
     progress.append('Locating and processing watch-history.html files...')
     try:
         records = get_all_records(takeout_path)
@@ -184,6 +193,8 @@ def populate_db(takeout_path: str, project_path: str):
             if close_thread:
                 close_thread = False
                 print('Stopped the thread!')
+                progress.clear()
+                progress.append('Error')
                 return
             if isinstance(records_processed, int):
                 progress.append(str(records_processed))
@@ -203,7 +214,7 @@ def populate_db(takeout_path: str, project_path: str):
 
 
 @app.route('/update_records', methods=['POST'])
-def update_records_form():
+def update_db_form():
     from threading import Thread
     takeout_path = request.form.get('takeout-path')
 
@@ -216,20 +227,18 @@ def update_records_form():
     return ''
 
 
-@app.route('/cancel_db_process', methods=['POST'])
-def cancel_db_process():
-    global close_thread
-    close_thread = True
-    progress.append('Error')  # a condition in db_event will cause the
-    return ''
-
-
 def update_db(takeout_path: str, project_path: str):
     import sqlite3
     import write_to_sql
     import youtube
     import time
     from utils import load_file
+
+    # in case the page is refreshed before this finishes running, to
+    # prevent old progress messages from potentially showing up
+    # in the next run
+    progress.clear()
+
     progress.append('Locating and processing watch-history.html files...')
     try:
         records = {}
@@ -269,12 +278,6 @@ def update_db(takeout_path: str, project_path: str):
     except FileNotFoundError:
         progress.append(f'{flash_err} Invalid database path')
         raise
-    finally:
-        # in case the page is refreshed before this finishes running, to
-        # prevent old progress messages from potentially showing up
-        # in the next run
-        sleep(1)
-        progress.clear()
 
 
 if __name__ == '__main__':
