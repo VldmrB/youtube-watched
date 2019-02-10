@@ -16,6 +16,7 @@ function processTakeout(event) {
     event.preventDefault();
     let takeoutDirectoryVal = document.querySelector("#takeout-input").value;
     let progress = new EventSource("/db_progress_stream");
+    console.log("Progress at start:", progress.readyState);
 
     function closeEventSource() {
         progress.close();
@@ -42,6 +43,7 @@ function processTakeout(event) {
                 if (progressUnfinishedDBProcessWarning.innerHTML === "") {
                     progressUnfinishedDBProcessWarning.innerHTML = anAJAX.responseText;
                     setTimeout(function() {progressUnfinishedDBProcessWarning.innerHTML = "";}, 3000);
+                    closeEventSource();
                 }
             } else {
                 cleanUpProgressBar();
@@ -79,17 +81,20 @@ function processTakeout(event) {
                                     msgJSON.dead_records + " (added as unknown)"
                             }
                             progressMsg.innerHTML = msgString;
+                            console.log('The state #2:', progress.readyState);
+                            cleanUpAfterTakeoutInsertion();
+                            console.log('The state #3:', progress.readyState);
 
-                            cleanUpAfterTakeoutInsertion()
                         } else if (event.data.indexOf("Error") !== -1) {
+                            console.log("This is throwing an error!");
                             progressMsg.style.color = 'red';
-                            cleanUpAfterTakeoutInsertion()
+                            console.log('The state #2:', progress.readyState);
+                            cleanUpAfterTakeoutInsertion();
+                            console.log('The state #3:', progress.readyState);
                         }
                     }
-                };}
-        } else if (anAJAX.readyState !== 4 && anAJAX.status !== 200) {
-            // unsuccessful AJAX
-            closeEventSource();
+                };
+            }
         }
     }
 
@@ -112,6 +117,11 @@ function processTakeout(event) {
     anAJAX.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
     anAJAX.addEventListener("readystatechange", showProgress);
     anAJAX.send("takeout-dir=" + takeoutDirectoryVal);
-    takeoutSubmitButton.removeEventListener("submit", processTakeout);
+    // takeoutSubmitButton.removeEventListener("submit", processTakeout);
+
+    try {
+        console.log("Progress at end:", progress.readyState);
+        // progress.close();
+    } catch(err) {}
 }
 takeoutSubmit.addEventListener("submit", processTakeout);
