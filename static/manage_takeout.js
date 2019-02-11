@@ -72,10 +72,12 @@ function processTakeout(event) {
                                 "<br>Inserted: " + msgJSON.records_inserted +
                                 "<br>Updated: " + msgJSON.records_updated +
                                 "<br>Total in the database: " + msgJSON.records_in_db);
+                            // noinspection JSValidateTypes
                             if (msgJSON.failed_api_requests !== 0) {
                                 msgString += ("<br>Failed API requests: " + msgJSON.failed_api_requests +
                                     " (run this again to attempt these 1-2 more times.)")
                             }
+                            // noinspection JSValidateTypes
                             if (msgJSON.dead_records !== 0) {
                                 msgString += "<br>Videos with no identifying info: " +
                                     msgJSON.dead_records + " (added as unknown)"
@@ -119,9 +121,5 @@ function processTakeout(event) {
     anAJAX.send("takeout-dir=" + takeoutDirectoryVal);
     // takeoutSubmitButton.removeEventListener("submit", processTakeout);
 
-    try {
-        console.log("Progress at end:", progress.readyState);
-        // progress.close();
-    } catch(err) {}
 }
 takeoutSubmit.addEventListener("submit", processTakeout);
