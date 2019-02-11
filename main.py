@@ -116,7 +116,6 @@ def db_stream_event():
     while True:
         if progress:
             cur_val = str(progress.pop(0))
-            # print(cur_val, 'yep')
             yield 'data: ' + cur_val + '\n'*2
             if 'records_processed' in cur_val or 'Error' in cur_val:
                 break
