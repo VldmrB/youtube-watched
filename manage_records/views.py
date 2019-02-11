@@ -3,16 +3,14 @@ from time import sleep
 from flask import Response, Blueprint
 from flask import request
 from sql_utils import sqlite_connection
-from flask_utils import get_project_dir_path_from_cookie
+from flask_utils import get_project_dir_path_from_cookie, flash_err
 
 insert_videos_thread = None
 close_thread = False
 progress = []
-flash_err = '<span style="color:Red;font-weight:bold;">Error:</span>'
-flash_note = '<span style="color:Blue;font-weight:bold">Note:</span>'
 
 
-record_management = Blueprint('records', __name__, template_folder='templates')
+record_management = Blueprint('records', __name__)
 
 
 def db_stream_event():
