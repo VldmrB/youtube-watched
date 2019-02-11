@@ -36,7 +36,8 @@ def generate_insert_query(table: str,
 def generate_unconditional_update_query(table: str,
                                         columns: Union[list, tuple]):
     columns = ' = ?, '.join(columns).strip(',') + ' = ?'
-    id_ = 'id_'  # PyCharm complains if id is literally set in the string itself - unresolved column name...
+    id_ = 'id_'  # PyCharm complains if id is literally set in the string itself
+    # - unresolved column name...
     return f'''UPDATE {table} SET {columns} WHERE {id_}= ?'''
 
 
