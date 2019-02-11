@@ -86,16 +86,16 @@ h3 {
 }
 
 #progress-bar-rectangle {
-    width: 306px;
+    width: 606px;
     height: 30px;
-    border: 1px solid Gray;
+    border: 1px solid lightgray;
     text-align: center;
-    vertical-align: middle;
 }
 
 #progress-bar-text {
-    width: 305px;
-    text-align: center;
+    width: 605px;
+    position: relative;
+    top: 16%;
 }
 
 #progress-bar {
