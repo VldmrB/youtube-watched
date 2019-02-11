@@ -18,7 +18,7 @@
         {% endif %}
         <div id="takeout-setup" class="hidden">
             <form id="takeout-form" class="single-field-form-inputs"
-                  action="{{ url_for('populate_db_form') }}" method="POST">
+                  action="{{ url_for('records.populate_db_form') }}" method="POST">
                 <input id="takeout-input" name="takeout-dir" placeholder="Takeout path" required>
                 <input class="button" type="submit" value="Add Takeout data">
             </form>
