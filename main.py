@@ -5,28 +5,18 @@ from os.path import join
 from flask import Flask, render_template, url_for
 from flask import request, redirect, make_response, flash
 from sql_utils import sqlite_connection
+from flask_utils import get_project_dir_path_from_cookie, strong
+from flask_utils import flash_note, flash_err
 from utils import logging_config
+
 from manage_records.views import record_management
 
 app = Flask(__name__)
-app.register_blueprint(record_management)
 app.secret_key = '23lkjhv9z8y$!gffflsa1g4[p[p]'
 
-flash_err = '<span style="color:Red;font-weight:bold;">Error:</span>'
-flash_note = '<span style="color:Blue;font-weight:bold">Note:</span>'
+app.register_blueprint(record_management)
 
 configure_logging = False
-insert_videos_thread = None
-close_thread = False
-progress = []
-
-
-def strong(text):
-    return f'<strong>{text}</strong>'
-
-
-def get_project_dir_path_from_cookie():
-    return request.cookies.get('project-dir')
 
 
 @app.route('/')
