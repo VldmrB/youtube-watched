@@ -1,12 +1,12 @@
 function toggleElementVisibilityAndOtherButton() {
     let newProjectButton = document.querySelector("#setup-project-button");
     let newProjectButtonWidth = newProjectButton.offsetWidth;
-    let newProjectButtonText = "New...";
+    let newProjectButtonText = "New";
     let newProjectFormDiv = document.querySelector("#setup-project-container");
     
     let switchProjectButton = document.querySelector("#switch-project-button");
     let switchProjectButtonWidth = switchProjectButton.offsetWidth;
-    let switchProjectButtonText = "Switch to...";
+    let switchProjectButtonText = "Switch to";
     let switchProjectFormDiv = document.querySelector("#switch-project-container");
 
     function bindAction(button, buttonWidth, buttonText, buttonFormDiv,
