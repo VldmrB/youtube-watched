@@ -1,9 +1,16 @@
+import sqlite3
+import time
 from os.path import join
+from threading import Thread
 from time import sleep
-from flask import Response, Blueprint
-from flask import request
-from sql_utils import sqlite_connection
+
+from flask import Response, Blueprint, request
+
+import write_to_sql
+import youtube
 from flask_utils import get_project_dir_path_from_cookie, flash_err
+from sql_utils import sqlite_connection
+from utils import load_file
 
 insert_videos_thread = None
 close_thread = False
@@ -11,6 +18,33 @@ progress = []
 
 
 record_management = Blueprint('records', __name__)
+
+
+def is_thread_alive():
+    return insert_videos_thread and insert_videos_thread.is_alive()
+
+
+def check_if_stop_thread_and_clean_up():
+    global close_thread
+    if close_thread:
+        close_thread = False
+        print('Stopped the thread!')
+        progress.clear()
+        progress.append('Error')
+        return True
+
+
+@record_management.route('/cancel_db_process', methods=['POST'])
+def cancel_db_process():
+    if insert_videos_thread and insert_videos_thread.is_alive():
+        global close_thread
+        close_thread = True
+        while True:
+            if is_thread_alive():
+                sleep(1)
+            else:
+                break
+    return 'Process stopped'
 
 
 def db_stream_event():
@@ -29,22 +63,13 @@ def db_progress_stream():
     return Response(db_stream_event(), mimetype="text/event-stream")
 
 
-@record_management.route('/cancel_db_process', methods=['POST'])
-def cancel_db_process():
-    if insert_videos_thread and insert_videos_thread.is_alive():
-        global close_thread
-        close_thread = True
-    return ''
-
-
 @record_management.route('/convert_takeout', methods=['POST'])
 def populate_db_form():
     global insert_videos_thread
-    if insert_videos_thread and insert_videos_thread.is_alive():
+    if is_thread_alive():
         return ('Wait for the current operation to finish in order to avoid '
                 'database issues'), 200
 
-    from threading import Thread
     takeout_path = request.form['takeout-dir']
 
     project_path = get_project_dir_path_from_cookie()
@@ -56,14 +81,11 @@ def populate_db_form():
 
 
 def populate_db(takeout_path: str, project_path: str):
-    import sqlite3
-    import write_to_sql
-    import youtube
-    import time
     from convert_takeout import get_all_records
-    from utils import load_file
 
-    global close_thread
+    if check_if_stop_thread_and_clean_up():
+        return
+
     progress.clear()
     progress.append('Locating and processing watch-history.html files...')
     try:
@@ -73,6 +95,10 @@ def populate_db(takeout_path: str, project_path: str):
         progress.append(f'{flash_err} Invalid/non-existent path for '
                         f'watch-history.html files')
         raise
+
+    if check_if_stop_thread_and_clean_up():
+        return
+
     if records is False:
         progress.append(f'{flash_err} No watch-history files found in '
                         f'"{takeout_path}"')
@@ -90,11 +116,7 @@ def populate_db(takeout_path: str, project_path: str):
         tm_start = time.time()
         for records_processed in write_to_sql.insert_videos(
                 conn, records, api_auth):
-            if close_thread:
-                close_thread = False
-                print('Stopped the thread!')
-                progress.clear()
-                progress.append('Error')
+            if check_if_stop_thread_and_clean_up():
                 return
             if isinstance(records_processed, int):
                 progress.append(str(records_processed))
@@ -115,7 +137,6 @@ def populate_db(takeout_path: str, project_path: str):
 
 @record_management.route('/update_records', methods=['POST'])
 def update_db_form():
-    from threading import Thread
     takeout_path = request.form.get('takeout-path')
 
     project_path = get_project_dir_path_from_cookie()

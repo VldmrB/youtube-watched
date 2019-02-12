@@ -149,19 +149,17 @@ input:not([type=submit]) {
 }
 
 .button-cancel {
-    color: black;
     background-color: white;
     border: 1px solid tomato;
 }
 
 .button {
-    color: black;
     border: 1px solid dodgerblue;
     background-color: white;
 }
 
-.button:disabled {
-    color: black;
+.button:disabled, .button-cancel:disabled {
+    border: 1px solid gray;
     background-color: lightgray;
 }
 

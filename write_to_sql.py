@@ -395,7 +395,7 @@ def insert_videos(conn, records: dict, api_auth):
     for video_id, record in records.items():
         records_passed += 1
         if records_passed % sub_percent_int == 0:
-            print(f'Processing entry # {records_passed}')
+            # print(f'Processing entry # {records_passed}')
             yield (records_passed // sub_percent)/10
         record['id'] = video_id
 
@@ -545,7 +545,7 @@ def insert_videos(conn, records: dict, api_auth):
          "failed_api_requests": failed_api_requests,
          "dead_records": dead})
     
-    logger.info('-'*100 + f'\nPopulating finished')
+    logger.info('\n' + '-'*100 + f'\nPopulating finished')
 
 
 def update_videos(conn: sqlite3.Connection, api_auth,
@@ -665,19 +665,14 @@ def update_videos(conn: sqlite3.Connection, api_auth,
          "records_updated": updated,
          "failed_api_requests": failed_api_requests})
 
-    logger.info('-'*100 + f'\nUpdating finished')
+    logger.info('\n' + '-'*100 + f'\nUpdating finished')
 
 
 if __name__ == '__main__':
-    import cProfile
+    # import cProfile
     from os.path import join
     test_dir = r'G:\test_dir'
     with open(join(test_dir, 'api_key'), 'r') as file:
         api_key = file.read().strip()
     DB_PATH = join(test_dir, 'yt.sqlite')
     auth = youtube.get_api_auth(api_key)
-    # cProfile.run(
-    #     r"insert_videos(DB_PATH, get_all_records(r'D:\Downloads'), auth)",
-    #     r'C:\Users\Vladimir\Desktop\results.txt'
-    # )
-    cProfile.run(r"update_videos(DB_PATH, auth)")
