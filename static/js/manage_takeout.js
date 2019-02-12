@@ -43,6 +43,7 @@ function processTakeout(event) {
     }
 
     function makeCancelButtonCancel() {
+        console.log('Test #1');
         takeoutCancelButton.setAttribute("disabled", "true");
         progress.close();
         progressMsg.innerHTML = "Stopping the process, please wait...";
@@ -108,10 +109,12 @@ function processTakeout(event) {
                             }
                             progressMsg.innerHTML = msgString;
                             cleanUpAfterTakeoutInsertion();
+                            takeoutCancelButton.removeEventListener("click", makeCancelButtonCancel);
 
                         } else if (event.data.indexOf("Error") !== -1) {
                             progressMsg.style.color = 'red'; // todo fix this
                             cleanUpAfterTakeoutInsertion();
+                            takeoutCancelButton.removeEventListener("click", makeCancelButtonCancel);
                         }
                     }
                 };
