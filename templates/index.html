@@ -27,7 +27,7 @@
                 <input id="takeout-input" name="takeout-dir" placeholder="Takeout path" required>
                 <input class="button" type="submit" value="Add Takeout data">
             </form>
-            {% include "takeout_help.html" %}
+            {% include "help/takeout_help.html" %}
         </div>
         <div id="db-progress">
             <div id="progress-bar-container" style="display:none;">
@@ -42,5 +42,5 @@
             <div id="wait-for-db"></div>
         </div>
     </div>
-    <script src="{{ url_for('static', filename='manage_takeout.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/manage_takeout.js') }}"></script>
 {% endblock %}
