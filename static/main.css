@@ -12,13 +12,37 @@ input, select, textarea, button {
     font-size: inherit;
 }
 
-#project-dir-path, form, #new-project-submit-button, #progress-bar-rectangle, #takeout-help {
+.project-dir-path, form, #new-project-submit-button, #progress-bar-rectangle, #takeout-help {
     margin: 10px 0;
+}
+
+#project-buttons{
+    display: flex;
+    margin: auto;
+}
+
+#project-buttons>button {
+    margin-bottom: 10px;
+    width: 50%;
+}
+
+div>#project-buttons {
+    display: flex;
+    align-items: center;
+}
+
+#takeout-buttons {
+    display: flex;
+    justify-content: space-between;
+
+}
+
+#takeout-buttons>button {
+    margin-right: 3px;
 }
 
 .path {
     font-weight: bold;
-    margin-left: 0.5em;
 }
 
 .hidden {
@@ -39,7 +63,7 @@ form {
     padding: 20px 0;
 }
 
-#takeout-form {
+#takeout-form, #switch-project-form {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -66,7 +90,7 @@ p, h3{
     margin: 8px 0;
 }
 
-h3 {
+h1, h3 {
     color: gray;
 }
 

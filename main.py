@@ -70,15 +70,27 @@ def index():
 
 @app.route('/setup_project')
 def setup_project():
-    return render_template('new_project.html')
+    path = get_project_dir_path_from_cookie()
+    return render_template('new_project.html', path=path)
 
 
 @app.route('/setup_project_form', methods=['POST'])
 def setup_project_form():
-    project_path = request.form['project-dir'].strip()
-    api_key = request.form['api-key'].strip()
-
     resp = make_response(redirect(url_for('index')))
+
+    project_path = request.form['project-dir'].strip()
+    api_key = request.form.get('api-key')
+    if api_key:
+        api_key = api_key.strip()
+    else:
+        if os.path.exists(project_path) and os.path.exists(
+                join(project_path, 'api_key')):
+            resp.set_cookie('project-dir', project_path, max_age=31_536_000)
+            return resp
+        else:
+            flash(f'{flash_err} No valid project found at '
+                  f'{strong(project_path)}')
+            return redirect('setup_project')
 
     try:
         if not os.path.exists(project_path):
