@@ -20,7 +20,6 @@ function processTakeout(event) {
     event.preventDefault();
     let takeoutDirectoryVal = document.querySelector("#takeout-input").value;
     let progress = new EventSource("/db_progress_stream");
-    console.log("Progress at start:", progress.readyState);
 
     function closeEventSource() {
         progress.close();
@@ -29,7 +28,9 @@ function processTakeout(event) {
     function cleanUpAfterTakeoutInsertion() {
         takeoutSubmitButton.removeAttribute('disabled');
         takeoutCancelButton.style.display = "none";
-        progress.close();
+        try {
+            progress.close();
+        } catch(err) {}
         window.removeEventListener('beforeunload', closeEventSource);
     }
 
@@ -39,6 +40,25 @@ function processTakeout(event) {
         progressBar.style.width = "0%";
         progressBarPercentage.innerHTML = "0%";
         progressMsg.innerHTML = "";
+    }
+
+    function makeCancelButtonCancel() {
+        takeoutCancelButton.setAttribute("disabled", "true");
+        progress.close();
+        progressMsg.innerHTML = "Stopping the process, please wait...";
+        let cancelAJAX = new XMLHttpRequest();
+        cancelAJAX.open("POST", "cancel_db_process");
+        cancelAJAX.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+        function cancelTakeout() {
+            if (cancelAJAX.readyState === 4 && cancelAJAX.status === 200) {
+                cleanUpAfterTakeoutInsertion();
+                cleanUpProgressBar();
+                takeoutCancelButton.removeAttribute("disabled");
+                takeoutCancelButton.removeEventListener("click", makeCancelButtonCancel);
+            }
+        }
+        cancelAJAX.addEventListener("readystatechange", cancelTakeout);
+        cancelAJAX.send();
     }
 
     function showProgress() {
@@ -87,16 +107,11 @@ function processTakeout(event) {
                                     msgJSON.dead_records + " (added as unknown)"
                             }
                             progressMsg.innerHTML = msgString;
-                            console.log('The state #2:', progress.readyState);
                             cleanUpAfterTakeoutInsertion();
-                            console.log('The state #3:', progress.readyState);
 
                         } else if (event.data.indexOf("Error") !== -1) {
-                            console.log("This is throwing an error!");
-                            progressMsg.style.color = 'red';
-                            console.log('The state #2:', progress.readyState);
+                            progressMsg.style.color = 'red'; // todo fix this
                             cleanUpAfterTakeoutInsertion();
-                            console.log('The state #3:', progress.readyState);
                         }
                     }
                 };
@@ -104,26 +119,14 @@ function processTakeout(event) {
         }
     }
 
-    takeoutCancelButton.onclick = function () {
-        let cancelAJAX = new XMLHttpRequest();
-        cancelAJAX.open("POST", "cancel_db_process");
-        cancelAJAX.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
-        function cancelTakeout() {
-            if (cancelAJAX.readyState === 4 && cancelAJAX.status === 200) {
-                cleanUpAfterTakeoutInsertion(progress);
-                cleanUpProgressBar();
-            }
-        }
-        cancelAJAX.addEventListener("readystatechange", cancelTakeout);
-        cancelAJAX.send();
-    };
+    takeoutCancelButton.addEventListener("click", makeCancelButtonCancel);
 
     let anAJAX = new XMLHttpRequest();
     anAJAX.open("POST", "/convert_takeout");
     anAJAX.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
     anAJAX.addEventListener("readystatechange", showProgress);
     anAJAX.send("takeout-dir=" + takeoutDirectoryVal);
-    // takeoutSubmitButton.removeEventListener("submit", processTakeout);
 
 }
+
 takeoutSubmit.addEventListener("submit", processTakeout);
