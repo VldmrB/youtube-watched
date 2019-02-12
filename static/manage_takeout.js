@@ -4,6 +4,10 @@ document.querySelector("#takeout-setup").classList.remove("hidden");
     toggleElementVisibility("takeout-setup-button", "takeout-setup", "Cancel", "takeout-input");
 }
 
+document.querySelector("#new-project-button").onclick = function () {
+    window.location = "/setup_project";
+};
+
 let progressMsg = document.querySelector("#progress-msg");
 let progressBar = document.querySelector("#progress-bar");
 let progressBarPercentage = document.querySelector("#progress-bar-text span");

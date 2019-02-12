@@ -6,15 +6,20 @@
 {% block body %}
     <div id="project-section">
         {% include "flash_messages.html" %}
-        <div id="project-dir-path">
-            Project directory: <span id="project-dir-path" class="path">{{ path }}</span>
+        <div class="project-dir-path">
+            Project directory: <span class="path">{{ path }}</span>
         </div>
     </div>
 
     <div id="takeout-section" data-full="{{ 'True' if db else '' }}">
         {% if db %}
-            <button id="takeout-setup-button" class="button">Additional Takeout...</button>
-            <button id="update-records-button" class="button">Update existing records</button>
+            <div id="takeout-buttons">
+                <span>
+                    <button id="takeout-setup-button" class="button">Additional Takeout...</button>
+                    <button id="update-records-button" class="button">Update existing records</button>
+                </span>
+                <button id="new-project-button" class="button">New project...</button>
+            </div>
         {% endif %}
         <div id="takeout-setup" class="hidden">
             <form id="takeout-form" class="single-field-form-inputs"
@@ -37,6 +42,5 @@
             <div id="wait-for-db"></div>
         </div>
     </div>
-    <script src="{{ url_for('static', filename='manage_takeout.js') }}">
-    </script>
+    <script src="{{ url_for('static', filename='manage_takeout.js') }}"></script>
 {% endblock %}
