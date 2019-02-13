@@ -16,6 +16,8 @@ insert_videos_thread = None
 close_thread = False
 progress = []
 
+thread_is_alive = ('Wait for the current operation to finish in order to '
+                   'avoid database issues')
 
 record_management = Blueprint('records', __name__)
 
@@ -30,7 +32,7 @@ def check_if_stop_thread_and_clean_up():
         close_thread = False
         print('Stopped the thread!')
         progress.clear()
-        progress.append('Error')
+        progress.append('Error: Process stopped')
         return True
 
 
@@ -67,8 +69,7 @@ def db_progress_stream():
 def populate_db_form():
     global insert_videos_thread
     if is_thread_alive():
-        return ('Wait for the current operation to finish in order to avoid '
-                'database issues'), 200
+        return thread_is_alive
 
     takeout_path = request.form['takeout-dir']
 
@@ -135,43 +136,28 @@ def populate_db(takeout_path: str, project_path: str):
         raise
 
 
-@record_management.route('/update_records', methods=['POST'])
+@record_management.route('/update_records')
 def update_db_form():
-    takeout_path = request.form.get('takeout-path')
+    if is_thread_alive():
+        return thread_is_alive
 
     project_path = get_project_dir_path_from_cookie()
     global insert_videos_thread
-    insert_videos_thread = Thread(target=populate_db,
-                                  args=(takeout_path, project_path))
+    insert_videos_thread = Thread(target=update_db, args=(project_path,))
     insert_videos_thread.start()
 
     return ''
 
 
-def update_db(takeout_path: str, project_path: str):
+def update_db(project_path: str):
     import sqlite3
     import write_to_sql
     import youtube
     import time
     from utils import load_file
 
-    # in case the page is refreshed before this finishes running, to
-    # prevent old progress messages from potentially showing up
-    # in the next run
     progress.clear()
-
-    progress.append('Locating and processing watch-history.html files...')
-    try:
-        records = {}
-        progress.append('Inserting records...')
-    except FileNotFoundError:
-        progress.append(f'{flash_err} Invalid/non-existent path for '
-                        f'watch-history.html files')
-        raise
-    if records is False:
-        progress.append(f'{flash_err} No watch-history files found in '
-                        f'"{takeout_path}"')
-        raise ValueError('No watch-history files found')
+    progress.append('Starting updating...')
     try:
         api_auth = youtube.get_api_auth(
             load_file(join(project_path, 'api_key')).strip())
@@ -181,10 +167,8 @@ def update_db(takeout_path: str, project_path: str):
         # declarations are for the timestamps (maybe for more as well, later)
         conn = sqlite_connection(db_path,
                                  detect_types=decl_types | decl_colnames)
-        write_to_sql.setup_tables(conn, api_auth)
         tm_start = time.time()
-        for records_processed in write_to_sql.insert_videos(
-                conn, records, api_auth):
+        for records_processed in write_to_sql.update_videos(conn, api_auth):
             if isinstance(records_processed, int):
                 progress.append(str(records_processed))
             else:

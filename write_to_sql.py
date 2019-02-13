@@ -65,7 +65,7 @@ TABLE_SCHEMAS = {
 
     'videos_tags': '''videos_tags (
     video_id text,
-    tag_id text,
+    tag_id int,
     unique (video_id, tag_id),
     foreign key (video_id) references videos (id)
     on update cascade on delete cascade,
@@ -139,7 +139,8 @@ def wrangle_video_record(json_obj: dict):
     """
     entry_dict = {}
     for key, value in get_final_key_paths(
-            json_obj, '', True, black_list=['localized'], final_keys_only=True):
+            json_obj, '', True, black_list=['localized', 'thumbnails'],
+            final_keys_only=True):
         if key in video_keys_and_columns:  # converting camelCase to underscore
             new_key = []
             for letter in key:
@@ -217,10 +218,10 @@ def add_tag_to_video(conn: sqlite3.Connection, tag_id: int, video_id: str):
 def add_tags_to_table_and_video(conn: sqlite3.Connection, tags: list,
                                 video_id: str, existing_tags: dict,
                                 existing_videos_tags_records: dict = None):
+
     id_query_string = 'SELECT id FROM tags WHERE tag = ?'
     max_id_query_string = 'SELECT max(id) FROM tags'
-    update_tag_id_query = '''UPDATE tags 
-                        SET id = ? WHERE tag = ?'''
+    update_tag_id_query = '''UPDATE tags SET id = ? WHERE tag = ?'''
     for tag in tags:
         if tag not in existing_tags:
             tag_id = None
@@ -243,10 +244,12 @@ def add_tags_to_table_and_video(conn: sqlite3.Connection, tags: list,
             tag_id = existing_tags[tag]
         if tag_id:
             if existing_videos_tags_records:
-                if tag not in existing_videos_tags_records:
-                    add_tag_to_video(conn, tag_id, video_id)
+                if tag_id not in existing_videos_tags_records[video_id]:
+                    if add_tag_to_video(conn, tag_id, video_id):
+                        logger.info(f'Added {tag!r} to {video_id!r}')
             else:
-                add_tag_to_video(conn, tag_id, video_id)
+                if add_tag_to_video(conn, tag_id, video_id):
+                    logger.info(f'Added {tag!r} to {video_id!r}')
 
 
 def add_topic_to_video(conn: sqlite3.Connection, topic: str, video_id: str):
@@ -454,16 +457,16 @@ def insert_videos(conn, records: dict, api_auth):
                 else:
                     record['status'] = 'inactive'
 
-                record['last_updated'] = datetime.utcnow().replace(
-                    microsecond=0)
+                record['last_updated'] = str(datetime.utcnow().replace(
+                    microsecond=0))
                 break
         else:
             failed_requests_ids.setdefault(video_id, 0)
             attempts = failed_requests_ids[video_id]
             if attempts + 1 > 2:
                 record['status'] = 'inactive'
-                record['last_updated'] = datetime.utcnow().replace(
-                    microsecond=0)
+                record['last_updated'] = str(datetime.utcnow().replace(
+                    microsecond=0))
                 delete_failed_request(conn, video_id)
             else:
                 if add_failed_request(conn, video_id, attempts + 1):
@@ -576,11 +579,9 @@ def update_videos(conn: sqlite3.Connection, api_auth,
     logger.info(f'\nStarting records\' updating...\n' + '-'*100)
     for record in records:
         records_passed += 1
-        if records_passed == 5:
-            raise SystemExit('Stop. Hammer time!')
 
         if records_passed % sub_percent_int == 0:
-            # print(f'Processing entry # {records_passed}')
+            print(f'Processing entry # {records_passed}')
             yield (records_passed // sub_percent)/10
 
         if (today - record['last_updated']).total_seconds() < update_age_cutoff:
@@ -596,17 +597,11 @@ def update_videos(conn: sqlite3.Connection, api_auth,
                     delete_failed_request(conn, video_id)
                 if api_response['items']:
                     api_video_data = wrangle_video_record(api_response['items'])
-                    '''
-                    Below currently commented out as the connection used will 
-                    no longer have types detected, which means timestamps are 
-                    retrieved as strings, not datetime objects.
-                    Keeping the code in case the types will be detected again 
-                    -----------
+                    filtered_api_video_data = {}
                     if 'published_at' in api_video_data:
                         # always the same, but will compare as different due to
                         # the same value from the record being of datetime type
                         api_video_data.pop('published_at')
-                    '''
                     for key in api_video_data:
                         # in case the response is messed up and has empty/zero
                         # values. Not sure if possible, but being safe.
@@ -615,8 +610,25 @@ def update_videos(conn: sqlite3.Connection, api_auth,
                         # the fields with the same values
                         val = api_video_data[key]
                         if not val or val == record.get(key):
-                            api_video_data.pop(key)
-                    record.update(api_video_data)
+                            pass
+                        else:
+                            filtered_api_video_data[key] = val
+                    # region Comparing old vs updated values
+                    # keys_updated = filtered_api_video_data.keys()
+                    # old_keys = {k: v for k, v in record.items()
+                    #             if k in keys_updated}
+                    # print('Comparing old vs updated values')
+                    # print('-'*50)
+                    # filtered_filtered_api_video_data = filtered_api_video_data
+                    # for key in ['tags', 'channel_title',
+                    #             'relevant_topic_ids']:
+                    #     if key in filtered_filtered_api_video_data:
+                    #         filtered_filtered_api_video_data.pop(key)
+                    # print(filtered_filtered_api_video_data)
+                    # print(old_keys)
+                    # print('-'*50)
+                    # endregion
+                    record.update(filtered_api_video_data)
                 else:
                     record['status'] = 'inactive'
                 record['last_updated'] = datetime.utcnow().replace(
