@@ -14,10 +14,12 @@ let progressBarPercentage = document.querySelector("#progress-bar-text span");
 let progressUnfinishedDBProcessWarning = document.querySelector("#wait-for-db");
 let takeoutSubmit = document.querySelector("#takeout-form");
 let takeoutSubmitButton = takeoutSubmit.querySelector("input[type='submit']");
+let updateRecordsButton = document.querySelector("#update-records-button");
 let takeoutCancelButton = document.querySelector("#takeout-cancel-button");
 
 function processTakeout(event) {
     event.preventDefault();
+    let idOfElementActedOn =  this.id;
     let takeoutDirectoryVal = document.querySelector("#takeout-input").value;
     let progress = new EventSource("/db_progress_stream");
 
@@ -26,12 +28,13 @@ function processTakeout(event) {
     }
 
     function cleanUpAfterTakeoutInsertion() {
-        takeoutSubmitButton.removeAttribute('disabled');
+        takeoutSubmitButton.removeAttribute("disabled");
+        updateRecordsButton.removeAttribute("disabled");
         takeoutCancelButton.style.display = "none";
         try {
             progress.close();
         } catch(err) {}
-        window.removeEventListener('beforeunload', closeEventSource);
+        window.removeEventListener("beforeunload", closeEventSource);
     }
 
     function cleanUpProgressBar() {
@@ -40,10 +43,10 @@ function processTakeout(event) {
         progressBar.style.width = "0%";
         progressBarPercentage.innerHTML = "0%";
         progressMsg.innerHTML = "";
+        progressMsg.style.color = "black";
     }
 
     function makeCancelButtonCancel() {
-        console.log('Test #1');
         takeoutCancelButton.setAttribute("disabled", "true");
         progress.close();
         progressMsg.innerHTML = "Stopping the process, please wait...";
@@ -73,9 +76,10 @@ function processTakeout(event) {
             } else {
                 cleanUpProgressBar();
                 document.querySelector("#progress-bar-container").style.display = "flex";
-                takeoutSubmitButton.setAttribute('disabled', 'true');
+                takeoutSubmitButton.setAttribute("disabled", "true");
+                updateRecordsButton.setAttribute("disabled", "true");
 
-                window.addEventListener('beforeunload', closeEventSource);
+                window.addEventListener("beforeunload", closeEventSource);
                 progress.onmessage = function (event) {
                     if (event.data.length < 6) {
                         let progressVal = event.data + "%";
@@ -87,32 +91,30 @@ function processTakeout(event) {
                             progressBar.style.width = "100%";
                             progressBarPercentage.innerHTML = "100%";
                             let msgJSON = JSON.parse(event.data);
-                            /** @namespace  msgJSON.records_processed **/
-                            /** @namespace msgJSON.records_inserted **/
-                            /** @namespace msgJSON.records_updated **/
-                            /** @namespace msgJSON.records_in_db **/
-                            /** @namespace  msgJSON.dead_records */
-                            /** @namespace msgJSON.failed_api_requests **/
-                            let msgString = ("Records processed: " + msgJSON.records_processed +
-                                "<br>Inserted: " + msgJSON.records_inserted +
-                                "<br>Updated: " + msgJSON.records_updated +
-                                "<br>Total in the database: " + msgJSON.records_in_db);
-                            // noinspection JSValidateTypes
-                            if (msgJSON.failed_api_requests !== 0) {
-                                msgString += ("<br>Failed API requests: " + msgJSON.failed_api_requests +
-                                    " (run this again to attempt these 1-2 more times.)")
+                            let msgString = "Records processed: " + msgJSON["records_processed"];
+                            if (msgJSON.hasOwnProperty("records_inserted")) {
+                                msgString += "<br>Inserted: " + msgJSON["records_inserted"];
                             }
-                            // noinspection JSValidateTypes
-                            if (msgJSON.dead_records !== 0) {
-                                msgString += "<br>Videos with no identifying info: " +
-                                    msgJSON.dead_records + " (added as unknown)"
+                            msgString += "<br>Updated: " + msgJSON["records_updated"];
+
+                            if (msgJSON.hasOwnProperty("records_in_db")) {
+                                msgString += "<br>Total in the database: " + msgJSON["records_in_db"];
+                            }
+                            if (msgJSON.hasOwnProperty("failed_api_requests") &&
+                                msgJSON["failed_api_requests"] !== 0) {
+                                msgString += ("<br>Failed API requests: " + msgJSON["failed_api_requests"] +
+                                    " (run this again to attempt these 1-2 more times.)");
+                            }
+                            if (msgJSON.hasOwnProperty("dead_records") && msgJSON["dead_records"] !== 0) {
+                                msgString += ("<br>Videos with no identifying info: " + msgJSON["dead_records"] +
+                                    " (added as unknown)");
                             }
                             progressMsg.innerHTML = msgString;
                             cleanUpAfterTakeoutInsertion();
                             takeoutCancelButton.removeEventListener("click", makeCancelButtonCancel);
 
                         } else if (event.data.indexOf("Error") !== -1) {
-                            progressMsg.style.color = 'red'; // todo fix this
+                            progressMsg.style.color = "red";
                             cleanUpAfterTakeoutInsertion();
                             takeoutCancelButton.removeEventListener("click", makeCancelButtonCancel);
                         }
@@ -125,11 +127,18 @@ function processTakeout(event) {
     takeoutCancelButton.addEventListener("click", makeCancelButtonCancel);
 
     let anAJAX = new XMLHttpRequest();
-    anAJAX.open("POST", "/convert_takeout");
-    anAJAX.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
-    anAJAX.addEventListener("readystatechange", showProgress);
-    anAJAX.send("takeout-dir=" + takeoutDirectoryVal);
+    if (idOfElementActedOn === "takeout-form") {
+        anAJAX.open("POST", "/convert_takeout");
+        anAJAX.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+        anAJAX.addEventListener("readystatechange", showProgress);
+        anAJAX.send("takeout-dir=" + takeoutDirectoryVal);
+    } else {
+        anAJAX.open("GET", "/update_records");
+        anAJAX.addEventListener("readystatechange", showProgress);
+        anAJAX.send();
+    }
 
 }
 
 takeoutSubmit.addEventListener("submit", processTakeout);
+updateRecordsButton.addEventListener("click", processTakeout);
