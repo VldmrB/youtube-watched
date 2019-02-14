@@ -104,22 +104,21 @@ h1, h3 {
 }
 
 #progress-bar-container {
-    display: flex;
+    display: none;
     flex-direction: row;
     align-items: center;
 }
 
 #progress-bar-rectangle {
-    width: 606px;
+    width: 100%;
     height: 30px;
     border: 1px solid lightgray;
     text-align: center;
 }
 
 #progress-bar-text {
-    width: 605px;
     position: relative;
-    top: 16%;
+    top: -83%;
 }
 
 #progress-bar {

@@ -168,6 +168,7 @@ def update_db(project_path: str):
         conn = sqlite_connection(db_path,
                                  detect_types=decl_types | decl_colnames)
         tm_start = time.time()
+        progress.append('Updating...')
         for records_processed in write_to_sql.update_videos(conn, api_auth):
             if isinstance(records_processed, int):
                 progress.append(str(records_processed))

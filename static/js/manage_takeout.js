@@ -19,7 +19,7 @@ let takeoutCancelButton = document.querySelector("#takeout-cancel-button");
 
 function processTakeout(event) {
     event.preventDefault();
-    let idOfElementActedOn =  this.id;
+    let idOfElementActedOn = this.id;
     let takeoutDirectoryVal = document.querySelector("#takeout-input").value;
     let progress = new EventSource("/db_progress_stream");
 
@@ -39,7 +39,7 @@ function processTakeout(event) {
 
     function cleanUpProgressBar() {
         document.querySelector("#progress-bar-container").style.display = "none";
-        takeoutCancelButton.style.display = "inline-block";
+        takeoutCancelButton.style.display = "none";
         progressBar.style.width = "0%";
         progressBarPercentage.innerHTML = "0%";
         progressMsg.innerHTML = "";
@@ -75,6 +75,7 @@ function processTakeout(event) {
                 }
             } else {
                 cleanUpProgressBar();
+                takeoutCancelButton.style.display = "inline-block";
                 document.querySelector("#progress-bar-container").style.display = "flex";
                 takeoutSubmitButton.setAttribute("disabled", "true");
                 updateRecordsButton.setAttribute("disabled", "true");
