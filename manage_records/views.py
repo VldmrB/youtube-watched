@@ -104,15 +104,11 @@ def populate_db(takeout_path: str, project_path: str):
         progress.append(f'{flash_err} No watch-history files found in '
                         f'"{takeout_path}"')
         raise ValueError('No watch-history files found')
+    db_path = join(project_path, 'yt.sqlite')
+    conn = sqlite_connection(db_path)
     try:
         api_auth = youtube.get_api_auth(
             load_file(join(project_path, 'api_key')).strip())
-        db_path = join(project_path, 'yt.sqlite')
-        # decl_types = sqlite3.PARSE_DECLTYPES
-        # decl_colnames = sqlite3.PARSE_COLNAMES
-        # declarations are for the timestamps (maybe for more as well, later)
-        conn = sqlite_connection(db_path)
-        # detect_types=decl_types | decl_colnames)
         write_to_sql.setup_tables(conn, api_auth)
         tm_start = time.time()
         for records_processed in write_to_sql.insert_videos(
@@ -134,6 +130,8 @@ def populate_db(takeout_path: str, project_path: str):
     except FileNotFoundError:
         progress.append(f'{flash_err} Invalid database path')
         raise
+
+    conn.close()
 
 
 @record_management.route('/update_records')
@@ -158,15 +156,15 @@ def update_db(project_path: str):
 
     progress.clear()
     progress.append('Starting updating...')
+    db_path = join(project_path, 'yt.sqlite')
+    decl_types = sqlite3.PARSE_DECLTYPES
+    decl_colnames = sqlite3.PARSE_COLNAMES
+    # declarations are for the timestamps (maybe for more as well, later)
+    conn = sqlite_connection(db_path,
+                             detect_types=decl_types | decl_colnames)
     try:
         api_auth = youtube.get_api_auth(
             load_file(join(project_path, 'api_key')).strip())
-        db_path = join(project_path, 'yt.sqlite')
-        decl_types = sqlite3.PARSE_DECLTYPES
-        decl_colnames = sqlite3.PARSE_COLNAMES
-        # declarations are for the timestamps (maybe for more as well, later)
-        conn = sqlite_connection(db_path,
-                                 detect_types=decl_types | decl_colnames)
         tm_start = time.time()
         progress.append('Updating...')
         for records_processed in write_to_sql.update_videos(conn, api_auth):
@@ -184,3 +182,5 @@ def update_db(project_path: str):
     except FileNotFoundError:
         progress.append(f'{flash_err} Invalid database path')
         raise
+
+    conn.close()
