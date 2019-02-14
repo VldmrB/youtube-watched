@@ -17,6 +17,15 @@ let takeoutSubmitButton = takeoutSubmit.querySelector("input[type='submit']");
 let updateRecordsButton = document.querySelector("#update-records-button");
 let takeoutCancelButton = document.querySelector("#takeout-cancel-button");
 
+function cleanUpProgressBar() {
+    document.querySelector("#progress-bar-container").style.display = "none";
+    takeoutCancelButton.style.display = "none";
+    progressBar.style.width = "0%";
+    progressBarPercentage.innerHTML = "0%";
+    progressMsg.innerHTML = "";
+    progressMsg.style.color = "black";
+}
+
 function processTakeout(event) {
     event.preventDefault();
     let idOfElementActedOn = this.id;
@@ -32,23 +41,14 @@ function processTakeout(event) {
         updateRecordsButton.removeAttribute("disabled");
         takeoutCancelButton.style.display = "none";
         try {
-            progress.close();
+            closeEventSource();
         } catch(err) {}
         window.removeEventListener("beforeunload", closeEventSource);
     }
 
-    function cleanUpProgressBar() {
-        document.querySelector("#progress-bar-container").style.display = "none";
-        takeoutCancelButton.style.display = "none";
-        progressBar.style.width = "0%";
-        progressBarPercentage.innerHTML = "0%";
-        progressMsg.innerHTML = "";
-        progressMsg.style.color = "black";
-    }
-
     function makeCancelButtonCancel() {
         takeoutCancelButton.setAttribute("disabled", "true");
-        progress.close();
+        closeEventSource();
         progressMsg.innerHTML = "Stopping the process, please wait...";
         let cancelAJAX = new XMLHttpRequest();
         cancelAJAX.open("POST", "cancel_db_process");

@@ -205,7 +205,7 @@ def from_divs_to_dict(path: str, occ_dict: dict = None,
 
 def get_all_records(takeout_path: str = '.',
                     dump_json_to: str = None, prune_html=False,
-                    silent=False) -> Union[dict, bool]:
+                    verbose=True) -> Union[dict, bool]:
     """
     Accumulates records from all found watch-history.html files and returns
     them in a dict.
@@ -215,7 +215,7 @@ def get_all_records(takeout_path: str = '.',
     :param dump_json_to: saves the dict with accumulated records to a json file
     :param prune_html: prunes unnecessary HTML and records found in a
     previously processed file, as long as they're passed in chronological order
-    :param silent: Prints out some stats, if False
+    :param verbose: Prints out some stats, if False
     :return:
     """
     watch_files = get_watch_history_files(takeout_path)
@@ -228,7 +228,7 @@ def get_all_records(takeout_path: str = '.',
         print(takeout_file)
         from_divs_to_dict(takeout_file, occ_dict=occ_dict,
                           write_changes=prune_html)
-    if not silent:
+    if verbose:
         print('Total videos watched/opened:', occ_dict['total_count'])
         print('Unique videos with ids:', len(occ_dict['videos']) - 1)
         # ^ minus one for 'unknown' key

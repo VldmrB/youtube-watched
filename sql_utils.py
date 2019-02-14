@@ -52,7 +52,7 @@ def log_query_error(error, query_string: str, values=None):
 
 
 def execute_query(conn: sqlite3.Connection,
-                  query: str, values: Union[list, tuple] = None,
+                  query: str, values: tuple = None,
                   log_integrity_fail=True):
     """
     Executes the query with passed values (if any). If a SELECT query,
@@ -64,13 +64,6 @@ def execute_query(conn: sqlite3.Connection,
     cur = conn.cursor()
     try:
         if values is not None:
-            if isinstance(values, list):
-                values = tuple(values)
-            elif isinstance(values, tuple):
-                pass
-            else:
-                raise ValueError('Expected str, tuple or list, got ' +
-                                 values.__class__.__name__)
             cur.execute(query, values)
         else:
             cur.execute(query)
