@@ -17,6 +17,7 @@
                 <span>
                     <button id="takeout-setup-button" class="button">Add more Takeout</button>
                     <button id="update-records-button" class="button">Update existing records</button>
+                    <button id="takeout-cancel-button" class="button-cancel hidden">Stop</button>
                 </span>
                 <button id="new-project-button" class="button">New project</button>
             </div>
@@ -30,13 +31,11 @@
             {% include "help/takeout_help.html" %}
         </div>
         <div id="db-progress">
-            <div id="progress-bar-container" style="display:none;">
+            <div id="progress-bar-container">
                 <div id="progress-bar-rectangle">
-                    <div id="progress-bar">
-                        <div id="progress-bar-text"><span></span></div>
-                    </div>
+                    <div id="progress-bar"></div>
+                    <div id="progress-bar-text"><span></span></div>
                 </div>
-                <button id="takeout-cancel-button" class="button-cancel">Stop</button>
             </div>
             <div id="progress-msg"></div>
             <div id="wait-for-db"></div>

@@ -3,7 +3,6 @@
     <div class="help-item">
         <div id="takeout-single-file-description">
             Enter the path to the watch-history.html file from Google Takeout.
-            <br>
             <a href="#" id="multiple-files-link" class="link-btn">For multiple Takeout downloads...</a>
         </div>
         <div id="takeout-multiple-files-description" class="hidden">
@@ -35,7 +34,7 @@
     </div>
     <hr>
     <div class="help-item">
-        <h3>Data retrieval and insertion process</h3>
+        <h3>Data retrieval and insertion</h3>
         <p>
             Depending on the amount of video records, the process will likely take 30+ minutes. ~15k records
             will create a database of ~40MB.
@@ -46,11 +45,16 @@
         </p>
         <p>
             Google API standard daily quota is 1M query points. Each video request (at least a successful one)
-            seems to use 11 points.
+            seems to use 11 points. The Quotas tab on Google's
+            <a class="link-btn link-btn:visited"
+               href="https://console.developers.google.com/apis/api/youtube.googleapis.com/overview"
+               target="_blank">Console</a>
+            page will show how many have been used up.
+
         </p>
     </div>
     <div class="help-item">
-        <h3>Takeout quirks and need-to-know</h3>
+        <h3>Takeout quirks</h3>
         <p>
             Takeout works strangely (badly). The three times I've used it, varying numbers of records were returned,
             the second time returning fewer than the first and the last returning more than the first two, including
