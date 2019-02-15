@@ -9,7 +9,7 @@ from config import video_keys_and_columns
 from sql_utils import generate_insert_query, generate_unconditional_update_query
 from sql_utils import execute_query
 from topics import topics_by_category
-from utils import get_final_key_paths, convert_duration
+from utils import get_final_key_paths, convert_duration, calculate_subpercentage
 
 logger = logging.getLogger(__name__)
 
@@ -426,16 +426,7 @@ def insert_videos(conn, records: dict, api_auth, verbosity=1):
             if timestamp not in timestamps['unknown']:
                 add_time(conn, timestamp, 'unknown', verbosity_level_3)
                 
-    total_records = len(records)
-    if total_records >= 1000:
-        sub_percent = total_records / 1000
-    elif total_records >= 100:
-        sub_percent = total_records / 100
-    elif total_records >= 10:
-        sub_percent = total_records / 10
-    else:
-        sub_percent = total_records
-    sub_percent_int = int(sub_percent)
+    sub_percent, sub_percent_int = calculate_subpercentage(len(records))
 
     for video_id, record in records.items():
         records_passed += 1
@@ -628,16 +619,7 @@ def update_videos(conn: sqlite3.Connection, api_auth,
     failed_requests_ids = {k: v for k, v in cur.fetchall()}
     cur.close()
     now = datetime.utcnow()
-    total_records = len(records)
-    if total_records >= 1000:
-        sub_percent = total_records / 1000
-    elif total_records >= 100:
-        sub_percent = total_records / 100
-    elif total_records >= 10:
-        sub_percent = total_records / 10
-    else:
-        sub_percent = total_records
-    sub_percent_int = int(sub_percent)
+    sub_percent, sub_percent_int = calculate_subpercentage(len(records))
     if verbosity >= 1:
         logger.info(f'\nStarting records\' updating...\n' + '-'*100)
     for record in records:
@@ -739,6 +721,7 @@ def update_videos(conn: sqlite3.Connection, api_auth,
         conn.commit()
 
     conn.commit()
+    execute_query(conn, 'VACUUM')
     conn.row_factory = None
 
     results = {"records_processed": records_passed,
@@ -748,7 +731,7 @@ def update_videos(conn: sqlite3.Connection, api_auth,
 
     logger.info(json.dumps(results, indent=4))
     logger.info('\n' + '-'*100 + f'\nUpdating finished')
-    print('Skipped', skipped, 'records out of', total_records)
+    print('Skipped', skipped, 'records out of', len(records))
 
 
 if __name__ == '__main__':

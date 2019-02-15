@@ -7,7 +7,7 @@ from flask import request, redirect, make_response, flash
 from sql_utils import sqlite_connection
 from flask_utils import get_project_dir_path_from_cookie, strong
 from flask_utils import flash_note, flash_err
-from utils import logging_config
+from utils import initialize_logging
 
 from manage_records.views import record_management
 
@@ -15,8 +15,6 @@ app = Flask(__name__)
 app.secret_key = '23lkjhv9z8y$!gffflsa1g4[p[p]'
 
 app.register_blueprint(record_management)
-
-configure_logging = False
 
 
 @app.route('/')
@@ -28,10 +26,7 @@ def index():
         flash(f'{flash_err} could not find directory {strong(project_path)}')
         return redirect(url_for('setup_project'))
 
-    global configure_logging
-    if not configure_logging:
-        logging_config(join(project_path, 'events.log'))
-        configure_logging = True
+    initialize_logging(project_path)
 
     db_path = join(project_path, 'yt.sqlite')
     db = None

@@ -2,7 +2,11 @@
 <div id="takeout-help" class="{{ '' if description or not db else 'hidden' }}">
     <div class="help-item">
         <div id="takeout-single-file-description">
-            Enter the path to the watch-history.html file from Google Takeout.
+            Enter the path to the watch-history.html file from
+            <a class="link-btn link-btn:visited"
+               href="https://takeout.google.com/settings/takeout"
+               target="_blank">Google Takeout</a>.
+            <br>
             <a href="#" id="multiple-files-link" class="link-btn">For multiple Takeout downloads...</a>
         </div>
         <div id="takeout-multiple-files-description" class="hidden">
