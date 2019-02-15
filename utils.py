@@ -1,7 +1,8 @@
-import sys
 import logging
-from hashlib import sha3_256
+import sys
+from flask import g
 from logging import handlers
+from os.path import join
 from typing import Union
 
 
@@ -198,5 +199,20 @@ def write_to_file(path: str, content):
         file.write(content)
 
 
-def get_hash(obj: bytes) -> str:
-    return sha3_256(obj).hexdigest()
+def calculate_subpercentage(records_amount: int):
+    total_records = records_amount
+    if total_records >= 1000:
+        sub_percent = total_records / 1000
+    elif total_records >= 100:
+        sub_percent = total_records / 100
+    elif total_records >= 10:
+        sub_percent = total_records / 10
+    else:
+        sub_percent = total_records
+    return sub_percent, int(sub_percent)
+
+
+def initialize_logging(project_path: str):
+    if 'logging' not in g:
+        logging_config(join(project_path, 'events.log'))
+        g.logging = True

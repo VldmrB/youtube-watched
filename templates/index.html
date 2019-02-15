@@ -14,7 +14,7 @@
     <div id="takeout-section" data-full="{{ 'True' if db else '' }}">
         <div id="buttons">
             <div id="takeout-buttons">
-                    <button id="takeout-setup-button" class="button">Add more Takeout</button>
+                    <button id="takeout-setup-button" class="button">Add Takeout</button>
                     <button id="update-records-button" class="button" {{ 'disabled' if not db else '' }}>
                         Update existing records</button>
                     <button id="takeout-cancel-button" class="button-cancel hidden">Stop</button>
@@ -25,7 +25,7 @@
             <form id="takeout-form" class="single-field-form-inputs"
                   action="{{ url_for('records.populate_db_form') }}" method="POST">
                 <input id="takeout-input" name="takeout-dir" placeholder="Takeout path" required>
-                <input class="button" type="submit" value="Add Takeout data">
+                <input class="button" type="submit" value="Start">
             </form>
             {% include "help/takeout_help.html" %}
         </div>
