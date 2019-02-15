@@ -12,6 +12,8 @@ from flask_utils import get_project_dir_path_from_cookie, flash_err
 from sql_utils import sqlite_connection
 from utils import load_file
 
+record_management = Blueprint('records', __name__)
+
 
 class ThreadControl:
     thread = None
@@ -31,11 +33,7 @@ class ThreadControl:
 
 
 DBProcessState = ThreadControl()
-
-
 progress = []
-
-record_management = Blueprint('records', __name__)
 
 
 @record_management.route('/cancel_db_process', methods=['POST'])
