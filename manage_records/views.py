@@ -10,7 +10,7 @@ import write_to_sql
 import youtube
 from flask_utils import get_project_dir_path_from_cookie, flash_err
 from sql_utils import sqlite_connection
-from utils import load_file, initialize_logging
+from utils import load_file
 
 insert_videos_thread = None
 close_thread = False
@@ -74,7 +74,6 @@ def populate_db_form():
     takeout_path = request.form['takeout-dir']
 
     project_path = get_project_dir_path_from_cookie()
-    initialize_logging(project_path)
     insert_videos_thread = Thread(target=populate_db,
                                   args=(takeout_path, project_path))
     insert_videos_thread.start()
@@ -141,7 +140,6 @@ def update_db_form():
         return thread_is_alive
 
     project_path = get_project_dir_path_from_cookie()
-    initialize_logging(project_path)
     global insert_videos_thread
     insert_videos_thread = Thread(target=update_db, args=(project_path,))
     insert_videos_thread.start()
