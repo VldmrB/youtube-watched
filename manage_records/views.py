@@ -13,30 +13,29 @@ from sql_utils import sqlite_connection
 from utils import load_file
 
 
-class DBProcessState:
+class ThreadControl:
     thread = None
     exit_thread = False
+    live_thread_warning = 'Wait for the current operation to finish'
+    
+    def is_thread_alive(self):
+        return self.thread and self.thread.is_alive()
+
+    def exit_thread_and_clean_up(self):
+        if self.exit_thread:
+            self.exit_thread = False
+            print('Stopped the thread!')
+            progress.clear()
+            progress.append('Error: Process stopped')
+            return True
 
 
-live_thread_warning = 'Wait for the current operation to finish'
+DBProcessState = ThreadControl()
+
 
 progress = []
 
 record_management = Blueprint('records', __name__)
-
-
-def is_thread_alive():
-    return DBProcessState.thread and DBProcessState.thread.is_alive()
-
-
-def check_if_stop_thread_and_clean_up():
-    
-    if DBProcessState.exit_thread:
-        DBProcessState.exit_thread = False
-        print('Stopped the thread!')
-        progress.clear()
-        progress.append('Error: Process stopped')
-        return True
 
 
 @record_management.route('/cancel_db_process', methods=['POST'])
@@ -44,7 +43,7 @@ def cancel_db_process():
     if DBProcessState.thread and DBProcessState.thread.is_alive():
         DBProcessState.exit_thread = True
         while True:
-            if is_thread_alive():
+            if DBProcessState.is_thread_alive():
                 sleep(0.5)
             else:
                 break
@@ -70,8 +69,8 @@ def db_progress_stream():
 @record_management.route('/convert_takeout', methods=['POST'])
 def populate_db_form():
     
-    if is_thread_alive():
-        return live_thread_warning
+    if DBProcessState.is_thread_alive():
+        return DBProcessState.live_thread_warning
 
     takeout_path = request.form['takeout-dir']
 
@@ -86,7 +85,7 @@ def populate_db_form():
 def populate_db(takeout_path: str, project_path: str):
     from convert_takeout import get_all_records
 
-    if check_if_stop_thread_and_clean_up():
+    if DBProcessState.exit_thread_and_clean_up():
         return
 
     progress.clear()
@@ -99,7 +98,7 @@ def populate_db(takeout_path: str, project_path: str):
                         f'watch-history.html files')
         raise
 
-    if check_if_stop_thread_and_clean_up():
+    if DBProcessState.exit_thread_and_clean_up():
         return
 
     if records is False:
@@ -115,7 +114,7 @@ def populate_db(takeout_path: str, project_path: str):
         tm_start = time.time()
         for records_processed in write_to_sql.insert_videos(
                 conn, records, api_auth):
-            if check_if_stop_thread_and_clean_up():
+            if DBProcessState.exit_thread_and_clean_up():
                 return
             if isinstance(records_processed, int):
                 progress.append(str(records_processed))
@@ -138,8 +137,8 @@ def populate_db(takeout_path: str, project_path: str):
 
 @record_management.route('/update_records')
 def update_db_form():
-    if is_thread_alive():
-        return live_thread_warning
+    if DBProcessState.is_thread_alive():
+        return DBProcessState.live_thread_warning
 
     project_path = get_project_dir_path_from_cookie()
     
