@@ -1,8 +1,18 @@
+toggleElementVisibility("takeout-setup-button", "takeout-setup", "Cancel", "takeout-input");
+let addMoreTakeoutButton = document.querySelector("#takeout-setup-button");
+if (!document.querySelector("#takeout-setup").classList.contains("hidden")
+    && addMoreTakeoutButton.innerHTML !== "Cancel"
+) {
+    let curButtonWidth = addMoreTakeoutButton.offsetWidth;
+    addMoreTakeoutButton.innerHTML = "Cancel";
+    addMoreTakeoutButton.style.width = curButtonWidth + "px";
+    console.log('The truth');
+}
+
 if (!document.querySelector("#takeout-section").dataset.full) {
 document.querySelector("#takeout-setup").classList.remove("hidden");
-} else {
-    toggleElementVisibility("takeout-setup-button", "takeout-setup", "Cancel", "takeout-input");
 }
+document.querySelector("#takeout-buttons").classList.remove("hidden");
 
 document.querySelector("#new-project-button").onclick = function () {
     window.location = "/setup_project";
@@ -17,6 +27,7 @@ let takeoutSubmitButton = takeoutSubmit.querySelector("input[type='submit']");
 let updateRecordsButton = document.querySelector("#update-records-button");
 let takeoutCancelButton = document.querySelector("#takeout-cancel-button");
 
+
 function cleanUpProgressBar() {
     document.querySelector("#progress-bar-container").style.display = "none";
     takeoutCancelButton.style.display = "none";
@@ -28,6 +39,7 @@ function cleanUpProgressBar() {
 
 function processTakeout(event) {
     event.preventDefault();
+
     let idOfElementActedOn = this.id;
     let takeoutDirectoryVal = document.querySelector("#takeout-input").value;
     let progress = new EventSource("/db_progress_stream");
