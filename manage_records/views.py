@@ -12,24 +12,27 @@ from flask_utils import get_project_dir_path_from_cookie, flash_err
 from sql_utils import sqlite_connection
 from utils import load_file
 
-insert_videos_thread = None
-close_thread = False
-progress = []
 
-thread_is_alive = ('Wait for the current operation to finish in order to '
-                   'avoid database issues')
+class DBProcessState:
+    thread = None
+    exit_thread = False
+
+
+live_thread_warning = 'Wait for the current operation to finish'
+
+progress = []
 
 record_management = Blueprint('records', __name__)
 
 
 def is_thread_alive():
-    return insert_videos_thread and insert_videos_thread.is_alive()
+    return DBProcessState.thread and DBProcessState.thread.is_alive()
 
 
 def check_if_stop_thread_and_clean_up():
-    global close_thread
-    if close_thread:
-        close_thread = False
+    
+    if DBProcessState.exit_thread:
+        DBProcessState.exit_thread = False
         print('Stopped the thread!')
         progress.clear()
         progress.append('Error: Process stopped')
@@ -38,12 +41,11 @@ def check_if_stop_thread_and_clean_up():
 
 @record_management.route('/cancel_db_process', methods=['POST'])
 def cancel_db_process():
-    if insert_videos_thread and insert_videos_thread.is_alive():
-        global close_thread
-        close_thread = True
+    if DBProcessState.thread and DBProcessState.thread.is_alive():
+        DBProcessState.exit_thread = True
         while True:
             if is_thread_alive():
-                sleep(1)
+                sleep(0.5)
             else:
                 break
     return 'Process stopped'
@@ -67,16 +69,16 @@ def db_progress_stream():
 
 @record_management.route('/convert_takeout', methods=['POST'])
 def populate_db_form():
-    global insert_videos_thread
+    
     if is_thread_alive():
-        return thread_is_alive
+        return live_thread_warning
 
     takeout_path = request.form['takeout-dir']
 
     project_path = get_project_dir_path_from_cookie()
-    insert_videos_thread = Thread(target=populate_db,
-                                  args=(takeout_path, project_path))
-    insert_videos_thread.start()
+    DBProcessState.thread = Thread(target=populate_db,
+                                   args=(takeout_path, project_path))
+    DBProcessState.thread.start()
 
     return ''
 
@@ -137,12 +139,12 @@ def populate_db(takeout_path: str, project_path: str):
 @record_management.route('/update_records')
 def update_db_form():
     if is_thread_alive():
-        return thread_is_alive
+        return live_thread_warning
 
     project_path = get_project_dir_path_from_cookie()
-    global insert_videos_thread
-    insert_videos_thread = Thread(target=update_db, args=(project_path,))
-    insert_videos_thread.start()
+    
+    DBProcessState.thread = Thread(target=update_db, args=(project_path,))
+    DBProcessState.thread.start()
 
     return ''
 
