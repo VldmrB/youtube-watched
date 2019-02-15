@@ -16,7 +16,7 @@ input, select, textarea, button {
     margin: 10px 0;
 }
 
-#project-buttons{
+#project-buttons {
     display: flex;
     margin: auto;
 }
@@ -31,10 +31,12 @@ div>#project-buttons {
     align-items: center;
 }
 
-#takeout-buttons {
-    display: flex;
-    justify-content: space-between;
+#buttons>button {
+    margin-left: auto;
+}
 
+#buttons {
+    display: flex;
 }
 
 #takeout-buttons>button {
@@ -86,7 +88,7 @@ form>span {
     margin: 5% auto 1.5% auto;
 }
 
-p, h3{
+p, h3 {
     margin: 8px 0;
 }
 

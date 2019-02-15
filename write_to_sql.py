@@ -7,7 +7,7 @@ from datetime import datetime
 import youtube
 from config import video_keys_and_columns
 from sql_utils import generate_insert_query, generate_unconditional_update_query
-from sql_utils import log_query_error, execute_query
+from sql_utils import execute_query
 from topics import topics_by_category
 from utils import get_final_key_paths, convert_duration
 
@@ -203,7 +203,7 @@ def add_video(conn: sqlite3.Connection, cols_vals: dict, verbose=False):
     if execute_query(conn, query_string, tuple(values)):
         if verbose:
             logger.info(f'Added video; id# {cols_vals["id"]}, '
-                        f'title {cols_vals["title"]!r}')
+                        f'title {cols_vals.get("title")!r}')
         return True
 
 
@@ -241,37 +241,28 @@ def add_tags_to_table_and_video(conn: sqlite3.Connection, tags: list,
                                 verbose=False):
 
     id_query_string = 'SELECT id FROM tags WHERE tag = ?'
-    max_id_query_string = 'SELECT max(id) FROM tags'
-    update_tag_id_query = '''UPDATE tags SET id = ? WHERE tag = ?'''
     for tag in tags:
         if tag not in existing_tags:
             tag_id = None
             if add_tag(conn, tag):
                 if verbose:
                     logger.info(f'Added tag {tag!r}')
-                try:
-                    tag_id = execute_query(conn, id_query_string, (tag,))[0][0]
-                except (TypeError, sqlite3.Error) as e:
-                    log_query_error(e, id_query_string, tag)
-                    # todo this is thrown because sometimes the tag_id
-                    # is not retrieved, due to a weird combo of
-                    # escaping and the tag sometimes being an SQLITE keyword.
-                    # It's likely fixed now (after changing the select
-                    # query a bit) and won't error out anymore, but
-                    # needs to be confirmed first
-                    tag_id = execute_query(conn, max_id_query_string)[0][0] + 1
-                    execute_query(conn, update_tag_id_query, (tag_id, tag))
-                finally:
-                    existing_tags[tag] = tag_id
+                tag_id = execute_query(conn, id_query_string, (tag,))[0][0]
         else:
             tag_id = existing_tags[tag]
         if tag_id:
             if existing_videos_tags_records:
                 if tag_id not in existing_videos_tags_records[video_id]:
+                    # existing_videos_tags_records are only used by
+                    # update_videos so there's no chance of the video id not
+                    # being present in this dictionary
                     if add_tag_to_video(conn, tag_id, video_id) and verbose:
                         logger.info(f'Added {tag!r} to {video_id!r}')
             else:
                 if add_tag_to_video(conn, tag_id, video_id) and verbose:
+                    # duplicate tags are possible in a record, but happen
+                    # rarely and are allowed to throw some integrity errors
+                    # (caught and logged)
                     logger.info(f'Added {tag!r} to {video_id!r}')
 
 
@@ -428,15 +419,22 @@ def insert_videos(conn, records: dict, api_auth, verbosity=1):
         unknown_timestamps = unknown_record.pop('timestamps')
         timestamps.setdefault('unknown', [])
         if 'unknown' not in channels:
-            add_channel(conn, 'unknown', 'unknown', verbosity_level_1)
+            add_channel(conn, 'unknown', 'unknown', verbosity_level_2)
         if 'unknown' not in video_ids:
-            add_video(conn, unknown_record, verbosity_level_1)
+            add_video(conn, unknown_record, verbosity_level_2)
         for timestamp in unknown_timestamps:
             if timestamp not in timestamps['unknown']:
                 add_time(conn, timestamp, 'unknown', verbosity_level_3)
                 
     total_records = len(records)
-    sub_percent = total_records / 1000
+    if total_records >= 1000:
+        sub_percent = total_records / 1000
+    elif total_records >= 100:
+        sub_percent = total_records / 100
+    elif total_records >= 10:
+        sub_percent = total_records / 10
+    else:
+        sub_percent = total_records
     sub_percent_int = int(sub_percent)
 
     for video_id, record in records.items():
@@ -465,7 +463,7 @@ def insert_videos(conn, records: dict, api_auth, verbosity=1):
             timestamps.setdefault(video_id, [])
             for timestamp in record.pop('timestamps'):
                 if timestamp not in timestamps[video_id]:
-                    add_time(conn, timestamp, video_id, verbosity_level_1)
+                    add_time(conn, timestamp, video_id, verbosity_level_2)
 
             if video_id in dead_videos_ids and 'title' in record:
                 # Older Takeout file which for some reason was added out of
@@ -478,11 +476,11 @@ def insert_videos(conn, records: dict, api_auth, verbosity=1):
                     else:
                         channel_title = None
                     add_channel(conn, record['channel_id'], channel_title,
-                                verbosity_level_1)
+                                verbosity_level_2)
                 record['status'] = 'inactive'
                 record['last_updated'] = datetime.utcnow(
                 ).replace(microsecond=0)
-                if update_video(conn, record, verbosity_level_1):
+                if update_video(conn, record, verbosity_level_2):
                     delete_dead_video(conn, video_id, verbosity_level_1)
                     updated += 1
             conn.commit()
@@ -540,7 +538,7 @@ def insert_videos(conn, records: dict, api_auth, verbosity=1):
             channel_title = None
         channel_id = record['channel_id']
 
-        if add_channel(conn, channel_id, channel_title, verbosity_level_1):
+        if add_channel(conn, channel_id, channel_title, verbosity_level_2):
             channels.append(record['channel_id'])
         else:
             continue  # nothing else can/should be inserted without the
@@ -565,7 +563,7 @@ def insert_videos(conn, records: dict, api_auth, verbosity=1):
                 updated += 1
 
         else:
-            if add_video(conn, record, verbosity_level_1):
+            if add_video(conn, record, verbosity_level_2):
                 video_ids.append(video_id)
                 inserted += 1
 
@@ -580,7 +578,7 @@ def insert_videos(conn, records: dict, api_auth, verbosity=1):
 
         if topics:
             for topic in topics:
-                add_topic_to_video(conn, topic, video_id, verbosity_level_2)
+                add_topic_to_video(conn, topic, video_id, verbosity_level_3)
 
         conn.commit()  # committing after every record ensures each record's
         # info is inserted fully, or not at all, in case of an unforeseen
@@ -601,10 +599,11 @@ def insert_videos(conn, records: dict, api_auth, verbosity=1):
 
 
 def update_videos(conn: sqlite3.Connection, api_auth,
-                  update_age_cutoff=1_209_600, verbosity=1):
+                  update_age_cutoff=1_209_600, verbosity=3):
     verbosity_level_1 = verbosity >= 1
     verbosity_level_2 = verbosity >= 2
     verbosity_level_3 = verbosity >= 3
+    skipped = 0
     records_passed, updated, failed_api_requests = 0, 0, 0
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
@@ -630,7 +629,14 @@ def update_videos(conn: sqlite3.Connection, api_auth,
     cur.close()
     now = datetime.utcnow()
     total_records = len(records)
-    sub_percent = total_records / 1000
+    if total_records >= 1000:
+        sub_percent = total_records / 1000
+    elif total_records >= 100:
+        sub_percent = total_records / 100
+    elif total_records >= 10:
+        sub_percent = total_records / 10
+    else:
+        sub_percent = total_records
     sub_percent_int = int(sub_percent)
     if verbosity >= 1:
         logger.info(f'\nStarting records\' updating...\n' + '-'*100)
@@ -638,12 +644,14 @@ def update_videos(conn: sqlite3.Connection, api_auth,
         records_passed += 1
 
         if records_passed % sub_percent_int == 0:
-            if verbosity >= 2:
+            if verbosity >= 4:
                 print(f'Processing entry # {records_passed}')
             yield (records_passed // sub_percent)/10
 
         if (now - record['last_updated']).total_seconds() < update_age_cutoff:
             continue
+        else:
+            skipped += 1
         record = dict(record)
         video_id = record['id']
 
@@ -740,6 +748,7 @@ def update_videos(conn: sqlite3.Connection, api_auth,
 
     logger.info(json.dumps(results, indent=4))
     logger.info('\n' + '-'*100 + f'\nUpdating finished')
+    print('Skipped', skipped, 'records out of', total_records)
 
 
 if __name__ == '__main__':
