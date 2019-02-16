@@ -25,6 +25,18 @@ let takeoutSubmit = document.querySelector("#takeout-form");
 let takeoutSubmitButton = takeoutSubmit.querySelector("input[type='submit']");
 let updateRecordsButton = document.querySelector("#update-records-button");
 let takeoutCancelButton = document.querySelector("#takeout-cancel-button");
+let newProjectButton = document.querySelector("#new-project-button");
+let buttonsToDisableWhenWorkingDB = [takeoutSubmitButton, updateRecordsButton, newProjectButton];
+
+function disableOrEnableSomeButtons() {
+    for (let i = 0; i < buttonsToDisableWhenWorkingDB.length; i++) {
+        if (!buttonsToDisableWhenWorkingDB[i].getAttribute("disabled")) {
+            buttonsToDisableWhenWorkingDB[i].setAttribute("disabled", "true");
+        } else {
+            buttonsToDisableWhenWorkingDB[i].removeAttribute("disabled");
+        }
+    }
+}
 
 
 function cleanUpProgressBar() {
@@ -48,8 +60,7 @@ function processTakeout(event) {
     }
 
     function cleanUpAfterTakeoutInsertion() {
-        takeoutSubmitButton.removeAttribute("disabled");
-        updateRecordsButton.removeAttribute("disabled");
+        disableOrEnableSomeButtons();
         takeoutCancelButton.style.display = "none";
         try {
             closeEventSource();
@@ -88,8 +99,7 @@ function processTakeout(event) {
                 cleanUpProgressBar();
                 takeoutCancelButton.style.display = "inline-block";
                 document.querySelector("#progress-bar-container").style.display = "flex";
-                takeoutSubmitButton.setAttribute("disabled", "true");
-                updateRecordsButton.setAttribute("disabled", "true");
+                disableOrEnableSomeButtons();
 
                 window.addEventListener("beforeunload", closeEventSource);
                 progress.onmessage = function (event) {
