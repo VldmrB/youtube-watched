@@ -38,7 +38,6 @@ function disableOrEnableSomeButtons() {
     }
 }
 
-
 function cleanUpProgressBar() {
     document.querySelector("#progress-bar-container").style.display = "none";
     takeoutCancelButton.style.display = "none";
