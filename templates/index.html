@@ -15,17 +15,17 @@
         <div id="buttons">
             <div id="takeout-buttons">
                     <button id="takeout-setup-button" class="button">Add Takeout</button>
-                    <button id="update-records-button" class="button" {{ 'disabled' if not db else '' }}>
+                    <button id="update-records-button" class="button process-disable" {{ 'disabled' if not db else ''}}>
                         Update existing records</button>
                     <button id="takeout-cancel-button" class="button-cancel hidden">Stop</button>
             </div>
-            <button id="new-project-button" class="button">New project</button>
+            <button id="new-project-button" class="button process-disable">New project</button>
         </div>
         <div id="takeout-setup" class="{{ 'hidden' if db else '' }}">
             <form id="takeout-form" class="single-field-form-inputs"
                   action="{{ url_for('records.populate_db_form') }}" method="POST">
                 <input id="takeout-input" name="takeout-dir" placeholder="Takeout path" required>
-                <input class="button" type="submit" value="Start">
+                <input class="button process-disable" type="submit" value="Start">
             </form>
             {% include "help/takeout_help.html" %}
         </div>
