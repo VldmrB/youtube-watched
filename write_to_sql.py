@@ -240,10 +240,10 @@ def add_tags_to_table_and_video(conn: sqlite3.Connection, tags: list,
                                 existing_videos_tags_records: dict = None,
                                 verbose=False):
 
+    tag_id = None
     id_query_string = 'SELECT id FROM tags WHERE tag = ?'
     for tag in tags:
         if tag not in existing_tags:
-            tag_id = None
             if add_tag(conn, tag):
                 if verbose:
                     logger.info(f'Added tag {tag!r}')
@@ -254,12 +254,10 @@ def add_tags_to_table_and_video(conn: sqlite3.Connection, tags: list,
             tag_id = existing_tags[tag]
         if tag_id:
             if existing_videos_tags_records:
-                if tag_id not in existing_videos_tags_records[video_id]:
-                    # existing_videos_tags_records are only used by
-                    # update_videos so there's no chance of the video id not
-                    # being present in this dictionary
-                    if add_tag_to_video(conn, tag_id, video_id) and verbose:
-                        logger.info(f'Added {tag!r} to {video_id!r}')
+                if existing_videos_tags_records.get(video_id):
+                    if tag_id not in existing_videos_tags_records[video_id]:
+                        if add_tag_to_video(conn, tag_id, video_id) and verbose:
+                            logger.info(f'Added {tag!r} to {video_id!r}')
             else:
                 if add_tag_to_video(conn, tag_id, video_id) and verbose:
                     # duplicate tags are possible in a record, but happen
