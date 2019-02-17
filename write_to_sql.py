@@ -42,7 +42,7 @@ TABLE_SCHEMAS = {
 
     'tags': '''tags (
     id integer primary key,
-    tag text
+    tag text unique
     );''',
 
     'videos': '''videos (
@@ -248,6 +248,8 @@ def add_tags_to_table_and_video(conn: sqlite3.Connection, tags: list,
                 if verbose:
                     logger.info(f'Added tag {tag!r}')
                 tag_id = execute_query(conn, id_query_string, (tag,))[0][0]
+                existing_tags[tag] = tag_id
+
         else:
             tag_id = existing_tags[tag]
         if tag_id:
@@ -431,7 +433,7 @@ def insert_videos(conn, records: dict, api_auth, verbosity=1):
     for video_id, record in records.items():
         records_passed += 1
         if records_passed % sub_percent_int == 0:
-            if verbosity_level_2:
+            if verbosity_level_1:
                 print(f'Processing entry # {records_passed}')
             yield (records_passed // sub_percent) / 10
         record['id'] = video_id
@@ -626,14 +628,13 @@ def update_videos(conn: sqlite3.Connection, api_auth,
         records_passed += 1
 
         if records_passed % sub_percent_int == 0:
-            if verbosity >= 4:
+            if verbosity >= 1:
                 print(f'Processing entry # {records_passed}')
             yield (records_passed // sub_percent)/10
 
         if (now - record['last_updated']).total_seconds() < update_age_cutoff:
-            continue
-        else:
             skipped += 1
+            continue
         record = dict(record)
         video_id = record['id']
 
@@ -712,8 +713,10 @@ def update_videos(conn: sqlite3.Connection, api_auth,
         if 'relevant_topic_ids' in record:
             topics = record.pop('relevant_topic_ids')
             for topic in topics:
-                if topic not in existing_topics_tags[video_id]:
-                    add_topic_to_video(conn, topic, video_id, verbosity_level_2)
+                if existing_topics_tags.get(video_id):
+                    if topic not in existing_topics_tags[video_id]:
+                        add_topic_to_video(conn, topic,
+                                           video_id, verbosity_level_2)
 
         if update_video(conn, record):
             updated += 1
@@ -732,13 +735,3 @@ def update_videos(conn: sqlite3.Connection, api_auth,
     logger.info(json.dumps(results, indent=4))
     logger.info('\n' + '-'*100 + f'\nUpdating finished')
     print('Skipped', skipped, 'records out of', len(records))
-
-
-if __name__ == '__main__':
-    # import cProfile
-    from os.path import join
-    test_dir = r'G:\test_dir'
-    with open(join(test_dir, 'api_key'), 'r') as file:
-        api_key = file.read().strip()
-    DB_PATH = join(test_dir, 'yt.sqlite')
-    auth = youtube.get_api_auth(api_key)

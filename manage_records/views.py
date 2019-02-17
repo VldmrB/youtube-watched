@@ -25,8 +25,7 @@ class ThreadControl:
 
     def exit_thread_and_clean_up(self):
         if self.exit_thread:
-            # self.exit_thread = False
-            print('Stopped the thread!')
+            print('Stopped the DB update thread!')
             progress.clear()
             progress.append('Error: Process stopped')
             return True
