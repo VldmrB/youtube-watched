@@ -240,10 +240,10 @@ def add_tags_to_table_and_video(conn: sqlite3.Connection, tags: list,
                                 existing_videos_tags_records: dict = None,
                                 verbose=False):
 
-    tag_id = None
     id_query_string = 'SELECT id FROM tags WHERE tag = ?'
     for tag in tags:
         if tag not in existing_tags:
+            tag_id = None
             if add_tag(conn, tag):
                 if verbose:
                     logger.info(f'Added tag {tag!r}')

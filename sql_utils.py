@@ -5,8 +5,13 @@ from typing import Union
 logger = logging.getLogger(__name__)
 
 
-def sqlite_connection(db_path: str, **kwargs) -> sqlite3.Connection:
-    conn = sqlite3.connect(db_path, **kwargs)
+def sqlite_connection(db_path: str, types=False,
+                      **kwargs) -> sqlite3.Connection:
+    if types:
+        types = sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
+        conn = sqlite3.connect(db_path, detect_types=types, **kwargs)
+    else:
+        conn = sqlite3.connect(db_path, **kwargs)
     cur = conn.cursor()
     cur.execute('PRAGMA foreign_keys=ON;')
     conn.commit()

@@ -4,7 +4,35 @@
 
 #main-container {
     margin: 1% auto 1% auto;
-    width: 40%;
+    width: 60%;
+}
+
+#data-visualisation {
+    /*display: flex;*/
+    /*align-items: center;*/
+    /*justify-content: center;*/
+    /*overflow: auto;*/
+}
+
+svg {
+    /*background-color: gray;*/
+    /*display: block;*/
+    /*margin: auto;*/
+    /*width: 100%;*/
+    /*height: 100%;*/
+}
+
+/*use {*/
+   /*fill: red;*/
+/*}*/
+
+path {
+    /*fill: red;*/
+}
+
+#data-visualisation > div > svg:hover{
+    /*width: 150%;*/
+    /*height: 150%;*/
 }
 
 input, select, textarea, button {

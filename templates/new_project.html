@@ -3,39 +3,41 @@
 {% block title %}YT Data Analysis - Setup{% endblock %}
 
 {% block body %}
-    {% if path %}
-        <div class="project-dir-path">
-            Current directory: <span class="path">{{ path }}</span>
+    <div id="main-container">
+        {% if path %}
+            <div class="project-dir-path">
+                Current directory: <span class="path">{{ path }}</span>
+            </div>
+        {% endif %}
+        <h1>Set up a project</h1>
+        <div>
+            <div id="project-buttons">
+                <button id="setup-project-button" class="button">New</button>
+                <button id="switch-project-button" class="button">Switch to</button>
+            </div>
         </div>
-    {% endif %}
-    <h1>Set up a project</h1>
-    <div>
-        <div id="project-buttons">
-            <button id="setup-project-button" class="button">New</button>
-            <button id="switch-project-button" class="button">Switch to</button>
-        </div>
-    </div>
-    {% include "flash_messages.html" %}
-    <div id="switch-project-container" class="hidden">
-        <form id="switch-project-form" action="{{ url_for('setup_project_form') }}" method="POST">
-            <input id="existing-project-dir-input" name="project-dir" placeholder="Project directory path" required>
-            <input id="existing-project-submit-button" class="button" type="submit" value="Switch to">
-        </form>
-    </div>
-    <div id="setup-project-container" class="hidden">
-            <form id="setup-project-form"
-                  action="{{ url_for("setup_project_form") }}" method="POST">
-                <span>
-                    <label for="project-dir-input">Directory path</label>
-                    <input id="project-dir-input" name="project-dir" required>
-                </span>
-                <span>
-                    <label for="api-key-input">Google API key</label>
-                        <input id="api-key-input" type="password" name="api-key" required>
-                </span>
-                <input id="new-project-submit-button" class="button" type="submit" value="Create">
+        {% include "flash_messages.html" %}
+        <div id="switch-project-container" class="hidden">
+            <form id="switch-project-form" action="{{ url_for('setup_project_form') }}" method="POST">
+                <input id="existing-project-dir-input" name="project-dir" placeholder="Project directory path" required>
+                <input id="existing-project-submit-button" class="button" type="submit" value="Switch to">
             </form>
-        {% include "help/setup_project_help.html" %}
+        </div>
+        <div id="setup-project-container" class="hidden">
+                <form id="setup-project-form"
+                      action="{{ url_for("setup_project_form") }}" method="POST">
+                    <span>
+                        <label for="project-dir-input">Directory path</label>
+                        <input id="project-dir-input" name="project-dir" required>
+                    </span>
+                    <span>
+                        <label for="api-key-input">Google API key</label>
+                            <input id="api-key-input" type="password" name="api-key" required>
+                    </span>
+                    <input id="new-project-submit-button" class="button" type="submit" value="Create">
+                </form>
+            {% include "help/setup_project_help.html" %}
+        </div>
+        <script src="{{ url_for('static', filename='js/create_project.js') }}"></script>
     </div>
-    <script src="{{ url_for('static', filename='js/create_project.js') }}"></script>
 {% endblock %}

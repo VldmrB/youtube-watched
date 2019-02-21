@@ -113,6 +113,16 @@ def setup_project_form():
     return resp
 
 
+@app.route('/a_test')
+def a_test():
+    import analyze
+    cookie = get_project_dir_path_from_cookie()
+    conn = sqlite_connection(join(cookie, 'yt.sqlite'), True)
+    data = analyze.altair(analyze.retrieve_time_data(conn))
+    # data = analyze.alt()
+    return render_template('a_test.html', data=data)
+
+
 if __name__ == '__main__':
     app.run()
     pass
