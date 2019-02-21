@@ -121,7 +121,7 @@ def get_final_key_paths(
     return paths
 
 
-loggers_to_remove = ['werkzeug', 'flask']
+loggers_to_remove = ['werkzeug', 'flask', 'matplotlib']
 
 
 def logging_config(log_file_path: str,
@@ -210,9 +210,3 @@ def calculate_subpercentage(records_amount: int):
     else:
         sub_percent = total_records
     return sub_percent, int(sub_percent)
-
-
-def initialize_logging(project_path: str):
-    if 'logging' not in g:
-        logging_config(join(project_path, 'events.log'))
-        g.logging = True
