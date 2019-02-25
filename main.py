@@ -118,9 +118,18 @@ def a_test():
     import analyze
     cookie = get_project_dir_path_from_cookie()
     conn = sqlite_connection(join(cookie, 'yt.sqlite'), True)
-    data = analyze.altair(analyze.retrieve_time_data(conn))
+    plot_data = analyze.altair_line_highlight(analyze.retrieve_time_data(conn))
+    return render_template('a_test.html', plot_data=plot_data)
+
+
+@app.route('/b_test')
+def b_test():
+    import analyze
+    cookie = get_project_dir_path_from_cookie()
+    conn = sqlite_connection(join(cookie, 'yt.sqlite'), True)
+    data = analyze.altair_line_highlight(analyze.retrieve_time_data(conn))
     # data = analyze.alt()
-    return render_template('a_test.html', data=data)
+    return json.dumps(data)
 
 
 if __name__ == '__main__':
