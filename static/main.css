@@ -2,18 +2,9 @@
     box-sizing: border-box;
 }
 
-#main-container {
+body {
     margin: 1% auto 1% auto;
     width: 60%;
-}
-
-#visualization {
-    width: 100%;
-}
-
-canvas, svg {
-    margin: auto;
-    display: block;
 }
 
 input, select, textarea, button {
@@ -40,11 +31,11 @@ div>#project-buttons {
     align-items: center;
 }
 
-#buttons>button {
+#takeout_buttons>button {
     margin-left: auto;
 }
 
-#buttons {
+#takeout_buttons {
     display: flex;
 }
 
