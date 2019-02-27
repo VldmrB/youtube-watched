@@ -1,27 +1,24 @@
 import os
-import sqlite3
-import json
 from os.path import join
-from flask import Flask, render_template, url_for
+
+from flask import render_template, url_for
 from flask import request, redirect, make_response, flash
-from sql_utils import sqlite_connection
-from flask_utils import get_project_dir_path_from_cookie, strong
-from flask_utils import flash_note, flash_err
+
+from dash_layout import app, dash_app
+from flask_utils import flash_note, flash_err, strong
+from flask_utils import get_project_dir_path_from_cookie, db_has_records
 from utils import logging_config
 
 from manage_records.views import record_management
-
-app = Flask(__name__)
 app.secret_key = '23lkjhv9z8y$!gffflsa1g4[p[p]'
-
 app.register_blueprint(record_management)
 
 
 @app.before_first_request
 def initialize_logging():
     logging_config(join(get_project_dir_path_from_cookie(), 'events.log'))
-
-
+    
+    
 @app.route('/')
 def index():
     project_path = get_project_dir_path_from_cookie()
@@ -31,33 +28,7 @@ def index():
         flash(f'{flash_err} could not find directory {strong(project_path)}')
         return redirect(url_for('setup_project'))
 
-    db_path = join(project_path, 'yt.sqlite')
-    db = None
-    if os.path.exists(db_path):
-        conn = sqlite_connection(db_path)
-        cur = conn.cursor()
-        try:
-            cur.execute("SELECT 'id' FROM videos")
-            total_records = len(cur.fetchall())
-            if total_records:
-                db = {}
-                records = f'{total_records} records'
-                db['records'] = records
-                cur.execute('SELECT id FROM channels')
-                total_channels = len(cur.fetchall())
-                channels = f'{total_channels} channels'
-                db['channels'] = channels
-                cur.execute('SELECT id FROM tags')
-                total_tags = cur.fetchall()
-                if total_tags:  # a tiny chance of Takeout with 1-5 records 
-                    # with no tags...
-                    tags = f'{total_tags} unique tags'
-                    db['tags'] = tags
-                db = json.dumps(db)
-            cur.close()
-        except sqlite3.OperationalError:
-            pass
-        conn.close()
+    db = db_has_records()
     if not request.cookies.get('description-seen'):
         resp = make_response(render_template('index.html', path=project_path,
                                              description=True, db=db))
@@ -113,25 +84,5 @@ def setup_project_form():
     return resp
 
 
-@app.route('/a_test')
-def a_test():
-    import analyze
-    cookie = get_project_dir_path_from_cookie()
-    conn = sqlite_connection(join(cookie, 'yt.sqlite'), True)
-    plot_data = analyze.altair_line_highlight(analyze.retrieve_time_data(conn))
-    return render_template('a_test.html', plot_data=plot_data)
-
-
-@app.route('/b_test')
-def b_test():
-    import analyze
-    cookie = get_project_dir_path_from_cookie()
-    conn = sqlite_connection(join(cookie, 'yt.sqlite'), True)
-    data = analyze.altair_line_highlight(analyze.retrieve_time_data(conn))
-    # data = analyze.alt()
-    return json.dumps(data)
-
-
 if __name__ == '__main__':
-    app.run()
-    pass
+    dash_app.run_server(5000)

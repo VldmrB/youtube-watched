@@ -590,7 +590,7 @@ def insert_videos(conn, records: dict, api_auth, verbosity=1):
 
 
 def update_videos(conn: sqlite3.Connection, api_auth,
-                  update_age_cutoff=1_209_600, verbosity=3):
+                  update_age_cutoff=24, verbosity=3):
     verbosity_level_1 = verbosity >= 1
     verbosity_level_2 = verbosity >= 2
     verbosity_level_3 = verbosity >= 3
