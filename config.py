@@ -8,6 +8,8 @@ if os.path.exists('api_key'):
 else:
     DEVELOPER_KEY = None
 
+DB_NAME = 'yt.sqlite'
+
 video_keys_and_columns = ('id', 'publishedAt',
                           'channelId', 'title',
                           'description',
