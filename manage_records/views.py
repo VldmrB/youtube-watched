@@ -188,6 +188,8 @@ def update_db(project_path: str):
         tm_start = time.time()
         progress.append('Updating...')
         for records_processed in write_to_sql.update_videos(conn, api_auth):
+            if DBProcessState.exit_thread_and_clean_up():
+                return
             if isinstance(records_processed, int):
                 progress.append(str(records_processed))
             else:
