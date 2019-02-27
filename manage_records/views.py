@@ -1,14 +1,17 @@
+import os
 import sqlite3
 import time
 from os.path import join
 from threading import Thread
 from time import sleep
 
-from flask import Response, Blueprint, request
+from flask import (Response, Blueprint, request, redirect, make_response,
+                   render_template, url_for, flash)
 
 import write_to_sql
 import youtube
-from flask_utils import get_project_dir_path_from_cookie, flash_err
+from flask_utils import (get_project_dir_path_from_cookie, db_has_records,
+                         flash_err, strong)
 from sql_utils import sqlite_connection
 from utils import load_file
 
@@ -33,6 +36,24 @@ class ThreadControl:
 
 DBProcessState = ThreadControl()
 progress = []
+
+
+@record_management.route('/')
+def index():
+    project_path = get_project_dir_path_from_cookie()
+    if not project_path:
+        return redirect(url_for('setup_project'))
+    elif not os.path.exists(project_path):
+        flash(f'{flash_err} could not find directory {strong(project_path)}')
+        return redirect(url_for('setup_project'))
+
+    db = db_has_records()
+    if not request.cookies.get('description-seen'):
+        resp = make_response(render_template('index.html', path=project_path,
+                                             description=True, db=db))
+        resp.set_cookie('description-seen', 'True', max_age=31_536_000)
+        return resp
+    return render_template('index.html', path=project_path, db=db)
 
 
 @record_management.route('/cancel_db_process', methods=['POST'])

@@ -6,7 +6,7 @@ from flask import request, redirect, make_response, flash
 
 from dash_layout import app, dash_app
 from flask_utils import flash_note, flash_err, strong
-from flask_utils import get_project_dir_path_from_cookie, db_has_records
+from flask_utils import get_project_dir_path_from_cookie
 from utils import logging_config
 
 from manage_records.views import record_management
@@ -19,24 +19,6 @@ def initialize_logging():
     logging_config(join(get_project_dir_path_from_cookie(), 'events.log'))
     
     
-@app.route('/')
-def index():
-    project_path = get_project_dir_path_from_cookie()
-    if not project_path:
-        return redirect(url_for('setup_project'))
-    elif not os.path.exists(project_path):
-        flash(f'{flash_err} could not find directory {strong(project_path)}')
-        return redirect(url_for('setup_project'))
-
-    db = db_has_records()
-    if not request.cookies.get('description-seen'):
-        resp = make_response(render_template('index.html', path=project_path,
-                                             description=True, db=db))
-        resp.set_cookie('description-seen', 'True', max_age=31_536_000)
-        return resp
-    return render_template('index.html', path=project_path, db=db)
-
-
 @app.route('/setup_project')
 def setup_project():
     path = get_project_dir_path_from_cookie()
