@@ -31,11 +31,11 @@ div>#project-buttons {
     align-items: center;
 }
 
-#takeout_buttons>button {
+#all-buttons>button {
     margin-left: auto;
 }
 
-#takeout_buttons {
+#all-buttons {
     display: flex;
 }
 
