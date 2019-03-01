@@ -18,4 +18,4 @@ def initialize_logging():
 
 
 if __name__ == '__main__':
-    dash_app.run_server(5000)
+    dash_app.run_server(5000, debug=True, dev_tools_hot_reload=False)
