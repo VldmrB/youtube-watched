@@ -8,8 +8,8 @@ from scipy.interpolate import interp1d
 from ktools import utils
 from testing import WORK_DIR
 from sql_utils import execute_query
-import plotly.graph_objs as go
-import dash_core_components as dcc
+# import plotly.graph_objs as go
+# import dash_core_components as dcc
 
 
 def refine(x: np.array, y: np.array, fine: int, kind: str = 'quadratic'):
@@ -91,14 +91,13 @@ def plot_tags(conn: sqlite3.Connection):
     plt.show()
 
 
-def plotly_watch_chart(data: pd.DataFrame):
-    df = data.groupby(pd.Grouper(freq='D')).aggregate(np.sum)
-    df = df.reset_index()
-
-    graph = dcc.Graph(id='le-graph',
-                      figure={
-                          'data': [
-                              go.Scatter(x=df.watched_at,
-                                         y=df.times,
-                                         mode='lines')]})
-    return graph
+# def plotly_watch_chart(data: pd.DataFrame, date_interval='D'):
+#     df = data.groupby(pd.Grouper(freq=date_interval)).aggregate(np.sum)
+#     df = df.reset_index()
+#     graph = dcc.Graph(id='le-graph',
+#                       figure={
+#                           'data': [
+#                               go.Scatter(x=df.watched_at,
+#                                          y=df.times,
+#                                          mode='lines')]})
+#     return graph
