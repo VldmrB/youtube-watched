@@ -1,3 +1,7 @@
+* {
+    font-family: "Open Sans", verdana, arial, sans-serif ;
+    color: rgb(68, 68, 68);
+}
 #date-period-slider {
     margin: 3% 0;
 
