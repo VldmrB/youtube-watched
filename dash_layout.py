@@ -11,6 +11,7 @@ import plotly
 import plotly.graph_objs as go
 from flask import Response, Flask
 from dash.dependencies import Input, Output
+from dash_html_components import Div
 
 import analyze
 from config import DB_NAME
@@ -36,9 +37,8 @@ hoverCompareCartesian
 class Dashing(dash.Dash):
 
     def serve_layout(self):
-        db_path = join(get_project_dir_path_from_cookie(), DB_NAME)
         if db_has_records():
-            layout = database_layout(db_path)
+            layout = database_layout()
         else:
             layout = self.layout
 
@@ -54,46 +54,61 @@ dash_app.config['suppress_callback_exceptions'] = True  # since the real layout
 # only gets set during the actual page request, the initial one has no ids
 # required for the callbacks
 dash_app.title = 'Graphs'
-dash_app.layout = html.Div('Where is.... your dataz!')
+dash_app.layout = Div('Where is.... your dataz!')
 
 
-def plotly_watch_chart(data: pd.DataFrame, date_interval='D'):
-    df = data.groupby(pd.Grouper(freq=date_interval)).aggregate(np.sum)
-    df = df.reset_index()
-    graph = dcc.Graph(id='le-graph',
-                      figure=go.Figure(
-                          data=[go.Scatter(x=df.watched_at, y=df.times,
-                                           mode='lines+markers')],
-                          layout=go.Layout(
-                              xaxis=go.layout.XAxis(fixedrange=True),
-                              yaxis=go.layout.YAxis(fixedrange=True))),
-                      config=dict(
-                          displaylogo=False,
-                          modeBarButtonsToRemove=['select2d', 'lasso2d']),
-                      style={'width': 600})
-    return graph
+def chart_history(data: pd.DataFrame, date_period='M'):
+    if date_period == 'Y':
+        data = data.groupby(pd.Grouper(freq='YS')).aggregate(np.sum)
+        title = 'By year'
+    elif date_period == 'M':
+        data = data.groupby(pd.Grouper(freq='MS')).aggregate(np.sum)
+        title = 'By month'
+    elif date_period == 'D':
+        data = data.groupby(pd.Grouper(freq='D')).aggregate(np.sum)
+        title = 'By day'
+    else:
+        title = 'By hour'
+
+    data = [go.Scatter(x=data.index, y=data.times,
+                       mode='lines')]
+    layout = go.Layout(
+        title=title,
+        yaxis=go.layout.YAxis(fixedrange=True),
+        margin=dict.fromkeys(list('ltrb'), 30),
+        hovermode='closest'
+    )
+    return {'data': data, 'layout': layout}
 
 
-def database_layout(db_path: str):
+def database_layout():
+    group_by_slider = html.Div(
+        [html.P('Group by'),
+         dcc.Slider(id='date-period-slider', min=0, max=3, value=1,
+                    marks=['Year', 'Month', 'Day', 'Hour'])])
+    graph_1 = Div(
+        dcc.Graph(
+            id='watch-history',
+            config=dict(displaylogo=False,
+                        modeBarButtonsToRemove=[
+                            'select2d', 'lasso2d', 'hoverCompareCartesian',
+                            'hoverClosestCartesian', 'zoomIn2d', 'zoomOut2d']),
+            style=dict(height=400)))
+
+    layout = Div(
+        [html.H2('Videos opened/watched'), Div(graph_1), group_by_slider])
+    return layout
+
+
+@dash_app.callback(Output('watch-history', 'figure'),
+                   [Input('date-period-slider', 'value')])
+def update_history_chart(value):
+    group_by_values = ['Year', 'Month', 'Day', 'Hour']
+    dct = {i: group_by_values[i][0] for i in range(len(group_by_values))}
+    db_path = join(get_project_dir_path_from_cookie(), DB_NAME)
     decl_types = sqlite3.PARSE_DECLTYPES
     decl_colnames = sqlite3.PARSE_COLNAMES
     conn = sqlite_connection(db_path,
                              detect_types=decl_types | decl_colnames)
-    try:
-        data = analyze.retrieve_time_data(conn)
-        graph = html.Div(plotly_watch_chart(data, 'YS'))
-        slider = html.Div(
-            [html.Div('Set a date period to sort by', id='date-period-slider'),
-             dcc.Slider(min=0, max=3, marks=['Year', 'Month', 'Day', 'Hour'])],
-            id='graph-adjuster')
-        layout = html.Div([graph, slider])
-    except Exception:
-        raise
-    finally:
-        conn.close()
-    return layout
-
-
-@dash_app.callback(Output('le-graph', 'children'), [Input('', 'value')])
-def update_history_chart():
-    pass
+    data = analyze.retrieve_time_data(conn)
+    return chart_history(data, dct[value])
