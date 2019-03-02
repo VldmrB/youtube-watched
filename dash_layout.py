@@ -85,7 +85,8 @@ def database_layout():
     group_by_slider = html.Div(
         [html.P('Group by'),
          dcc.Slider(id='date-period-slider', min=0, max=3, value=1,
-                    marks=['Year', 'Month', 'Day', 'Hour'])])
+                    marks=['Year', 'Month', 'Day', 'Hour'])],
+        id='graph-adjuster')
     graph_1 = Div(
         dcc.Graph(
             id='watch-history',
