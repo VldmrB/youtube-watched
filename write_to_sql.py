@@ -8,7 +8,7 @@ import youtube
 from config import video_keys_and_columns
 from sql_utils import generate_insert_query, generate_unconditional_update_query
 from sql_utils import execute_query
-from topics import topics_by_category
+from topics import topics
 from utils import get_final_key_paths, convert_duration, calculate_subpercentage
 
 logger = logging.getLogger(__name__)
@@ -27,17 +27,9 @@ TABLE_SCHEMAS = {
     title text
     );''',
 
-    'parent_topics': '''parent_topics (
-    id text primary key,
-    topic text
-    );''',
-
     'topics': '''topics (
     id text primary key,
-    topic text,
-    parent_topic_id text,
-    foreign key (parent_topic_id) references parent_topics(id)
-    on update cascade on delete cascade
+    topic text
     );''',
 
     'tags': '''tags (
@@ -105,7 +97,7 @@ TABLE_SCHEMAS = {
 CHANNEL_COLUMNS = ['id', 'title']
 CATEGORIES_COLUMNS = ['id', 'channel_id', 'title', 'assignable', 'etag']
 PARENT_TOPICS_COLUMNS = ['id', 'topic']
-TOPICS_COLUMNS = ['id', 'topic', 'parent_topic_id']
+TOPICS_COLUMNS = ['id', 'topic']
 TAGS_COLUMNS = ['tag']  # id column value is added implicitly by SQLite
 VIDEOS_TAGS_COLUMNS = ['video_id', 'tag_id']
 VIDEOS_TOPICS_COLUMNS = ['video_id', 'topic_id']
@@ -341,34 +333,12 @@ def insert_or_refresh_categories(conn: sqlite3.Connection, api_auth,
         conn.commit()
 
 
-def insert_parent_topics(conn: sqlite3.Connection):
-    query_string = generate_insert_query('parent_topics',
-                                         columns=PARENT_TOPICS_COLUMNS,
-                                         on_conflict_ignore=True)
-    for topic_dict in topics_by_category.values():
-        for k, v in topic_dict.items():
-            parent_topic_str = ' (parent topic)'
-            if parent_topic_str in v:
-                v = v.replace(parent_topic_str, '')
-                execute_query(conn, query_string, (k, v))
-            break  # only the first entry can be a parent topic,
-            # hence the unconditional break
-
-    conn.commit()
-
-
-def insert_sub_topics(conn: sqlite3.Connection):
+def insert_topics(conn: sqlite3.Connection):
     query_string = generate_insert_query('topics', columns=TOPICS_COLUMNS,
                                          on_conflict_ignore=True)
-    for topic_dict in topics_by_category.values():
-        parent_topic_str = ' (parent topic)'
-        parent_topic_name = None
-        for k, v in topic_dict.items():
-            if parent_topic_str in v:
-                parent_topic_name = k
-                continue
-            insert_tuple = (k, v, parent_topic_name)
-            execute_query(conn, query_string, insert_tuple)
+    for k, v in topics.items():
+        insert_tuple = (k, v)
+        execute_query(conn, query_string, insert_tuple)
 
     conn.commit()
 
@@ -379,8 +349,7 @@ def setup_tables(conn: sqlite3.Connection, api_auth):
         execute_query(conn, create_schema_)
 
     insert_or_refresh_categories(conn, api_auth, False)
-    insert_parent_topics(conn)
-    insert_sub_topics(conn)
+    insert_topics(conn)
 
     conn.commit()
 

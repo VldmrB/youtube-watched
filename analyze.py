@@ -20,7 +20,7 @@ def refine(x: np.array, y: np.array, fine: int, kind: str = 'quadratic'):
     return x_refined, y_refined
 
 
-def retrieve_time_data(conn: sqlite3.Connection) -> pd.DataFrame:
+def retrieve_watch_data(conn: sqlite3.Connection) -> pd.DataFrame:
     query = 'SELECT watched_at FROM videos_timestamps'
     df = pd.read_sql(query, conn, index_col='watched_at')
     times = pd.Series(np.ones(len(df.index.values)))
@@ -32,6 +32,48 @@ def retrieve_time_data(conn: sqlite3.Connection) -> pd.DataFrame:
     df.index.name = 'watched_at'
 
     return df
+
+
+def retrieve_data_for_a_date_period(conn: sqlite3.Connection,
+                                    date: str) -> pd.DataFrame:
+    pd.set_option('display.max_columns', 1000)
+    pd.set_option('display.width', 10000)
+    gen_query = """SELECT v.title AS video_title, c.title AS channel_title,
+    count (v.title) AS amount FROM 
+    videos_timestamps vt JOIN videos v ON v.id = vt.video_id 
+    JOIN channels c ON v.channel_id = c.id
+    WHERE vt.watched_at LIKE ?
+    GROUP BY v.id;"""
+    tags_query = """SELECT t.tag AS tags, count(t.tag) AS amount FROM
+    videos_timestamps vt JOIN videos_tags vtgs ON vtgs.video_id = vt.video_id 
+    LEFT JOIN tags t ON vtgs.tag_id = t.id
+    WHERE vt.watched_at LIKE ?
+    GROUP BY t.tag
+    ORDER BY count(t.tag) DESC
+    LIMIT 10;"""
+    topics_query = """SELECT t.topic AS topics, count(t.topic) AS amount FROM
+    videos_timestamps vt JOIN videos_topics v_topics
+    ON vt.video_id = v_topics.video_id
+    JOIN topics t ON v_topics.topic_id = t.id 
+    WHERE vt.watched_at LIKE ?
+    GROUP BY t.topic
+    ORDER BY count(t.topic) DESC
+    LIMIT 5;"""
+
+    date = (date + '%',)
+
+    smmry = pd.read_sql(gen_query, conn, params=date)
+    smmry = smmry.groupby(by=smmry['channel_title']).aggregate(np.array)
+    smmry = smmry.assign(total_amount=[i.sum() for i in smmry.amount.values])
+    smmry = smmry.sort_values(by='total_amount', ascending=False)
+
+    tag_10 = pd.read_sql(tags_query, conn, params=date)
+    tag_10['tags'] = tag_10['tags'].str.lower()
+    tag_10 = tag_10.groupby(by=tag_10['tags']).aggregate(np.array)
+    tag_10['amount'] = [i.sum() for i in tag_10['amount']
+                        if not isinstance(i, int)]
+    print(tag_10.head(10))
+    return smmry
 
 
 def plot_data(data: pd.DataFrame, save_name=None):
