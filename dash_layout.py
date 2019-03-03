@@ -66,9 +66,9 @@ def chart_history(data: pd.DataFrame, date_period='M'):
         title = 'By month'
     elif date_period == 'D':
         data = data.groupby(pd.Grouper(freq='D')).aggregate(np.sum)
-        title = 'By day'
+        title = 'By day (click on any data point to show a summary for it)'
     else:
-        title = 'By hour'
+        title = 'By hour (click on any data point to show a summary for it)'
 
     data = [go.Scatter(x=data.index, y=data.times,
                        mode='lines')]
@@ -97,7 +97,10 @@ def database_layout():
             style=dict(height=400)))
 
     layout = Div(
-        [html.H2('Videos opened/watched'), Div(graph_1), group_by_slider])
+        [
+            html.H2('Videos opened/watched'), Div(graph_1), group_by_slider,
+            Div(id='summary')
+         ])
     return layout
 
 
@@ -111,5 +114,28 @@ def update_history_chart(value):
     decl_colnames = sqlite3.PARSE_COLNAMES
     conn = sqlite_connection(db_path,
                              detect_types=decl_types | decl_colnames)
-    data = analyze.retrieve_time_data(conn)
+    data = analyze.retrieve_watch_data(conn)
+    conn.close()
     return chart_history(data, dct[value])
+
+
+@dash_app.callback(Output('summary', 'children'),
+                   [Input('watch-history', 'clickData'),
+                    Input('date-period-slider', 'value')])
+def update_history_chart(data, date_period):
+    group_by_values = ['Year', 'Month', 'Day', 'Hour']
+    dct = {i: group_by_values[i][0] for i in range(len(group_by_values))}
+    print(data)
+    if dct[date_period] in ['Day', 'Hour']:
+        return ''
+        db_path = join(get_project_dir_path_from_cookie(), DB_NAME)
+        # decl_types = sqlite3.PARSE_DECLTYPES
+        # decl_colnames = sqlite3.PARSE_COLNAMES
+        conn = sqlite_connection(db_path,
+                                 # detect_types=decl_types | decl_colnames
+                                 )
+        # data = analyze.retrieve_time_data(conn)
+        # conn.close()
+        # return chart_history(data, dct[value])
+    else:
+        return ''
