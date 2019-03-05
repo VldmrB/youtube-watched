@@ -1,15 +1,50 @@
 import os
 import sqlite3
 from collections import Counter
+
+import dash_table
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from scipy.interpolate import interp1d
 from ktools import utils
-from testing import WORK_DIR
+from scipy.interpolate import interp1d
+
 from sql_utils import execute_query
-# import plotly.graph_objs as go
-# import dash_core_components as dcc
+from testing import WORK_DIR
+
+pd.set_option('display.max_columns', 400)
+pd.set_option('display.width', 400)
+
+gen_query = """SELECT v.title AS Title, c.title AS Channel,
+    count(v.title) AS Views FROM 
+    videos_timestamps vt JOIN videos v ON v.id = vt.video_id 
+    JOIN channels c ON v.channel_id = c.id
+    WHERE vt.watched_at LIKE ?
+    GROUP BY v.id;"""
+channels_query = """SELECT c.title AS Channel,
+    count(c.title) AS Views FROM 
+    videos_timestamps vt JOIN videos v ON v.id = vt.video_id 
+    JOIN channels c ON v.channel_id = c.id
+    WHERE vt.watched_at LIKE ?
+    GROUP BY c.id
+    ORDER BY Views desc;
+"""
+tags_query = f"""SELECT t.tag AS Tag, count(t.tag) AS Amount FROM
+    videos_timestamps vt JOIN videos_tags vtgs ON vtgs.video_id = vt.video_id 
+    JOIN tags t ON vtgs.tag_id = t.id
+    WHERE vt.watched_at LIKE ?
+    GROUP BY t.tag
+    ORDER BY Amount DESC
+    LIMIT 10;"""
+topics_query = f"""SELECT t.topic AS Topic, count(t.topic) AS Amount FROM
+    videos_timestamps vt JOIN videos_topics v_topics
+    ON vt.video_id = v_topics.video_id
+    JOIN topics t ON v_topics.topic_id = t.id 
+    WHERE vt.watched_at LIKE ?
+    --AND t.topic NOT LIKE '%(parent topic)'
+    GROUP BY t.topic
+    ORDER BY Amount DESC
+    LIMIT 10;"""
 
 
 def refine(x: np.array, y: np.array, fine: int, kind: str = 'quadratic'):
@@ -34,46 +69,110 @@ def retrieve_watch_data(conn: sqlite3.Connection) -> pd.DataFrame:
     return df
 
 
-def retrieve_data_for_a_date_period(conn: sqlite3.Connection,
-                                    date: str) -> pd.DataFrame:
-    pd.set_option('display.max_columns', 1000)
-    pd.set_option('display.width', 10000)
-    gen_query = """SELECT v.title AS video_title, c.title AS channel_title,
-    count (v.title) AS amount FROM 
-    videos_timestamps vt JOIN videos v ON v.id = vt.video_id 
-    JOIN channels c ON v.channel_id = c.id
-    WHERE vt.watched_at LIKE ?
-    GROUP BY v.id;"""
-    tags_query = """SELECT t.tag AS tags, count(t.tag) AS amount FROM
-    videos_timestamps vt JOIN videos_tags vtgs ON vtgs.video_id = vt.video_id 
-    LEFT JOIN tags t ON vtgs.tag_id = t.id
-    WHERE vt.watched_at LIKE ?
-    GROUP BY t.tag
-    ORDER BY count(t.tag) DESC
-    LIMIT 10;"""
-    topics_query = """SELECT t.topic AS topics, count(t.topic) AS amount FROM
-    videos_timestamps vt JOIN videos_topics v_topics
-    ON vt.video_id = v_topics.video_id
-    JOIN topics t ON v_topics.topic_id = t.id 
-    WHERE vt.watched_at LIKE ?
-    GROUP BY t.topic
-    ORDER BY count(t.topic) DESC
-    LIMIT 5;"""
+def retrieve_data_for_a_date_period(conn: sqlite3.Connection, date: str):
+    params = (date + '%',)
 
-    date = (date + '%',)
+    tags = pd.read_sql(tags_query, conn, params=params)
+    tags['Tag'] = tags['Tag'].str.lower()
+    tags = tags.groupby(by='Tag').aggregate(list)
+    tags['Amount'] = [sum(i) if not isinstance(i, int) else i
+                      for i in tags['Amount']]
 
-    smmry = pd.read_sql(gen_query, conn, params=date)
-    smmry = smmry.groupby(by=smmry['channel_title']).aggregate(np.array)
-    smmry = smmry.assign(total_amount=[i.sum() for i in smmry.amount.values])
-    smmry = smmry.sort_values(by='total_amount', ascending=False)
+    tags = tags.sort_values(by='Amount', ascending=False)
+    topics = pd.read_sql(topics_query, conn, params=params)
 
-    tag_10 = pd.read_sql(tags_query, conn, params=date)
-    tag_10['tags'] = tag_10['tags'].str.lower()
-    tag_10 = tag_10.groupby(by=tag_10['tags']).aggregate(np.array)
-    tag_10['amount'] = [i.sum() for i in tag_10['amount']
-                        if not isinstance(i, int)]
-    print(tag_10.head(10))
-    return smmry
+    generic_table_settings = dict(
+        merge_duplicate_headers=True,
+        css=[{
+            'selector': '.dash-cell div.dash-cell-value',
+            'rule': 'display: inline; white-space: inherit;'
+                    'overflow: inherit; text-overflow: inherit;'
+        }],
+        style_header={'backgroundColor': 'rgb(31, 119, 180)',
+                      'color': 'white'},
+        style_cell={
+            'whiteSpace': 'no-wrap',
+            'overflow': 'hidden',
+            'textOverflow': 'ellipsis',
+            'maxWidth': 0,
+        },
+
+    )
+    style_cell_conditional = [
+        {'if': {'column_id': 'Title'}, 'textAlign': 'left',
+         'width': '600px', 'maxWidth': '600px', 'minWidth': '600px'
+         },
+        {'if': {'column_id': 'Channel'}, 'textAlign': 'left',
+         'width': '600px', 'maxWidth': '600px', 'minWidth': '600px'
+         },
+        {'if': {'column_id': 'Channel/video'}, 'textAlign': 'left',
+         'width': '600px', 'maxWidth': '600px', 'minWidth': '600px'
+         },
+        {'if': {'column_id': 'Views'}, 'width': '50px',
+         'maxWidth': '50px', 'minWidth': '50px'
+         }
+    ]
+
+    if len(date) > 7:
+        if len(date) == 13:
+            date = date + ':00'
+        table_cols = [
+            {'name': ['Channel/video'], 'id': 'Channel'},
+            {'name': ['Views'], 'id': 'Views'}
+        ]
+        smmry = pd.read_sql(gen_query, conn, params=params)
+        channels = smmry.groupby(by='Channel').aggregate(list)
+        channels = channels.assign(Views=[
+            sum(i) for i in channels.Views.values])
+        channels = channels.sort_values(by='Views', ascending=False)
+        channels = channels.drop(['Title'], axis=1)
+        smmry = smmry.drop('Views', axis=1)
+        smmry = smmry[smmry['Title'] != 'unknown']
+        smmry = smmry.sort_values(by='Channel')
+        channels = channels.reset_index()
+        channel_rows = channels.to_dict('rows')
+        smmry_rows = smmry.to_dict('rows')
+        table_rows = []
+        channel_rows_indexes = []
+        for dct in channel_rows:
+            table_rows.append(dct)
+            channel_rows_indexes.append(len(table_rows)-1)
+            for vid_dict in smmry_rows:
+                if vid_dict['Channel'] == dct['Channel']:
+                    row = {'Channel': vid_dict['Title']}
+                    table_rows.append(row)
+        style_cell_conditional.extend(
+            [{'if': {'row_index': i}, 'backgroundColor': '#A1C935'} for i
+             in channel_rows_indexes])
+    else:
+        column_names = ['Channel', 'Views']
+        table_cols = [{'name': [n], 'id': n}
+                      for n in column_names]
+        channels = pd.read_sql(channels_query, conn, params=params)
+        table_rows = channels.to_dict('rows')
+
+    views = (date + ' (total views: ' + str(channels.Views.sum()) + ')')
+    for col_entry in table_cols:
+        col_entry['name'].insert(0, views)
+    main_table = dash_table.DataTable(
+        columns=table_cols,
+        data=table_rows, id='channels-table',
+        style_table={'maxHeight': '400',
+                     'maxWidth': '800'},
+        n_fixed_rows=2,
+        style_cell_conditional=style_cell_conditional,
+        **generic_table_settings)
+
+    tags_cols = ['']
+    tags_table = dash_table.DataTable(
+        columns=table_cols,
+        data=table_rows, id='channels-table',
+        style_table={'maxHeight': '400',
+                     'maxWidth': '300'},
+        n_fixed_rows=1,
+        style_cell_conditional=style_cell_conditional,
+        **generic_table_settings)
+    return main_table
 
 
 def plot_data(data: pd.DataFrame, save_name=None):
@@ -131,15 +230,3 @@ def plot_tags(conn: sqlite3.Connection):
     p_series.plot(kind='barh')
     # plt.barh(width=0.3, y=p_series.index)
     plt.show()
-
-
-# def plotly_watch_chart(data: pd.DataFrame, date_interval='D'):
-#     df = data.groupby(pd.Grouper(freq=date_interval)).aggregate(np.sum)
-#     df = df.reset_index()
-#     graph = dcc.Graph(id='le-graph',
-#                       figure={
-#                           'data': [
-#                               go.Scatter(x=df.watched_at,
-#                                          y=df.times,
-#                                          mode='lines')]})
-#     return graph
