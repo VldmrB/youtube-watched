@@ -10,7 +10,7 @@ import pandas as pd
 import plotly
 import plotly.graph_objs as go
 from flask import Response, Flask
-from dash.dependencies import Input, Output
+from dash.dependencies import Input, Output, State
 from dash_html_components import Div
 
 import analyze
@@ -56,21 +56,24 @@ dash_app.config['suppress_callback_exceptions'] = True  # since the real layout
 dash_app.title = 'Graphs'
 dash_app.layout = Div('Where is.... your dataz!')
 
+group_by_values = ['Year', 'Month', 'Day', 'Hour']
+date_periods_vals = {i: group_by_values[i][0]
+                     for i in range(len(group_by_values))}
+summary_msg = dcc.Markdown('Click on a daily/hourly point on the graph to '
+                           'display a **summary** for it')
+
 
 def chart_history(data: pd.DataFrame, date_period='M'):
+    title = 'Videos opened/watched'
     if date_period == 'Y':
         data = data.groupby(pd.Grouper(freq='YS')).aggregate(np.sum)
-        title = 'By year'
     elif date_period == 'M':
         data = data.groupby(pd.Grouper(freq='MS')).aggregate(np.sum)
-        title = 'By month'
     elif date_period == 'D':
         data = data.groupby(pd.Grouper(freq='D')).aggregate(np.sum)
-        title = 'By day (click on any data point to show a summary for it)'
-    else:
-        title = 'By hour (click on any data point to show a summary for it)'
 
-    data = [go.Scatter(x=data.index, y=data.times,
+    data = data.reset_index()
+    data = [go.Scatter(x=data.watched_at.values.astype('str'), y=data.times,
                        mode='lines')]
     layout = go.Layout(
         title=title,
@@ -83,10 +86,9 @@ def chart_history(data: pd.DataFrame, date_period='M'):
 
 def database_layout():
     group_by_slider = html.Div(
-        [html.P('Group by'),
-         dcc.Slider(id='date-period-slider', min=0, max=3, value=1,
+        [dcc.Slider(id='date-period-slider', min=0, max=3, value=1,
                     marks=['Year', 'Month', 'Day', 'Hour'])],
-        id='graph-adjuster')
+        id='graph-adjuster',)
     graph_1 = Div(
         dcc.Graph(
             id='watch-history',
@@ -98,8 +100,8 @@ def database_layout():
 
     layout = Div(
         [
-            html.H2('Videos opened/watched'), Div(graph_1), group_by_slider,
-            Div(id='summary')
+            Div(graph_1), Div(group_by_slider),
+            Div(summary_msg, id='summary')
          ])
     return layout
 
@@ -107,8 +109,6 @@ def database_layout():
 @dash_app.callback(Output('watch-history', 'figure'),
                    [Input('date-period-slider', 'value')])
 def update_history_chart(value):
-    group_by_values = ['Year', 'Month', 'Day', 'Hour']
-    dct = {i: group_by_values[i][0] for i in range(len(group_by_values))}
     db_path = join(get_project_dir_path_from_cookie(), DB_NAME)
     decl_types = sqlite3.PARSE_DECLTYPES
     decl_colnames = sqlite3.PARSE_COLNAMES
@@ -116,26 +116,29 @@ def update_history_chart(value):
                              detect_types=decl_types | decl_colnames)
     data = analyze.retrieve_watch_data(conn)
     conn.close()
-    return chart_history(data, dct[value])
+    return chart_history(data, date_periods_vals[value])
 
 
 @dash_app.callback(Output('summary', 'children'),
-                   [Input('watch-history', 'clickData'),
-                    Input('date-period-slider', 'value')])
-def update_history_chart(data, date_period):
-    group_by_values = ['Year', 'Month', 'Day', 'Hour']
-    dct = {i: group_by_values[i][0] for i in range(len(group_by_values))}
-    print(data)
-    if dct[date_period] in ['Day', 'Hour']:
-        return ''
+                   [Input('watch-history', 'clickData')],
+                   [State('date-period-slider', 'value')])
+def show_summary(data, date_period):
+    # and date_period in [2, 3]
+    if data:  # Day and Hour values respectively
+        if date_period == 0:
+            date = data['points'][0]['x'][:4]
+        elif date_period == 1:
+            date = data['points'][0]['x'][:7]
+        elif date_period == 2:
+            date = data['points'][0]['x'][:10]
+        # elif date_period == 3:
+        else:
+            date = data['points'][0]['x'][:13]
+
         db_path = join(get_project_dir_path_from_cookie(), DB_NAME)
-        # decl_types = sqlite3.PARSE_DECLTYPES
-        # decl_colnames = sqlite3.PARSE_COLNAMES
-        conn = sqlite_connection(db_path,
-                                 # detect_types=decl_types | decl_colnames
-                                 )
-        # data = analyze.retrieve_time_data(conn)
-        # conn.close()
-        # return chart_history(data, dct[value])
+        conn = sqlite_connection(db_path)
+        datum = analyze.retrieve_data_for_a_date_period(conn, date)
+        conn.close()
+        return Div([datum])
     else:
-        return ''
+        return summary_msg

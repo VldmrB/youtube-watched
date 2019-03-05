@@ -384,6 +384,8 @@ def insert_videos(conn, records: dict, api_auth, verbosity=1):
         records_passed += 1
         unknown_record = records.pop('unknown')
         unknown_record['id'] = 'unknown'
+        unknown_record['title'] = 'unknown'
+        unknown_record['channel_id'] = 'unknown'
         unknown_record['status'] = 'inactive'
         unknown_timestamps = unknown_record.pop('timestamps')
         timestamps.setdefault('unknown', [])
@@ -629,21 +631,6 @@ def update_videos(conn: sqlite3.Connection, api_auth,
                             pass
                         else:
                             filtered_api_video_data[key] = val
-                    # region Comparing old vs updated values
-                    # keys_updated = filtered_api_video_data.keys()
-                    # old_keys = {k: v for k, v in record.items()
-                    #             if k in keys_updated}
-                    # print('Comparing old vs updated values')
-                    # print('-'*50)
-                    # filtered_filtered_api_video_data = filtered_api_video_data
-                    # for key in ['tags', 'channel_title',
-                    #             'relevant_topic_ids']:
-                    #     if key in filtered_filtered_api_video_data:
-                    #         filtered_filtered_api_video_data.pop(key)
-                    # print(filtered_filtered_api_video_data)
-                    # print(old_keys)
-                    # print('-'*50)
-                    # endregion
                     record.update(filtered_api_video_data)
                 else:
                     record['status'] = 'inactive'

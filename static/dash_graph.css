@@ -1,16 +1,19 @@
-* {
+body > * {
     font-family: "Open Sans", verdana, arial, sans-serif ;
-    color: rgb(68, 68, 68);
+    color: #444444;
 }
-#date-period-slider {
-    margin: 3% 0;
 
-}
 #graph-adjuster {
-    width: 250px;
-    margin: 0 3%;
+    width: 150px;
+    margin: -400px 0 400px 65%;
 }
 
-/*#watch-history.js-plotly-plot .plot-container.plotly .svg-container .main-svg .draglayer.cursor-crosshair .xy * {*/
-    /*cursor: pointer;*/
-/*}*/
+.rc-slider-track {
+    background-color: rgb(31, 119, 180);
+    border-color: rgb(31, 119, 180);
+}
+.rc-slider-dot, .rc-slider-handle {
+    border-color: rgb(31, 119, 180);
+    border-radius: 0;
+    color: rgb(31, 119, 180);
+}
