@@ -17,3 +17,19 @@ body > * {
     border-radius: 0;
     color: rgb(31, 119, 180);
 }
+
+#channels-table {
+    width: 800px;
+    float: left;
+    margin: 5px 5px;
+}
+#tags-table {
+    width: 300px;
+    float: left;
+    margin: 5px 5px;
+}
+#topics-table {
+    width: 300px;
+    float: left;
+    margin: 5px 5px;
+}
