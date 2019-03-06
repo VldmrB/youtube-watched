@@ -33,3 +33,8 @@ body > * {
     float: left;
     margin: 5px 5px;
 }
+
+.row-1 {
+    overflow-x: hidden!important;
+    overflow-y: scroll!important;
+}

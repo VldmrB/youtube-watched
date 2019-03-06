@@ -47,11 +47,9 @@ topics_query = f"""SELECT t.topic AS Topic, count(t.topic) AS Amount FROM
 
 generic_table_settings = dict(
     merge_duplicate_headers=True,
-    css=[{
-        'selector': '.dash-cell div.dash-cell-value',
-        'rule': 'display: inline; white-space: inherit;'
-                'overflow: inherit; text-overflow: inherit;'
-    }],
+    css=[{'selector': '.dash-cell div.dash-cell-value',
+          'rule': 'display: inline; white-space: inherit;'
+                  'overflow: inherit; text-overflow: inherit;'}],
     style_header={'backgroundColor': 'rgb(31, 119, 180)',
                   'color': 'white'},
     style_cell={
@@ -164,28 +162,29 @@ def retrieve_data_for_a_date_period(conn: sqlite3.Connection, date: str):
     main_table = dash_table.DataTable(
         columns=table_cols,
         data=table_rows, id='channels-table',
-        style_table={'maxHeight': '400', 'maxWidth': '800'},
+        style_table={'maxHeight': '360', 'maxWidth': '800'},
         n_fixed_rows=2,
         style_cell_conditional=style_cell_cond_main,
         **generic_table_settings)
 
-    tags_cols = [{'name': n, 'id': n} for n in tags.columns]
+    tags_cols = [{'name': ['Top 10 tags', n], 'id': n} for n in tags.columns]
     tags_rows = tags.to_dict('rows')
     tags_table = dash_table.DataTable(
         columns=tags_cols,
         data=tags_rows, id='tags-table',
-        style_table={'maxHeight': '400',
+        style_table={'maxHeight': '377',
                      'maxWidth': '300'},
         n_fixed_rows=1,
         style_cell_conditional=style_cell_cond_aux,
         **generic_table_settings)
-    
-    topics_cols = [{'name': n, 'id': n} for n in topics.columns]
+
+    topics_cols = [{'name': ['Top 10 topics', n], 'id': n}
+                   for n in topics.columns]
     topics_rows = topics.to_dict('rows')
     topics_table = dash_table.DataTable(
         columns=topics_cols,
         data=topics_rows, id='topics-table',
-        style_table={'maxHeight': '400',
+        style_table={'maxHeight': '377',
                      'maxWidth': '300'},
         n_fixed_rows=1,
         style_cell_conditional=style_cell_cond_aux,
