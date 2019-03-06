@@ -27,8 +27,7 @@ channels_query = """SELECT c.title AS Channel,
     JOIN channels c ON v.channel_id = c.id
     WHERE vt.watched_at LIKE ?
     GROUP BY c.id
-    ORDER BY Views desc;
-"""
+    ORDER BY Views desc;"""
 tags_query = f"""SELECT t.tag AS Tag, count(t.tag) AS Amount FROM
     videos_timestamps vt JOIN videos_tags vtgs ON vtgs.video_id = vt.video_id 
     JOIN tags t ON vtgs.tag_id = t.id
@@ -45,6 +44,46 @@ topics_query = f"""SELECT t.topic AS Topic, count(t.topic) AS Amount FROM
     GROUP BY t.topic
     ORDER BY Amount DESC
     LIMIT 10;"""
+
+generic_table_settings = dict(
+    merge_duplicate_headers=True,
+    css=[{
+        'selector': '.dash-cell div.dash-cell-value',
+        'rule': 'display: inline; white-space: inherit;'
+                'overflow: inherit; text-overflow: inherit;'
+    }],
+    style_header={'backgroundColor': 'rgb(31, 119, 180)',
+                  'color': 'white'},
+    style_cell={
+        'whiteSpace': 'no-wrap',
+        'overflow': 'hidden',
+        'textOverflow': 'ellipsis',
+        'maxWidth': 0,
+    })
+style_cell_cond_main = [
+    {'if': {'column_id': 'Title'}, 'textAlign': 'left',
+     'width': '600px', 'maxWidth': '600px', 'minWidth': '600px'
+     },
+    {'if': {'column_id': 'Channel'}, 'textAlign': 'left',
+     'width': '600px', 'maxWidth': '600px', 'minWidth': '600px'
+     },
+    {'if': {'column_id': 'Channel/video'}, 'textAlign': 'left',
+     'width': '600px', 'maxWidth': '600px', 'minWidth': '600px'
+     },
+    {'if': {'column_id': 'Views'},
+     'width': '50px', 'maxWidth': '50px', 'minWidth': '50px'
+     }
+]
+style_cell_cond_aux = [
+    {'if': {'column_id': 'Tag'}, 'textAlign': 'left',
+     'width': '200px', 'maxWidth': '200px', 'minWidth': '200px'
+     },
+    {'if': {'column_id': 'Topic'}, 'textAlign': 'left',
+     'width': '200px', 'maxWidth': '200px', 'minWidth': '200px'
+     },
+    {'if': {'column_id': 'Amount'},
+     'width': '50px', 'maxWidth': '50px', 'minWidth': '50px'
+     }]
 
 
 def refine(x: np.array, y: np.array, fine: int, kind: str = 'quadratic'):
@@ -79,40 +118,8 @@ def retrieve_data_for_a_date_period(conn: sqlite3.Connection, date: str):
                       for i in tags['Amount']]
 
     tags = tags.sort_values(by='Amount', ascending=False)
+    tags = tags.reset_index()
     topics = pd.read_sql(topics_query, conn, params=params)
-
-    generic_table_settings = dict(
-        merge_duplicate_headers=True,
-        css=[{
-            'selector': '.dash-cell div.dash-cell-value',
-            'rule': 'display: inline; white-space: inherit;'
-                    'overflow: inherit; text-overflow: inherit;'
-        }],
-        style_header={'backgroundColor': 'rgb(31, 119, 180)',
-                      'color': 'white'},
-        style_cell={
-            'whiteSpace': 'no-wrap',
-            'overflow': 'hidden',
-            'textOverflow': 'ellipsis',
-            'maxWidth': 0,
-        },
-
-    )
-    style_cell_conditional = [
-        {'if': {'column_id': 'Title'}, 'textAlign': 'left',
-         'width': '600px', 'maxWidth': '600px', 'minWidth': '600px'
-         },
-        {'if': {'column_id': 'Channel'}, 'textAlign': 'left',
-         'width': '600px', 'maxWidth': '600px', 'minWidth': '600px'
-         },
-        {'if': {'column_id': 'Channel/video'}, 'textAlign': 'left',
-         'width': '600px', 'maxWidth': '600px', 'minWidth': '600px'
-         },
-        {'if': {'column_id': 'Views'}, 'width': '50px',
-         'maxWidth': '50px', 'minWidth': '50px'
-         }
-    ]
-
     if len(date) > 7:
         if len(date) == 13:
             date = date + ':00'
@@ -120,18 +127,18 @@ def retrieve_data_for_a_date_period(conn: sqlite3.Connection, date: str):
             {'name': ['Channel/video'], 'id': 'Channel'},
             {'name': ['Views'], 'id': 'Views'}
         ]
-        smmry = pd.read_sql(gen_query, conn, params=params)
-        channels = smmry.groupby(by='Channel').aggregate(list)
+        summary = pd.read_sql(gen_query, conn, params=params)
+        channels = summary.groupby(by='Channel').aggregate(list)
         channels = channels.assign(Views=[
             sum(i) for i in channels.Views.values])
         channels = channels.sort_values(by='Views', ascending=False)
         channels = channels.drop(['Title'], axis=1)
-        smmry = smmry.drop('Views', axis=1)
-        smmry = smmry[smmry['Title'] != 'unknown']
-        smmry = smmry.sort_values(by='Channel')
+        summary = summary.drop('Views', axis=1)
+        summary = summary[summary['Title'] != 'unknown']
+        summary = summary.sort_values(by='Channel')
         channels = channels.reset_index()
         channel_rows = channels.to_dict('rows')
-        smmry_rows = smmry.to_dict('rows')
+        smmry_rows = summary.to_dict('rows')
         table_rows = []
         channel_rows_indexes = []
         for dct in channel_rows:
@@ -141,7 +148,7 @@ def retrieve_data_for_a_date_period(conn: sqlite3.Connection, date: str):
                 if vid_dict['Channel'] == dct['Channel']:
                     row = {'Channel': vid_dict['Title']}
                     table_rows.append(row)
-        style_cell_conditional.extend(
+        style_cell_cond_main.extend(
             [{'if': {'row_index': i}, 'backgroundColor': '#A1C935'} for i
              in channel_rows_indexes])
     else:
@@ -157,22 +164,34 @@ def retrieve_data_for_a_date_period(conn: sqlite3.Connection, date: str):
     main_table = dash_table.DataTable(
         columns=table_cols,
         data=table_rows, id='channels-table',
-        style_table={'maxHeight': '400',
-                     'maxWidth': '800'},
+        style_table={'maxHeight': '400', 'maxWidth': '800'},
         n_fixed_rows=2,
-        style_cell_conditional=style_cell_conditional,
+        style_cell_conditional=style_cell_cond_main,
         **generic_table_settings)
 
-    tags_cols = ['']
+    tags_cols = [{'name': n, 'id': n} for n in tags.columns]
+    tags_rows = tags.to_dict('rows')
     tags_table = dash_table.DataTable(
-        columns=table_cols,
-        data=table_rows, id='channels-table',
+        columns=tags_cols,
+        data=tags_rows, id='tags-table',
         style_table={'maxHeight': '400',
                      'maxWidth': '300'},
         n_fixed_rows=1,
-        style_cell_conditional=style_cell_conditional,
+        style_cell_conditional=style_cell_cond_aux,
         **generic_table_settings)
-    return main_table
+    
+    topics_cols = [{'name': n, 'id': n} for n in topics.columns]
+    topics_rows = topics.to_dict('rows')
+    topics_table = dash_table.DataTable(
+        columns=topics_cols,
+        data=topics_rows, id='topics-table',
+        style_table={'maxHeight': '400',
+                     'maxWidth': '300'},
+        n_fixed_rows=1,
+        style_cell_conditional=style_cell_cond_aux,
+        **generic_table_settings)
+
+    return main_table, tags_table, topics_table
 
 
 def plot_data(data: pd.DataFrame, save_name=None):

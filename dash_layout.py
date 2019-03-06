@@ -123,7 +123,6 @@ def update_history_chart(value):
                    [Input('watch-history', 'clickData')],
                    [State('date-period-slider', 'value')])
 def show_summary(data, date_period):
-    # and date_period in [2, 3]
     if data:  # Day and Hour values respectively
         if date_period == 0:
             date = data['points'][0]['x'][:4]
@@ -131,14 +130,13 @@ def show_summary(data, date_period):
             date = data['points'][0]['x'][:7]
         elif date_period == 2:
             date = data['points'][0]['x'][:10]
-        # elif date_period == 3:
         else:
             date = data['points'][0]['x'][:13]
 
         db_path = join(get_project_dir_path_from_cookie(), DB_NAME)
         conn = sqlite_connection(db_path)
-        datum = analyze.retrieve_data_for_a_date_period(conn, date)
+        summary_tables = analyze.retrieve_data_for_a_date_period(conn, date)
         conn.close()
-        return Div([datum])
+        return [*summary_tables]
     else:
         return summary_msg
