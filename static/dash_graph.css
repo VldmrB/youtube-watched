@@ -36,5 +36,10 @@ body > * {
 
 .row-1 {
     overflow-x: hidden!important;
-    overflow-y: scroll!important;
+    overflow-y: auto!important;
+}
+
+#tags-table > div:nth-child(1) > div:nth-child(1) > div:nth-child(1) > div:nth-child(2),
+#topics-table > div:nth-child(1) > div:nth-child(1) > div:nth-child(1) > div:nth-child(2) {
+    margin-right: 0!important;
 }
