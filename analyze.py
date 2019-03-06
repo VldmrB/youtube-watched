@@ -1,16 +1,8 @@
-import os
 import sqlite3
-from collections import Counter
 
 import dash_table
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from ktools import utils
-from scipy.interpolate import interp1d
-
-from sql_utils import execute_query
-from testing import WORK_DIR
 
 pd.set_option('display.max_columns', 400)
 pd.set_option('display.width', 400)
@@ -28,21 +20,21 @@ channels_query = """SELECT c.title AS Channel,
     WHERE vt.watched_at LIKE ?
     GROUP BY c.id
     ORDER BY Views desc;"""
-tags_query = f"""SELECT t.tag AS Tag, count(t.tag) AS Amount FROM
+tags_query = f"""SELECT t.tag AS Tag, count(t.tag) AS Count FROM
     videos_timestamps vt JOIN videos_tags vtgs ON vtgs.video_id = vt.video_id 
     JOIN tags t ON vtgs.tag_id = t.id
     WHERE vt.watched_at LIKE ?
     GROUP BY t.tag
-    ORDER BY Amount DESC
+    ORDER BY Count DESC
     LIMIT 10;"""
-topics_query = f"""SELECT t.topic AS Topic, count(t.topic) AS Amount FROM
+topics_query = f"""SELECT t.topic AS Topic, count(t.topic) AS Count FROM
     videos_timestamps vt JOIN videos_topics v_topics
     ON vt.video_id = v_topics.video_id
     JOIN topics t ON v_topics.topic_id = t.id 
     WHERE vt.watched_at LIKE ?
     --AND t.topic NOT LIKE '%(parent topic)'
     GROUP BY t.topic
-    ORDER BY Amount DESC
+    ORDER BY Count DESC
     LIMIT 10;"""
 
 generic_table_settings = dict(
@@ -79,17 +71,9 @@ style_cell_cond_aux = [
     {'if': {'column_id': 'Topic'}, 'textAlign': 'left',
      'width': '200px', 'maxWidth': '200px', 'minWidth': '200px'
      },
-    {'if': {'column_id': 'Amount'},
+    {'if': {'column_id': 'Count'},
      'width': '50px', 'maxWidth': '50px', 'minWidth': '50px'
      }]
-
-
-def refine(x: np.array, y: np.array, fine: int, kind: str = 'quadratic'):
-
-    x_refined = np.linspace(x.min(), x.max(), fine)
-    func = interp1d(x, y, kind=kind)
-    y_refined = func(x_refined)
-    return x_refined, y_refined
 
 
 def retrieve_watch_data(conn: sqlite3.Connection) -> pd.DataFrame:
@@ -112,10 +96,10 @@ def retrieve_data_for_a_date_period(conn: sqlite3.Connection, date: str):
     tags = pd.read_sql(tags_query, conn, params=params)
     tags['Tag'] = tags['Tag'].str.lower()
     tags = tags.groupby(by='Tag').aggregate(list)
-    tags['Amount'] = [sum(i) if not isinstance(i, int) else i
-                      for i in tags['Amount']]
+    tags['Count'] = [sum(i) if not isinstance(i, int) else i
+                      for i in tags['Count']]
 
-    tags = tags.sort_values(by='Amount', ascending=False)
+    tags = tags.sort_values(by='Count', ascending=False)
     tags = tags.reset_index()
     topics = pd.read_sql(topics_query, conn, params=params)
     if len(date) > 7:
@@ -193,58 +177,14 @@ def retrieve_data_for_a_date_period(conn: sqlite3.Connection, date: str):
     return main_table, tags_table, topics_table
 
 
-def plot_data(data: pd.DataFrame, save_name=None):
-    from matplotlib import dates
-
-    x = data['watched_at']
-    y = data['times']
-    fig, ax = plt.subplots()
-    fig_length = 0.3 * (len(x))
-    fig.set_size_inches(fig_length, 5)
-    fig.set_dpi(150)
-    ax.plot(x, y, 'o-')
-    ax.margins(fig_length*0.0008, 0.1)
-    ax.xaxis.set_major_locator(dates.YearLocator())
-    ax.xaxis.set_minor_locator(dates.MonthLocator(range(2, 13)))
-    ax.xaxis.set_major_formatter(dates.DateFormatter('%m\n(%Y)'))
-    ax.xaxis.set_minor_formatter(dates.DateFormatter('%m'))
-    ax.set_title('Videos opened/watched over monthly periods')
-    ax.grid(True, which='both', linewidth=0.1)
-    plt.tight_layout()
-
-    if save_name:
-        plt.savefig(
-            os.path.join(WORK_DIR, 'graphs', save_name),
-            format='svg')
-    plt.show()
-
-
-@utils.timer
-def plot_tags(conn: sqlite3.Connection):
-    results = execute_query(conn,
-                            '''SELECT t.tag FROM
-                            tags t JOIN videos_tags vt ON t.id = vt.tag_id
-                            ORDER BY t.tag;
-                            ''')
-    all_tags = Counter([i[0] for i in results])
-    deduplicated_tags = {}
-
-    for tag, tag_count in all_tags.items():
-        all_tags[tag] = tag.lower()
-        if tag == 'the':
-            continue
-        # for k, v in duplicate_tags.items():
-        #     if tag in v:
-        #         deduplicated_tags.setdefault(k, 0)
-        #         deduplicated_tags[k] += tag_count
-        #         break
-        # else:
-        deduplicated_tags.setdefault(tag, 0)
-        deduplicated_tags[tag] += tag_count
-    p_series = pd.Series(deduplicated_tags).sort_values()[-50:]
-    # print(p_series.values)
-    # p_series = p_series.filter(like='piano', axis=0)
-    plt.figure(figsize=(5, 10))
-    p_series.plot(kind='barh')
-    # plt.barh(width=0.3, y=p_series.index)
-    plt.show()
+def top_tags_data(conn: sqlite3.Connection, amount: int):
+    query = """SELECT t.tag AS Tag FROM
+    videos_timestamps vt JOIN videos_tags vtgs ON vtgs.video_id = vt.video_id 
+    JOIN tags t ON vtgs.tag_id = t.id
+    WHERE NOT t.tag = 'the';"""
+    results = pd.read_sql(query, conn)
+    results['Tag'] = results['Tag'].str.lower()
+    results = results.assign(Count=np.ones(len(results.index)))
+    results = results.groupby('Tag')
+    results = results.aggregate(np.sum).sort_values(by='Count', ascending=False)
+    return results[:amount]
