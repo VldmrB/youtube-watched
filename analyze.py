@@ -13,13 +13,13 @@ gen_query = """SELECT v.title AS Title, c.title AS Channel,
     JOIN channels c ON v.channel_id = c.id
     WHERE vt.watched_at LIKE ?
     GROUP BY v.id;"""
-channels_query = """SELECT c.title AS Channel,
+summary_channels_query = """SELECT c.title AS Channel,
     count(c.title) AS Views FROM 
     videos_timestamps vt JOIN videos v ON v.id = vt.video_id 
     JOIN channels c ON v.channel_id = c.id
     WHERE vt.watched_at LIKE ?
     GROUP BY c.id
-    ORDER BY Views desc;"""
+    ORDER BY Views DESC;"""
 tags_query = f"""SELECT t.tag AS Tag, count(t.tag) AS Count FROM
     videos_timestamps vt JOIN videos_tags vtgs ON vtgs.video_id = vt.video_id 
     JOIN tags t ON vtgs.tag_id = t.id
@@ -97,7 +97,7 @@ def retrieve_data_for_a_date_period(conn: sqlite3.Connection, date: str):
     tags['Tag'] = tags['Tag'].str.lower()
     tags = tags.groupby(by='Tag').aggregate(list)
     tags['Count'] = [sum(i) if not isinstance(i, int) else i
-                      for i in tags['Count']]
+                     for i in tags['Count']]
 
     tags = tags.sort_values(by='Count', ascending=False)
     tags = tags.reset_index()
@@ -137,7 +137,7 @@ def retrieve_data_for_a_date_period(conn: sqlite3.Connection, date: str):
         column_names = ['Channel', 'Views']
         table_cols = [{'name': [n], 'id': n}
                       for n in column_names]
-        channels = pd.read_sql(channels_query, conn, params=params)
+        channels = pd.read_sql(summary_channels_query, conn, params=params)
         table_rows = channels.to_dict('rows')
 
     views = (date + ' (total views: ' + str(channels.Views.sum()) + ')')
@@ -183,8 +183,85 @@ def top_tags_data(conn: sqlite3.Connection, amount: int):
     JOIN tags t ON vtgs.tag_id = t.id
     WHERE NOT t.tag = 'the';"""
     results = pd.read_sql(query, conn)
+    print(results.memory_usage(index=True, deep=True).sum() / (1024 * 2))
     results['Tag'] = results['Tag'].str.lower()
     results = results.assign(Count=np.ones(len(results.index)))
     results = results.groupby('Tag')
     results = results.aggregate(np.sum).sort_values(by='Count', ascending=False)
+    print(results.memory_usage(index=True, deep=True).sum() / (1024 * 2))
     return results[:amount]
+
+
+def top_watched_videos(conn: sqlite3.Connection, amount: int):
+    query = """SELECT v.title AS Title, c.title AS Channel,
+        count(v.title) AS Views FROM 
+        videos_timestamps vt JOIN videos v ON v.id = vt.video_id 
+        JOIN channels c ON v.channel_id = c.id
+        WHERE NOT v.title = 'unknown'
+        GROUP BY v.id
+        ORDER BY Views DESC
+        LIMIT ?; 
+        """
+    df = pd.read_sql(query, conn, params=(amount,))
+    return df
+
+
+def top_watched_channels(conn: sqlite3.Connection, amount: int):
+    query = """SELECT c.title AS Channel,
+        count(c.title) AS Views FROM 
+        videos_timestamps vt JOIN videos v ON v.id = vt.video_id 
+        JOIN channels c ON v.channel_id = c.id
+        WHERE NOT v.title = 'unknown'
+        GROUP BY c.id
+        ORDER BY Views DESC
+        LIMIT ?; 
+        """
+    df = pd.read_sql(query, conn, params=(amount,))
+    return df
+
+
+def top_liked_or_disliked_videos_or_channels_by_ratio(
+        conn: sqlite3.Connection,
+        ):
+
+    videos_query = f"""SELECT
+    v.title as Title,
+    c.title AS Channel, 
+    v.published_at as PublishDate,
+    v.view_count as Views,
+    v.like_count AS Likes,
+    v.dislike_count AS Dislikes,
+    (v.like_count * 1.0 / v.dislike_count) AS Ratio
+
+    FROM videos v JOIN channels c ON v.channel_id = c.id
+
+    WHERE NOT v.title = 'unknown'
+    AND Dislikes > 0
+    AND Likes > 0
+    AND Ratio > 0
+    AND Views >= 1
+
+    ORDER BY Ratio DESC;"""
+
+    # channels_query = f"""SELECT
+    # c.title AS Channel,
+    # sum(v.view_count) as Views,
+    # sum(v.like_count) AS Likes,
+    # sum(v.dislike_count) AS Dislikes,
+    # (sum(v.like_count) * 1.0 / sum(v.dislike_count)) AS Ratio
+    # FROM videos v JOIN channels c ON v.channel_id = c.id
+    #
+    # GROUP BY Channel
+    # HAVING NOT v.title = 'unknown'
+    # AND Dislikes > 0
+    # AND Likes > 0
+    # AND Ratio > 0
+    # AND Views >= ? {max_views}
+    #
+    # ORDER BY Ratio {order_by}
+    # LIMIT ?;"""
+
+    df = pd.read_sql(videos_query, conn)
+    df['PublishDate'] = df['PublishDate'].dt.date
+
+    return df

@@ -1,6 +1,7 @@
 import json
 import sqlite3
 from os.path import join
+from dataclasses import dataclass
 
 import dash
 import dash_core_components as dcc
@@ -34,13 +35,19 @@ hoverCompareCartesian
 """
 
 
+@dataclass(init=False, repr=False, eq=False, order=False, unsafe_hash=False)
+class DataCache:
+    ld_ratio: pd.DataFrame = None
+
+
 class Dashing(dash.Dash):
 
     def serve_layout(self):
         if db_has_records():
-            layout = database_layout()
-        else:
             layout = self.layout
+        else:
+            layout = Div(['No data found. Make sure to first import your ',
+                          html.A('Takeout data', href='http://127.0.0.1:5000')])
 
         return Response(json.dumps(layout, cls=plotly.utils.PlotlyJSONEncoder),
                         mimetype='application/json')
@@ -50,17 +57,98 @@ css = ['/static/dash_graph.css']
 app = Flask(__name__)
 dash_app = Dashing(__name__, server=app,
                    routes_pathname_prefix='/dash/', external_stylesheets=css)
-dash_app.config['suppress_callback_exceptions'] = True  # since the real layout
-# only gets set during the actual page request, the initial one has no ids
-# required for the callbacks
 dash_app.title = 'Graphs'
-dash_app.layout = Div('Where is.... your dataz!')
+
+# -------------------- Layout element creation
+graph_tools_to_remove = [
+    'select2d', 'lasso2d', 'hoverCompareCartesian',
+    'hoverClosestCartesian', 'zoomIn2d', 'zoomOut2d']
 
 group_by_values = ['Year', 'Month', 'Day', 'Hour']
 date_periods_vals = {i: group_by_values[i][0]
                      for i in range(len(group_by_values))}
-summary_msg = dcc.Markdown('Click on a daily/hourly point on the graph to '
-                           'display a **summary** for it')
+
+# ------ Watch history graph layout
+history_date_period_slider_id = 'date-period-slider'
+history_date_period_slider_container_id = 'date-period-slider-container'
+history_date_period_summary_id = 'history-date-period-summary'
+
+group_by_slider = html.Div(
+    [dcc.Slider(id=history_date_period_slider_id, min=0, max=3, value=1,
+                marks=group_by_values)],
+    id=history_date_period_slider_container_id)
+history_graph_id = 'watch-history'
+history_graph = Div(
+    dcc.Graph(
+        id=history_graph_id,
+        config=dict(displaylogo=False,
+                    modeBarButtonsToRemove=graph_tools_to_remove),
+        style=dict(height=400)))
+
+# ------ Most disliked/liked videos graphs layout
+ratio_graphs_slider_marks = {1: '1', 100_000: '100K', 1_000_000: '1M',
+                             10_000_000: '10M', 100_000_000: '100M',
+                             10_000_000_000: '10B', 100_000_000_000: '100B'}
+ratio_graphs_slider_container_id = 'ratio-graphs-slider-container'
+ratio_graphs_slider_id = 'ratio-graphs-slider'
+ratio_graphs_summary_id = 'ratio-graph-hover-summary'
+ratio_graphs_container_id = 'ratio-graphs-container'
+ratio_graphs_type_radio_id = 'ratio-graphs-type'
+liked_ratio_graph_id = 'liked-ratio-graph'
+disliked_ratio_graph_id = 'disliked-ratio-graph'
+
+ratio_graphs_type_radio = dcc.RadioItems(
+                id=ratio_graphs_type_radio_id,
+                options=[{'label': i, 'value': i} for i in
+                         ['Videos', 'Channels']],
+                value='Videos',
+                labelStyle={'display': 'inline-block'})
+
+
+ratio_graphs_slider = html.Div(
+    [dcc.RangeSlider(id=ratio_graphs_slider_id,
+                     min=0, max=len(ratio_graphs_slider_marks)-1, value=[1, 3],
+                     marks=list(ratio_graphs_slider_marks.values()))],
+    id=ratio_graphs_slider_container_id)
+liked_ratio_graph = dcc.Graph(
+        id=liked_ratio_graph_id,
+        config=dict(displaylogo=False,
+                    modeBarButtonsToRemove=graph_tools_to_remove),
+        style=dict(height=475, width=475, display='inline-block'))
+disliked_ratio_graph = dcc.Graph(
+        id=disliked_ratio_graph_id,
+        config=dict(displaylogo=False,
+                    modeBarButtonsToRemove=graph_tools_to_remove),
+        style=dict(height=475, width=475))
+
+
+history_date_period_summary_msg = dcc.Markdown(
+    'Click on a point on the graph above to '
+    'display a summary for that period')
+
+# ------ Layout organizing/element setting
+ratio_graphs_div = Div(
+    [Div(g, style={'display': 'inline-block'})
+     for g in [liked_ratio_graph, disliked_ratio_graph]],
+    style=dict(display='inline-block'), id=ratio_graphs_container_id)
+dash_app.layout = Div(
+    [
+        # introductory history graph
+        Div(history_graph), Div(group_by_slider),
+        # summary for a clicked on point on the above graph (date period)
+        Div(history_date_period_summary_msg, id=history_date_period_summary_id),
+        # ratio graphs, point summary and their controls
+        Div([
+            Div(ratio_graphs_type_radio),  # radio choice, videos/channels
+            ratio_graphs_div,
+
+            Div(id=ratio_graphs_summary_id,
+                style=dict(display='inline-block')),
+            ratio_graphs_slider
+        ], style=dict(clear='both')
+        )
+    ])
+# -------------------- Layout {End}
 
 
 def chart_history(data: pd.DataFrame, date_period='M'):
@@ -84,30 +172,8 @@ def chart_history(data: pd.DataFrame, date_period='M'):
     return {'data': data, 'layout': layout}
 
 
-def database_layout():
-    group_by_slider = html.Div(
-        [dcc.Slider(id='date-period-slider', min=0, max=3, value=1,
-                    marks=['Year', 'Month', 'Day', 'Hour'])],
-        id='graph-adjuster',)
-    graph_1 = Div(
-        dcc.Graph(
-            id='watch-history',
-            config=dict(displaylogo=False,
-                        modeBarButtonsToRemove=[
-                            'select2d', 'lasso2d', 'hoverCompareCartesian',
-                            'hoverClosestCartesian', 'zoomIn2d', 'zoomOut2d']),
-            style=dict(height=400)))
-
-    layout = Div(
-        [
-            Div(graph_1), Div(group_by_slider),
-            Div(summary_msg, id='summary')
-         ])
-    return layout
-
-
-@dash_app.callback(Output('watch-history', 'figure'),
-                   [Input('date-period-slider', 'value')])
+@dash_app.callback(Output(history_graph_id, 'figure'),
+                   [Input(history_date_period_slider_id, 'value')])
 def update_history_chart(value):
     db_path = join(get_project_dir_path_from_cookie(), DB_NAME)
     decl_types = sqlite3.PARSE_DECLTYPES
@@ -119,11 +185,11 @@ def update_history_chart(value):
     return chart_history(data, date_periods_vals[value])
 
 
-@dash_app.callback(Output('summary', 'children'),
-                   [Input('watch-history', 'clickData')],
-                   [State('date-period-slider', 'value')])
+@dash_app.callback(Output(history_date_period_summary_id, 'children'),
+                   [Input(history_graph_id, 'clickData')],
+                   [State(history_date_period_slider_id, 'value')])
 def show_summary(data, date_period):
-    if data:  # Day and Hour values respectively
+    if data:
         if date_period == 0:
             date = data['points'][0]['x'][:4]
         elif date_period == 1:
@@ -139,4 +205,92 @@ def show_summary(data, date_period):
         conn.close()
         return [*summary_tables]
     else:
-        return summary_msg
+        return history_date_period_summary_msg
+
+
+def ratios_graphs(data: pd.DataFrame, liked: bool):
+    if liked:
+        title = 'Highest like/dislike ratio'
+    else:
+        title = 'Lowest like/dislike ratio'
+
+    if 'Title' in data.columns:
+        pass
+        # text = [f'Title: {i[0]}<br>Channel: {i[1]}<br>Uploaded: {i[2][:10]}'
+        #         for i in data.loc[:, 'Title':'PublishDate'].values]
+        # hover_template = ('Views: %{x:2f}<br>'
+        #                   'Ratio: %{y}<br>'
+        #                   '%{text}')
+    else:
+        pass
+        # text = [f'Title: {i[0]}<br>Channel: {i[1]}'
+        #         for i in data.loc[:, 'Channel'].values]
+        # hover_template = ('Views: %{x:2f}<br>'
+        #                   'Ratio: %{y}<br>'
+        #                   '%{text}')
+    data = [go.Scatter(x=data.Views, y=data.Ratio, mode='markers',
+                       # text=text, hovertemplate=hover_template,
+                       showlegend=False,
+                       name=''  # counteract the tooltip showing the trace name,
+                       # despite one not being explicitly set, brought on by
+                       # use of hovertemplate
+                       )]
+    layout = go.Layout(
+        title=title,
+        xaxis=go.layout.XAxis(title='Views'),
+        yaxis=go.layout.YAxis(title='Like/dislike ratio'),
+        margin=dict.fromkeys(list('ltrb'), 40),
+        hovermode='closest', colorscale=go.layout.Colorscale()
+    )
+    return go.Figure(data=data, layout=layout)
+
+
+import time
+
+
+@dash_app.callback(Output(ratio_graphs_container_id, 'children'),
+                   [Input(ratio_graphs_slider_id, 'value'),
+                    Input(ratio_graphs_type_radio_id, 'value')])
+def update_ratios_graphs(views, ratio_type):
+    start = time.time()
+    pick_from = list(ratio_graphs_slider_marks.keys())
+    min_views, max_views = pick_from[views[0]], pick_from[views[1]]
+    db_path = join(get_project_dir_path_from_cookie(), DB_NAME)
+    if not isinstance(DataCache.ld_ratio,  pd.DataFrame):
+        conn = sqlite_connection(
+            db_path,
+            detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
+        )
+        data = analyze.top_liked_or_disliked_videos_or_channels_by_ratio(conn)
+        conn.close()
+        DataCache.ld_ratio = data
+    else:
+        data = DataCache.ld_ratio
+
+    if ratio_type == 'Channels':
+        p_data = data.drop('Ratio', axis=1)
+        p_data = p_data.groupby('Channel').aggregate(np.sum)
+        p_data = p_data.assign(
+            Ratio=p_data['Likes'] / p_data['Dislikes'])
+        p_data = p_data.sort_values(by='Ratio', ascending=False)
+        p_data.reset_index()
+
+    else:
+        p_data = data.sort_values(by='Ratio', ascending=False)
+
+    p_data['Ratio'] = p_data['Ratio'].round(2)
+    p_data['Views'] = p_data['Views'].astype(np.int32)
+    p_data = p_data[(min_views <= p_data.Views) & (p_data.Views <= max_views)]
+
+    liked_ratio_graph.figure = ratios_graphs(p_data.iloc[:100], True)
+    disliked_ratio_graph.figure = ratios_graphs(p_data.iloc[-100:], False)
+    print(time.time() - start, 'seconds!')
+    return [Div(g, style={'display': 'inline-block'})
+            for g in [liked_ratio_graph, disliked_ratio_graph]]
+
+# @dash_app.callback(Output('ratio-graph-hover-summary', 'children'),
+#                    [Input('disliked-videos-ratio-graph', 'hoverData'),
+#                     Input('liked-videos-ratio-graph', 'hoverData')])
+# def ratio_graph_hover_summary(hover_data: dict):
+#     point_of_interest = hover_data['points'][0]['customData']
+#
