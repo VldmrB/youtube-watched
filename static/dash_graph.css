@@ -3,9 +3,13 @@ body > * {
     color: #444444;
 }
 
-#graph-adjuster {
-    width: 150px;
+#ratio-graphs-slider-container {
+    width: 950px;
+}
+
+#date-period-slider-container {
     margin: -400px 0 400px 65%;
+    width: 150px;
 }
 
 .rc-slider-track {
