@@ -222,7 +222,14 @@ def top_watched_channels(conn: sqlite3.Connection, amount: int):
 
 def top_liked_or_disliked_videos_or_channels_by_ratio(
         conn: sqlite3.Connection,
+        query_type: str = 'Videos',
+        liked=True,
+        number_of_records: int = 25,
+        minimum_video_views: int = 1,
+        maximum_video_views: int = 100_000_000_000
         ):
+
+    order_by = 'DESC' if liked else 'ASC'
 
     videos_query = f"""SELECT
     v.title as Title,
@@ -239,29 +246,35 @@ def top_liked_or_disliked_videos_or_channels_by_ratio(
     AND Dislikes > 0
     AND Likes > 0
     AND Ratio > 0
-    AND Views >= 1
+    AND Views >= ? AND Views <= ?
 
-    ORDER BY Ratio DESC;"""
+    ORDER BY Ratio {order_by} 
+    LIMIT ?; 
+        """
+    channels_query = f"""SELECT
+    c.title AS Channel, 
+    sum(v.view_count) as Views,  
+    sum(v.like_count) AS Likes,
+    sum(v.dislike_count) AS Dislikes,
+    (sum(v.like_count) * 1.0 / sum(v.dislike_count)) AS Ratio
+    FROM videos v JOIN channels c ON v.channel_id = c.id
 
-    # channels_query = f"""SELECT
-    # c.title AS Channel,
-    # sum(v.view_count) as Views,
-    # sum(v.like_count) AS Likes,
-    # sum(v.dislike_count) AS Dislikes,
-    # (sum(v.like_count) * 1.0 / sum(v.dislike_count)) AS Ratio
-    # FROM videos v JOIN channels c ON v.channel_id = c.id
-    #
-    # GROUP BY Channel
-    # HAVING NOT v.title = 'unknown'
-    # AND Dislikes > 0
-    # AND Likes > 0
-    # AND Ratio > 0
-    # AND Views >= ? {max_views}
-    #
-    # ORDER BY Ratio {order_by}
-    # LIMIT ?;"""
+    GROUP BY Channel
+    HAVING NOT v.title = 'unknown'
+    AND Dislikes > 0
+    AND Likes > 0
+    AND Ratio > 0
+    AND Views >= ? AND Views <= ?
 
-    df = pd.read_sql(videos_query, conn)
-    df['PublishDate'] = df['PublishDate'].dt.date
+    ORDER BY Ratio {order_by} 
+    LIMIT ?;"""
 
+    query = videos_query if query_type == 'Videos' else channels_query
+    df = pd.read_sql(query, conn,
+                     params=(minimum_video_views, maximum_video_views,
+                             number_of_records)
+                     )
+    df['Ratio'] = df['Ratio'].round(2)
+    df['Views'] = df['Views'].astype(np.int32)
+    
     return df
