@@ -1,7 +1,6 @@
 import json
 import sqlite3
 from os.path import join
-from dataclasses import dataclass
 
 import dash
 import dash_core_components as dcc
@@ -35,9 +34,8 @@ hoverCompareCartesian
 """
 
 
-@dataclass(init=False, repr=False, eq=False, order=False, unsafe_hash=False)
-class DataCache:
-    ld_ratio: pd.DataFrame = None
+def get_db_path():
+    return join(get_project_dir_path_from_cookie(), DB_NAME)
 
 
 class Dashing(dash.Dash):
@@ -258,7 +256,7 @@ def update_liked_ratio_videos_graph(views, ratio_type):
                     Input(ratio_graphs_type_radio_id, 'value')])
 def update_disliked_ratio_videos_graph(views, ratio_type):
     pick_from = list(ratio_graphs_slider_marks.keys())
-    db_path = join(get_project_dir_path_from_cookie(), DB_NAME)
+    db_path = get_db_path()
     conn = sqlite_connection(db_path)
     data = analyze.top_liked_or_disliked_videos_or_channels_by_ratio(
         conn, ratio_type, False, 100, pick_from[views[0]], pick_from[views[1]])
@@ -266,10 +264,22 @@ def update_disliked_ratio_videos_graph(views, ratio_type):
     return ratios_graphs(data, False)
 
 
-@dash_app.callback(Output(ratio_graphs_summary_id, 'children'),
-                   [Input(liked_ratio_graph_id, 'hoverData'),
-                    Input(disliked_ratio_graph_id, 'hoverData')])
-def ratio_graph_hover_summary(liked_hover_data: dict,
-                              disliked_hover_data: dict):
-    pass
-
+# @dash_app.callback(Output(ratio_graphs_summary_id, 'children'),
+#                    [Input(liked_ratio_graph_id, 'hoverData'),
+#                     Input(disliked_ratio_graph_id, 'hoverData'),
+#                     State(ratio_graphs_type_radio_id, 'value')])
+# def ratio_graph_hover_summary(liked_hover_data: dict,
+#                               disliked_hover_data: dict):
+#     if disliked_hover_data:
+#         point_of_interest = disliked_hover_data['points'][0]['customdata']
+#     elif liked_hover_data:
+#         point_of_interest = liked_hover_data['points'][0]['customdata']
+#     else:
+#         point_of_interest = None
+#
+#     if point_of_interest:
+#         conn = sqlite_connection(get_db_path())
+#         '''Views, Ratio, Likes, Dislikes, Title, Channel, Upload date'''
+#         query = '''SELECT v.title as '''
+#         result = execute_query(conn,
+#                                'SELECT v.t')
