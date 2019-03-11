@@ -616,10 +616,9 @@ def update_videos(conn: sqlite3.Connection, api_auth,
                 if api_response['items']:
                     api_video_data = wrangle_video_record(api_response['items'])
                     filtered_api_video_data = {}
-                    if 'published_at' in api_video_data:
-                        # always the same, but will compare as different due to
-                        # the same value from the record being of datetime type
-                        api_video_data.pop('published_at')
+                    api_video_data.pop('published_at', None)
+                    # always the same, but will compare as different due to
+                    # the same value from the record being of datetime type
                     for key in api_video_data:
                         # in case the response is messed up and has empty/zero
                         # values. Not sure if possible, but being safe.
