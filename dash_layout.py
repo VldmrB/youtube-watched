@@ -1,21 +1,19 @@
-import json
 import sqlite3
 from os.path import join
 
-import dash
 import dash_core_components as dcc
 import dash_html_components as html
 import numpy as np
 import pandas as pd
-import plotly
 import plotly.graph_objs as go
-from flask import Response, Flask
+from flask import Flask
 from dash.dependencies import Input, Output, State
 from dash_html_components import Div
 
 import analyze
+from dashing.overrides import Dashing
 from config import DB_NAME
-from flask_utils import get_project_dir_path_from_cookie, db_has_records
+from flask_utils import get_project_dir_path_from_cookie
 from sql_utils import sqlite_connection
 
 """
@@ -36,19 +34,6 @@ hoverCompareCartesian
 
 def get_db_path():
     return join(get_project_dir_path_from_cookie(), DB_NAME)
-
-
-class Dashing(dash.Dash):
-
-    def serve_layout(self):
-        if db_has_records():
-            layout = self.layout
-        else:
-            layout = Div(['No data found. Make sure to first import your ',
-                          html.A('Takeout data', href='http://127.0.0.1:5000')])
-
-        return Response(json.dumps(layout, cls=plotly.utils.PlotlyJSONEncoder),
-                        mimetype='application/json')
 
 
 css = ['/static/dash_graph.css']
