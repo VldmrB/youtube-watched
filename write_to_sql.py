@@ -146,7 +146,7 @@ def wrangle_video_record(json_obj: dict):
             elif key == 'duration':
                 value = convert_duration(value)
             elif key == 'published_at':
-                value = value.replace('T', ' ')[:value.find('.')]
+                value = value.replace('T', ' ')
             elif key in ['view_count', 'dislike_count', 'like_count',
                          'comment_count']:
                 value = int(value)
