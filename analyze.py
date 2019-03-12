@@ -82,7 +82,7 @@ def retrieve_watch_data(conn: sqlite3.Connection) -> pd.DataFrame:
     times = pd.Series(np.ones(len(df.index.values)))
     df = df.assign(times=times.values)
 
-    df = df.groupby(pd.Grouper(freq='H')).aggregate(np.sum)
+    df = df.groupby(pd.Grouper(freq='H')).agg(np.sum)
     full_df_range = pd.date_range(df.index[0], df.index[-1], freq='H')
     df = df.reindex(full_df_range, fill_value=0)
     df.index.name = 'watched_at'
@@ -95,7 +95,7 @@ def retrieve_data_for_a_date_period(conn: sqlite3.Connection, date: str):
 
     tags = pd.read_sql(tags_query, conn, params=params)
     tags['Tag'] = tags['Tag'].str.lower()
-    tags = tags.groupby(by='Tag').aggregate(list)
+    tags = tags.groupby(by='Tag').agg(list)
     tags['Count'] = [sum(i) if not isinstance(i, int) else i
                      for i in tags['Count']]
 
@@ -110,23 +110,21 @@ def retrieve_data_for_a_date_period(conn: sqlite3.Connection, date: str):
             {'name': ['Views'], 'id': 'Views'}
         ]
         summary = pd.read_sql(gen_query, conn, params=params)
-        channels = summary.groupby(by='Channel').aggregate(list)
-        channels = channels.assign(Views=[
-            sum(i) for i in channels.Views.values])
+        channels = summary.drop('Title', axis=1)
+        channels = channels.groupby(by='Channel').agg(np.sum)
+
         channels = channels.sort_values(by='Views', ascending=False)
-        channels = channels.drop(['Title'], axis=1)
         summary = summary.drop('Views', axis=1)
         summary = summary[summary['Title'] != 'unknown']
-        summary = summary.sort_values(by='Channel')
         channels = channels.reset_index()
         channel_rows = channels.to_dict('rows')
-        smmry_rows = summary.to_dict('rows')
+        summary_rows = summary.to_dict('rows')
         table_rows = []
         channel_rows_indexes = []
         for dct in channel_rows:
             table_rows.append(dct)
             channel_rows_indexes.append(len(table_rows)-1)
-            for vid_dict in smmry_rows:
+            for vid_dict in summary_rows:
                 if vid_dict['Channel'] == dct['Channel']:
                     row = {'Channel': vid_dict['Title']}
                     table_rows.append(row)
@@ -139,6 +137,12 @@ def retrieve_data_for_a_date_period(conn: sqlite3.Connection, date: str):
                       for n in column_names]
         channels = pd.read_sql(summary_channels_query, conn, params=params)
         table_rows = channels.to_dict('rows')
+        # below .extend necessary due to green colored cells remaining that way
+        # the entire time after calling summary on a day/hour value, even when
+        # calling it on year/month value afterwards
+        style_cell_cond_main.extend(
+            [{'if': {'row_index': i}, 'backgroundColor': 'white'} for i
+             in range(len(table_rows))])
 
     views = (date + ' (total views: ' + str(channels.Views.sum()) + ')')
     for col_entry in table_cols:
@@ -187,7 +191,7 @@ def top_tags_data(conn: sqlite3.Connection, amount: int):
     results['Tag'] = results['Tag'].str.lower()
     results = results.assign(Count=np.ones(len(results.index)))
     results = results.groupby('Tag')
-    results = results.aggregate(np.sum).sort_values(by='Count', ascending=False)
+    results = results.agg(np.sum).sort_values(by='Count', ascending=False)
     print(results.memory_usage(index=True, deep=True).sum() / (1024 * 2))
     return results[:amount]
 
@@ -220,9 +224,8 @@ def top_watched_channels(conn: sqlite3.Connection, amount: int):
     return df
 
 
-def top_liked_or_disliked_videos_or_channels_by_ratio(
+def top_liked_or_disliked_videos_by_ratio(
         conn: sqlite3.Connection,
-        query_type: str = 'Videos',
         liked=True,
         number_of_records: int = 25,
         minimum_video_views: int = 1,
@@ -231,7 +234,7 @@ def top_liked_or_disliked_videos_or_channels_by_ratio(
 
     order_by = 'DESC' if liked else 'ASC'
 
-    videos_query = f"""SELECT
+    query = f"""SELECT
     v.title as Title,
     c.title AS Channel, 
     v.published_at as PublishDate,
@@ -251,30 +254,10 @@ def top_liked_or_disliked_videos_or_channels_by_ratio(
     ORDER BY Ratio {order_by} 
     LIMIT ?; 
         """
-    channels_query = f"""SELECT
-    c.title AS Channel, 
-    sum(v.view_count) as Views,  
-    sum(v.like_count) AS Likes,
-    sum(v.dislike_count) AS Dislikes,
-    (sum(v.like_count) * 1.0 / sum(v.dislike_count)) AS Ratio
-    FROM videos v JOIN channels c ON v.channel_id = c.id
-
-    GROUP BY Channel
-    HAVING NOT v.title = 'unknown'
-    AND Dislikes > 0
-    AND Likes > 0
-    AND Ratio > 0
-    AND Views >= ? AND Views <= ?
-
-    ORDER BY Ratio {order_by} 
-    LIMIT ?;"""
-
-    query = videos_query if query_type == 'Videos' else channels_query
     df = pd.read_sql(query, conn,
                      params=(minimum_video_views, maximum_video_views,
                              number_of_records)
                      )
     df['Ratio'] = df['Ratio'].round(2)
-    df['Views'] = df['Views'].astype(np.int32)
-    
+
     return df
