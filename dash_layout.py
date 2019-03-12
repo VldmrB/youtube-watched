@@ -14,7 +14,7 @@ import analyze
 from dashing.overrides import Dashing
 from config import DB_NAME
 from flask_utils import get_project_dir_path_from_cookie
-from sql_utils import sqlite_connection
+from sql_utils import sqlite_connection, execute_query
 
 """
 zoom2d
@@ -71,7 +71,7 @@ history_graph = Div(
 # ------ Most disliked/liked videos graphs layout
 ratio_graphs_slider_marks = {1: '1', 100_000: '100K', 1_000_000: '1M',
                              10_000_000: '10M', 100_000_000: '100M',
-                             10_000_000_000: '10B', 100_000_000_000: '100B'}
+                             10_000_000_000: '10B', 50_000_000_000: '50B'}
 ratio_graphs_slider_container_id = 'ratio-graphs-slider-container'
 ratio_graphs_slider_id = 'ratio-graphs-slider'
 ratio_graphs_summary_id = 'ratio-graph-hover-summary'
@@ -79,13 +79,6 @@ ratio_graphs_container_id = 'ratio-graphs-container'
 ratio_graphs_type_radio_id = 'ratio-graphs-type'
 liked_ratio_graph_id = 'liked-ratio-graph'
 disliked_ratio_graph_id = 'disliked-ratio-graph'
-
-ratio_graphs_type_radio = dcc.RadioItems(
-                id=ratio_graphs_type_radio_id,
-                options=[{'label': i, 'value': i} for i in
-                         ['Videos', 'Channels']],
-                value='Videos',
-                labelStyle={'display': 'inline-block'})
 
 
 ratio_graphs_slider = html.Div(
@@ -106,7 +99,7 @@ disliked_ratio_graph = Div(dcc.Graph(
 
 
 history_date_period_summary_msg = dcc.Markdown(
-    'Click on a point on the graph above to '
+    'Click on a point on the above graph to '
     'display a summary for that period')
 
 # ------ Layout organizing/element setting
@@ -119,11 +112,12 @@ dash_app.layout = Div(
         Div(history_date_period_summary_msg, id=history_date_period_summary_id),
         # ratio graphs, point summary and their controls
         Div([
-            Div(ratio_graphs_type_radio),  # radio choice, videos/channels
             liked_ratio_graph,
             disliked_ratio_graph,
             Div(id=ratio_graphs_summary_id,
-                style=dict(display='inline-block')),
+                style={'display': 'inline-block', 'vertical-align': 'top',
+                       'margin': 30},
+                children='Ey!'),
             ratio_graphs_slider
         ], style=dict(clear='both')
         )
@@ -224,47 +218,43 @@ def ratios_graphs(data: pd.DataFrame, liked: bool):
 
 
 @dash_app.callback(Output(liked_ratio_graph_id, 'figure'),
-                   [Input(ratio_graphs_slider_id, 'value'),
-                    Input(ratio_graphs_type_radio_id, 'value')])
-def update_liked_ratio_videos_graph(views, ratio_type):
+                   [Input(ratio_graphs_slider_id, 'value')])
+def update_liked_ratio_videos_graph(views):
     pick_from = list(ratio_graphs_slider_marks.keys())
     db_path = join(get_project_dir_path_from_cookie(), DB_NAME)
     conn = sqlite_connection(db_path)
-    data = analyze.top_liked_or_disliked_videos_or_channels_by_ratio(
-        conn, ratio_type, True, 100, pick_from[views[0]], pick_from[views[1]])
+    data = analyze.top_liked_or_disliked_videos_by_ratio(
+        conn, True, 100, pick_from[views[0]], pick_from[views[1]])
     conn.close()
     return ratios_graphs(data, True)
 
 
 @dash_app.callback(Output(disliked_ratio_graph_id, 'figure'),
-                   [Input(ratio_graphs_slider_id, 'value'),
-                    Input(ratio_graphs_type_radio_id, 'value')])
-def update_disliked_ratio_videos_graph(views, ratio_type):
+                   [Input(ratio_graphs_slider_id, 'value')])
+def update_disliked_ratio_videos_graph(views):
     pick_from = list(ratio_graphs_slider_marks.keys())
     db_path = get_db_path()
     conn = sqlite_connection(db_path)
-    data = analyze.top_liked_or_disliked_videos_or_channels_by_ratio(
-        conn, ratio_type, False, 100, pick_from[views[0]], pick_from[views[1]])
+    data = analyze.top_liked_or_disliked_videos_by_ratio(
+        conn, False, 100, pick_from[views[0]], pick_from[views[1]])
     conn.close()
     return ratios_graphs(data, False)
 
 
 # @dash_app.callback(Output(ratio_graphs_summary_id, 'children'),
 #                    [Input(liked_ratio_graph_id, 'hoverData'),
-#                     Input(disliked_ratio_graph_id, 'hoverData'),
-#                     State(ratio_graphs_type_radio_id, 'value')])
-# def ratio_graph_hover_summary(liked_hover_data: dict,
-#                               disliked_hover_data: dict):
-#     if disliked_hover_data:
-#         point_of_interest = disliked_hover_data['points'][0]['customdata']
-#     elif liked_hover_data:
-#         point_of_interest = liked_hover_data['points'][0]['customdata']
-#     else:
-#         point_of_interest = None
-#
-#     if point_of_interest:
-#         conn = sqlite_connection(get_db_path())
-#         '''Views, Ratio, Likes, Dislikes, Title, Channel, Upload date'''
-#         query = '''SELECT v.title as '''
-#         result = execute_query(conn,
-#                                'SELECT v.t')
+#                     Input(disliked_ratio_graph_id, 'hoverData')])
+def ratio_graph_hover_summary(liked_hover_data: dict,
+                              disliked_hover_data: dict):
+    if disliked_hover_data:
+        point_of_interest = disliked_hover_data['points'][0]['customdata']
+    elif liked_hover_data:
+        point_of_interest = liked_hover_data['points'][0]['customdata']
+    else:
+        point_of_interest = None
+
+    if point_of_interest:
+        conn = sqlite_connection(get_db_path())
+        '''Views, Ratio, Likes, Dislikes, Title, Channel, Upload date'''
+        query = '''SELECT v.title as '''
+        result = execute_query(conn, query)
