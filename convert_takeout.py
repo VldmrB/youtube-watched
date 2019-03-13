@@ -209,8 +209,10 @@ def from_divs_to_dict(path: list, occ_dict: dict = None,
         ones from December 15th, for example.
         The above is the reason for the below block of code.'''
         current_timestamp_dst: timedelta = watched_at.astimezone(local_tz).dst()
-        if current_timestamp_dst:
-            if not download_datetime_dst:
+        if current_timestamp_dst:  # if current timestamp in DST timezone
+            if not download_datetime_dst:  # if Takeout archive was created
+                # outside the DST, the timestamp would be showing a non-DST
+                # time, therefore adjust
                 watched_at = watched_at + current_timestamp_dst
         else:
             if download_datetime_dst:
