@@ -1,10 +1,12 @@
 import os
 import re
-from bs4 import BeautifulSoup as BSoup
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Union
-from utils import extract_video_id_from_url
 
+from bs4 import BeautifulSoup as BSoup
+from tzlocal import get_localzone
+
+from utils import extract_video_id_from_url
 
 """
 In addition to seemingly only returning an oddly even number of records 
@@ -35,11 +37,13 @@ every end of the file. Its presence still doesn't make sense
 as divs with the same class also wrap every video entry individually.
 """
 
+local_tz = get_localzone()
+local_tz_offset = datetime.now(get_localzone()).utcoffset().total_seconds()/3600
 watch_url_re = re.compile(r'watch\?v=')
 channel_url_re = re.compile(r'youtube\.com/channel')
 
 
-def get_watch_history_files(takeout_path: str = '.'):
+def get_watch_history_files(takeout_path: str = '.') -> Union[list, None]:
     """
     Only locates watch-history.html files if any of the following is
     in the provided directory:
@@ -67,25 +71,24 @@ def get_watch_history_files(takeout_path: str = '.'):
     dir_contents = os.listdir(takeout_path)
     watch_histories = []
     for path in dir_contents:
-        if path.startswith('watch-history'):
-            watch_histories.append(os.path.join(takeout_path, path))
-
-    if watch_histories:
-        return watch_histories  # assumes multiple watch-history.html files
-        # (with nums appended to their file names)
-    for path in dir_contents:
         if path.startswith('takeout-2') and path[-5:-3] == 'Z-':
             full_path = os.path.join(takeout_path, path, 'Takeout', 'YouTube',
                                      'history', 'watch-history.html')
             if os.path.exists(full_path):
-                watch_histories.append(os.path.join(takeout_path, full_path))
+                takeout_download_utc = datetime.strptime(path[8:-4],
+                                                         '%Y%m%dT%H%M%S%z')
+                takeout_download_local = takeout_download_utc.astimezone(
+                    get_localzone())
+                watch_histories.append(
+                    [os.path.join(takeout_path, full_path),
+                     takeout_download_local.dst()])
             else:
                 print(f'Expected watch-history.html in {path}, found none')
 
     return watch_histories
 
 
-def from_divs_to_dict(path: str, occ_dict: dict = None,
+def from_divs_to_dict(path: list, occ_dict: dict = None,
                       write_changes=False) -> dict:
     """
     Retrieves all the available info from the passed watch-history.html file;
@@ -104,6 +107,9 @@ def from_divs_to_dict(path: str, occ_dict: dict = None,
     is negligible, if there's only a few files.
     :return:
     """
+    download_datetime_dst = path[1]
+    path = path[0]
+
     with open(path, 'r') as takeout_file:
         content = takeout_file.read()
         original_content = content
@@ -142,7 +148,7 @@ def from_divs_to_dict(path: str, occ_dict: dict = None,
         if new_content_end > 0:
             content = content[:new_content_end]
             content = content[:content.rfind('<div')]  # since the previous
-        # find includes half a div from the previous watch-history.html
+        # str.find() includes half a div from the previous watch-history.html
     if content != original_content and write_changes:
         print('Rewrote', path, '(trimmed junk HTML).')
         with open(path, 'w') as new_file:
@@ -193,8 +199,22 @@ def from_divs_to_dict(path: str, occ_dict: dict = None,
                     pass
             watched_at = all_text.splitlines()[-1].strip()
 
-        watched_at = str(datetime.strptime(watched_at[:-4],
-                                           '%b %d, %Y, %I:%M:%S %p'))
+        watched_at = datetime.strptime(watched_at[:-4],
+                                       '%b %d, %Y, %I:%M:%S %p')
+
+        '''At least for the US EDT/EST, Takeout returns ALL the dates in 
+        whichever timezone is in effect at the time of the archive download, 
+        e.g. if the archive was downloaded on March 20th, all the date(time)s 
+        will be in the EDT timezone with the hours adjusted accordingly, even 
+        ones from December 15th, for example.
+        The above is the reason for the below block of code.'''
+        current_timestamp_dst: timedelta = watched_at.astimezone(local_tz).dst()
+        if current_timestamp_dst:
+            if not download_datetime_dst:
+                watched_at = watched_at + current_timestamp_dst
+        else:
+            if download_datetime_dst:
+                watched_at = watched_at - download_datetime_dst
 
         occ_dict['videos'].setdefault(video_id, default_values)
         occ_dict['videos'][video_id]['timestamps'].append(watched_at)
@@ -225,7 +245,7 @@ def get_all_records(takeout_path: str = '.',
 
     occ_dict = {}
     for takeout_file in watch_files:
-        print(takeout_file)
+        print(takeout_file[0])
         from_divs_to_dict(takeout_file, occ_dict=occ_dict,
                           write_changes=prune_html)
     if verbose:
@@ -239,3 +259,7 @@ def get_all_records(takeout_path: str = '.',
             json.dump(occ_dict['videos'], all_records_file, indent=4)
 
     return occ_dict['videos']
+
+
+# if __name__ == '__main__':
+#     get_all_records(r'D:', verbose=False)
