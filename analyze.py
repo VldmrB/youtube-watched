@@ -241,7 +241,8 @@ def top_liked_or_disliked_videos_by_ratio(
     v.view_count as Views,
     v.like_count AS Likes,
     v.dislike_count AS Dislikes,
-    (v.like_count * 1.0 / v.dislike_count) AS Ratio
+    (v.like_count * 1.0 / v.dislike_count) AS Ratio,
+    v.id as VideoID
 
     FROM videos v JOIN channels c ON v.channel_id = c.id
 

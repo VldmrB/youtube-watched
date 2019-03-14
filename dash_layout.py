@@ -1,5 +1,6 @@
 import sqlite3
 from os.path import join
+from textwrap import dedent
 
 import dash_core_components as dcc
 import dash_html_components as html
@@ -34,6 +35,17 @@ hoverCompareCartesian
 
 def get_db_path():
     return join(get_project_dir_path_from_cookie(), DB_NAME)
+
+
+def format_num(num: int):
+    new_num = ''
+    num = str(num)[::-1]
+    last_index = len(num) - 1
+    for i, ltr in enumerate(num):
+        new_num += ltr
+        if (i + 1) % 3 == 0 and i < last_index:
+            new_num += ','
+    return new_num[::-1]
 
 
 css = ['/static/dash_graph.css']
@@ -116,7 +128,7 @@ dash_app.layout = Div(
             disliked_ratio_graph,
             Div(id=ratio_graphs_summary_id,
                 style={'display': 'inline-block', 'vertical-align': 'top',
-                       'margin': 30},
+                       'width': 300},
                 children='Ey!'),
             ratio_graphs_slider
         ], style=dict(clear='both')
@@ -188,20 +200,10 @@ def ratios_graphs(data: pd.DataFrame, liked: bool):
     else:
         title = 'Lowest like/dislike ratio'
 
-    if 'Title' in data.columns:
-        text = [f'Title: {i[0]}<br>Channel: {i[1]}<br>Uploaded: {i[2][:10]}'
-                for i in data.loc[:, 'Title':'PublishDate'].values]
-        hover_template = ('Views: %{x:2f}<br>'
-                          'Ratio: %{y}<br>'
-                          '%{text}')
-    else:
-        text = [f'Channel: {i}'
-                for i in data.loc[:, 'Channel'].values]
-        hover_template = ('Views: %{x:2f}<br>'
-                          'Ratio: %{y}<br>'
-                          '%{text}')
     data = [go.Scatter(x=data.Views, y=data.Ratio, mode='markers',
-                       text=text, hovertemplate=hover_template,
+                       text=data.VideoID,
+                       hovertemplate='ID: %{text}',
+                       customdata=data.VideoID,
                        showlegend=False,
                        name=''  # counteract the tooltip showing the trace name,
                        # despite one not being explicitly set, brought on by
@@ -241,9 +243,9 @@ def update_disliked_ratio_videos_graph(views):
     return ratios_graphs(data, False)
 
 
-# @dash_app.callback(Output(ratio_graphs_summary_id, 'children'),
-#                    [Input(liked_ratio_graph_id, 'hoverData'),
-#                     Input(disliked_ratio_graph_id, 'hoverData')])
+@dash_app.callback(Output(ratio_graphs_summary_id, 'children'),
+                   [Input(liked_ratio_graph_id, 'hoverData'),
+                    Input(disliked_ratio_graph_id, 'hoverData')])
 def ratio_graph_hover_summary(liked_hover_data: dict,
                               disliked_hover_data: dict):
     if disliked_hover_data:
@@ -256,5 +258,24 @@ def ratio_graph_hover_summary(liked_hover_data: dict,
     if point_of_interest:
         conn = sqlite_connection(get_db_path())
         '''Views, Ratio, Likes, Dislikes, Title, Channel, Upload date'''
-        query = '''SELECT v.title as '''
-        result = execute_query(conn, query)
+        query = '''SELECT v.title, c.title, v.published_at, v.view_count,
+        v.like_count, v.dislike_count, (v.like_count * 1.0 / dislike_count) FROM
+        videos v JOIN channels c ON v.channel_id = c.id
+        WHERE v.id = ?'''
+        r = execute_query(conn, query, (point_of_interest,))[0]
+        conn.close()
+        
+        views = format_num(r[3])
+        likes = format_num(r[4])
+        dislikes = format_num(r[5])
+
+        return dcc.Markdown(dedent(
+                f'''**Title:** {r[0]}    
+                    **Channel:** {r[1]}    
+                    **Uploaded:** {r[2][:10]}    
+                    **Views:** {views}    
+                    **Likes:** {likes}    
+                    **Dislikes:** {dislikes}    
+                    **Ratio:** {round(r[6], 2)}    
+                    **ID:** {point_of_interest}
+                '''))
