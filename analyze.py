@@ -131,6 +131,11 @@ def retrieve_data_for_a_date_period(conn: sqlite3.Connection, date: str):
         style_cell_cond_main.extend(
             [{'if': {'row_index': i}, 'backgroundColor': '#A1C935'} for i
              in channel_rows_indexes])
+        # resetting cell color back to white for cells that were set to green by
+        # previous daily/hourly queries
+        style_cell_cond_main.extend(
+            [{'if': {'row_index': i}, 'backgroundColor': 'white'} for i
+             in range(len(table_rows)) if i not in channel_rows_indexes])
     else:
         column_names = ['Channel', 'Views']
         table_cols = [{'name': [n], 'id': n}
@@ -150,7 +155,7 @@ def retrieve_data_for_a_date_period(conn: sqlite3.Connection, date: str):
     main_table = dash_table.DataTable(
         columns=table_cols,
         data=table_rows, id='channels-table',
-        style_table={'maxHeight': '360', 'maxWidth': '800'},
+        style_table={'maxHeight': '360', 'maxWidth': '800', 'margin': '5'},
         n_fixed_rows=2,
         style_cell_conditional=style_cell_cond_main,
         **generic_table_settings)
@@ -160,8 +165,7 @@ def retrieve_data_for_a_date_period(conn: sqlite3.Connection, date: str):
     tags_table = dash_table.DataTable(
         columns=tags_cols,
         data=tags_rows, id='tags-table',
-        style_table={'maxHeight': '377',
-                     'maxWidth': '300'},
+        style_table={'maxHeight': '377', 'maxWidth': '300', 'margin': '5'},
         n_fixed_rows=1,
         style_cell_conditional=style_cell_cond_aux,
         **generic_table_settings)
@@ -172,8 +176,7 @@ def retrieve_data_for_a_date_period(conn: sqlite3.Connection, date: str):
     topics_table = dash_table.DataTable(
         columns=topics_cols,
         data=topics_rows, id='topics-table',
-        style_table={'maxHeight': '377',
-                     'maxWidth': '300'},
+        style_table={'maxHeight': '377', 'maxWidth': '300', 'margin': '5'},
         n_fixed_rows=1,
         style_cell_conditional=style_cell_cond_aux,
         **generic_table_settings)
@@ -235,20 +238,15 @@ def top_liked_or_disliked_videos_by_ratio(
     order_by = 'DESC' if liked else 'ASC'
 
     query = f"""SELECT
-    v.title as Title,
-    c.title AS Channel, 
-    v.published_at as PublishDate,
-    v.view_count as Views,
-    v.like_count AS Likes,
-    v.dislike_count AS Dislikes,
     (v.like_count * 1.0 / v.dislike_count) AS Ratio,
-    v.id as VideoID
-
+    v.id as VideoID,
+    v.view_count as Views
+    -- Comment count
     FROM videos v JOIN channels c ON v.channel_id = c.id
 
     WHERE NOT v.title = 'unknown'
-    AND Dislikes > 0
-    AND Likes > 0
+    AND v.dislike_count > 0
+    AND v.like_count > 0
     AND Ratio > 0
     AND Views >= ? AND Views <= ?
 
@@ -262,3 +260,4 @@ def top_liked_or_disliked_videos_by_ratio(
     df['Ratio'] = df['Ratio'].round(2)
 
     return df
+

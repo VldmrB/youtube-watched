@@ -3,15 +3,6 @@ body > * {
     color: #444444;
 }
 
-#ratio-graphs-slider-container {
-    width: 950px;
-}
-
-#date-period-slider-container {
-    margin: -400px 0 400px 65%;
-    width: 150px;
-}
-
 .rc-slider-track {
     background-color: rgb(31, 119, 180);
     border-color: rgb(31, 119, 180);
@@ -22,25 +13,13 @@ body > * {
     color: rgb(31, 119, 180);
 }
 
-#channels-table {
-    width: 800px;
-    float: left;
-    margin: 5px 5px;
-}
-#tags-table {
-    width: 300px;
-    float: left;
-    margin: 5px 5px;
-}
-#topics-table {
-    width: 300px;
-    float: left;
-    margin: 5px 5px;
-}
-
 .row-1 {
     overflow-x: hidden!important;
     overflow-y: auto!important;
+}
+
+#channels-table > div:nth-child(1) > div:nth-child(1) > div:nth-child(2) {
+    overflow-y: scroll!important;
 }
 
 #tags-table > div:nth-child(1) > div:nth-child(1) > div:nth-child(1) > div:nth-child(2),

@@ -7,14 +7,15 @@ import dash_html_components as html
 import numpy as np
 import pandas as pd
 import plotly.graph_objs as go
-from flask import Flask
 from dash.dependencies import Input, Output, State
 from dash_html_components import Div
+from flask import Flask
 
 import analyze
-from dashing.overrides import Dashing
 from config import DB_NAME
+from dashing.overrides import Dashing
 from flask_utils import get_project_dir_path_from_cookie
+from get_from_sql import videos_scatter_graph
 from sql_utils import sqlite_connection, execute_query
 
 """
@@ -30,6 +31,7 @@ autoScale2d
 resetScale2d
 hoverClosestCartesian
 hoverCompareCartesian
+toggleSpikelines
 """
 
 
@@ -56,21 +58,22 @@ dash_app.title = 'Graphs'
 
 # -------------------- Layout element creation
 graph_tools_to_remove = [
-    'select2d', 'lasso2d', 'hoverCompareCartesian',
-    'hoverClosestCartesian', 'zoomIn2d', 'zoomOut2d']
+    'select2d', 'lasso2d', 'hoverCompareCartesian', 'resetScale2d',
+    'hoverClosestCartesian', 'zoomIn2d', 'zoomOut2d', 'toggleSpikelines']
 
 group_by_values = ['Year', 'Month', 'Day', 'Hour']
 date_periods_vals = {i: group_by_values[i][0]
                      for i in range(len(group_by_values))}
 
-# ------ Watch history graph layout
+# ------ Watch history graph
 history_date_period_slider_id = 'date-period-slider'
 history_date_period_slider_container_id = 'date-period-slider-container'
 history_date_period_summary_id = 'history-date-period-summary'
 
-group_by_slider = html.Div(
+group_by_slider = Div(
     [dcc.Slider(id=history_date_period_slider_id, min=0, max=3, value=1,
                 marks=group_by_values)],
+    style={'margin': '-400px 0 400px 65%', 'width': 150},
     id=history_date_period_slider_container_id)
 history_graph_id = 'watch-history'
 history_graph = Div(
@@ -80,59 +83,120 @@ history_graph = Div(
                     modeBarButtonsToRemove=graph_tools_to_remove),
         style=dict(height=400)))
 
-# ------ Most disliked/liked videos graphs layout
-ratio_graphs_slider_marks = {1: '1', 100_000: '100K', 1_000_000: '1M',
-                             10_000_000: '10M', 100_000_000: '100M',
-                             10_000_000_000: '10B', 50_000_000_000: '50B'}
-ratio_graphs_slider_container_id = 'ratio-graphs-slider-container'
-ratio_graphs_slider_id = 'ratio-graphs-slider'
-ratio_graphs_summary_id = 'ratio-graph-hover-summary'
-ratio_graphs_container_id = 'ratio-graphs-container'
-ratio_graphs_type_radio_id = 'ratio-graphs-type'
-liked_ratio_graph_id = 'liked-ratio-graph'
-disliked_ratio_graph_id = 'disliked-ratio-graph'
-
-
-ratio_graphs_slider = html.Div(
-    [dcc.RangeSlider(id=ratio_graphs_slider_id,
-                     min=0, max=len(ratio_graphs_slider_marks)-1, value=[1, 3],
-                     marks=list(ratio_graphs_slider_marks.values()))],
-    id=ratio_graphs_slider_container_id)
-liked_ratio_graph = Div(dcc.Graph(
-        id=liked_ratio_graph_id,
-        config=dict(displaylogo=False,
-                    modeBarButtonsToRemove=graph_tools_to_remove),
-        style=dict(height=475, width=475)), style=dict(display='inline-block'))
-disliked_ratio_graph = Div(dcc.Graph(
-        id=disliked_ratio_graph_id,
-        config=dict(displaylogo=False,
-                    modeBarButtonsToRemove=graph_tools_to_remove),
-        style=dict(height=475, width=475)), style=dict(display='inline-block'))
-
-
 history_date_period_summary_msg = dcc.Markdown(
     'Click on a point on the above graph to '
     'display a summary for that period')
 
-# ------ Layout organizing/element setting
+# ------ Scatter videos' graph, its controls and point summary 
+v_scatter_graph_view_slider_marks = {1: '1', 100_000: '100K', 1_000_000: '1M',
+                                     10_000_000: '10M', 100_000_000: '100M',
+                                     10_000_000_000: '10B',
+                                     50_000_000_000: '50B'}
+v_scatter_graph_view_range_nums = list(v_scatter_graph_view_slider_marks.keys())
+v_scatter_graph_slider_container_id = 'scatter-graph-slider-container'
+v_scatter_graph_x_dropdown_id = 'scatter-graph-x-dropdown'
+v_scatter_graph_y_dropdown_id = 'scatter-graph-y-dropdown'
+v_scatter_graph_slider_id = 'scatter-graph-slider'
+v_scatter_graph_summary_id = 'scatter-graph-hover-summary'
+v_scatter_graph_container_id = 'scatter-graph-container'
+v_scatter_graph_id = 'scatter-graph'
 
+v_scatter_graph_slider = html.Div(
+    [dcc.RangeSlider(id=v_scatter_graph_slider_id,
+                     min=0, max=len(v_scatter_graph_view_slider_marks) - 1,
+                     value=[1, 3],
+                     marks=list(v_scatter_graph_view_slider_marks.values()))],
+    id=v_scatter_graph_slider_container_id, style={'width': 800})
+
+scatter_dropdown_style = {'display': 'flex',
+                          'justify-content': 'space-between',
+                          'align-items': 'center',
+                          'margin': 5,
+                          'width': 350}
+
+x_axis_list = {
+    'Likes/dislikes ratio (highest)': 'LikeRatioDesc',
+    'Likes/dislikes ratio (lowest)': 'LikeRatioAsc',
+    'Views': 'Views',
+    'Tag count': 'TagCount',
+    'Duration': 'Duration',
+    'Comment count': 'CommentCount',
+    'Title length': 'TitleLength',
+}
+
+y_axis_list = {
+    'Likes/dislikes ratio': 'Ratio',
+    'Views': 'Views',
+    'Tag count': 'TagCount',
+    'Duration': 'Duration',
+    'Comment count': 'CommentCount',
+    'Title length': 'TitleLength',
+}
+
+v_scatter_graph_x_dropdown = Div(
+    children=['X axis: ', dcc.Dropdown(
+        value='LikeRatioDesc',
+        options=[{'label': k, 'value': v} for k, v in x_axis_list.items()],
+        style={'width': 300},
+        id=v_scatter_graph_x_dropdown_id)],
+    style=scatter_dropdown_style)
+
+v_scatter_graph_y_dropdown = Div(
+    children=['Y axis: ', dcc.Dropdown(
+        value='Views',
+        options=[{'label': k, 'value': v} for k, v in y_axis_list.items()],
+        style={'width': 300},
+        id=v_scatter_graph_y_dropdown_id)],
+    style=scatter_dropdown_style)
+
+v_scatter_graph = Div(
+    dcc.Graph(
+        id=v_scatter_graph_id,
+        config=dict(displaylogo=False,
+                    modeBarButtonsToRemove=graph_tools_to_remove),
+        style=dict(height=500, width=800)),
+    style=dict(display='inline-block'))
+
+v_scatter_graph_section = Div(
+    [
+        Div(
+            children=[
+                v_scatter_graph_x_dropdown,
+                v_scatter_graph_y_dropdown
+            ],
+            style={
+                'display': 'flex',
+                'justify-content': 'space-between',
+                'width': 720
+            }),
+        Div(
+            children=[
+                v_scatter_graph,
+                Div(
+                    id=v_scatter_graph_summary_id,
+                    children='Mouseover summary'
+                )
+            ],
+            style={'display': 'flex'}
+        ),
+        v_scatter_graph_slider,
+    ],
+    style={'margin': 15},
+    id='scatter-graph-section-container'
+)
+
+# ------ Layout organizing/setting {Final}
 dash_app.layout = Div(
     [
         # introductory history graph
         Div(history_graph), Div(group_by_slider),
         # summary for a clicked on point on the above graph (date period)
-        Div(history_date_period_summary_msg, id=history_date_period_summary_id),
-        # ratio graphs, point summary and their controls
-        Div([
-            liked_ratio_graph,
-            disliked_ratio_graph,
-            Div(id=ratio_graphs_summary_id,
-                style={'display': 'inline-block', 'vertical-align': 'top',
-                       'width': 300},
-                children='Ey!'),
-            ratio_graphs_slider
-        ], style=dict(clear='both')
-        )
+        Div(history_date_period_summary_msg,
+            id=history_date_period_summary_id,
+            style={'display': 'flex',
+                   'margin': '0 15px'}
+            ),
+        v_scatter_graph_section
     ])
 # -------------------- Layout {End}
 
@@ -174,16 +238,19 @@ def update_history_chart(value):
 @dash_app.callback(Output(history_date_period_summary_id, 'children'),
                    [Input(history_graph_id, 'clickData')],
                    [State(history_date_period_slider_id, 'value')])
-def show_summary(data, date_period):
+def history_chart_date_summary(data, date_period):
     if data:
+        date = data['points'][0]['x']
+        if data['points'][0]['y'] == 0:
+            return f'No videos for the period of {date}'
         if date_period == 0:
-            date = data['points'][0]['x'][:4]
+            date = date[:4]
         elif date_period == 1:
-            date = data['points'][0]['x'][:7]
+            date = date[:7]
         elif date_period == 2:
-            date = data['points'][0]['x'][:10]
+            date = date[:10]
         else:
-            date = data['points'][0]['x'][:13]
+            date = date[:13]
 
         db_path = join(get_project_dir_path_from_cookie(), DB_NAME)
         conn = sqlite_connection(db_path)
@@ -194,64 +261,53 @@ def show_summary(data, date_period):
         return history_date_period_summary_msg
 
 
-def ratios_graphs(data: pd.DataFrame, liked: bool):
-    if liked:
-        title = 'Highest like/dislike ratio'
-    else:
-        title = 'Lowest like/dislike ratio'
-
-    data = [go.Scatter(x=data.Views, y=data.Ratio, mode='markers',
-                       text=data.VideoID,
-                       hovertemplate='ID: %{text}',
-                       customdata=data.VideoID,
-                       showlegend=False,
-                       name=''  # counteract the tooltip showing the trace name,
-                       # despite one not being explicitly set, brought on by
-                       # use of hovertemplate
+def construct_v_scatter_graph(df: pd.DataFrame,
+                              x_axis_col: str, y_axis_col: str):
+    clr_dict = {k: v for k, v in zip(df.Channel.unique(),
+                                     list(range(len(df.Channel.unique()))))}
+    marker_options = {'color': [clr_dict[i] for i in df.Channel],
+                      'colorscale': 'Electric', 'opacity': 0.7, 'size': 8
+                      }
+    data = [go.Scatter(x=df[x_axis_col], y=df[y_axis_col], mode='markers',
+                       marker=marker_options,
+                       customdata=df.VideoID,
+                       showlegend=True,
+                       name=''
                        )]
     layout = go.Layout(
-        title=title,
-        xaxis=go.layout.XAxis(title='Views'),
-        yaxis=go.layout.YAxis(title='Like/dislike ratio'),
         margin=dict.fromkeys(list('ltrb'), 40),
         hovermode='closest', colorscale=go.layout.Colorscale()
     )
     return go.Figure(data=data, layout=layout)
 
 
-@dash_app.callback(Output(liked_ratio_graph_id, 'figure'),
-                   [Input(ratio_graphs_slider_id, 'value')])
-def update_liked_ratio_videos_graph(views):
-    pick_from = list(ratio_graphs_slider_marks.keys())
+@dash_app.callback(Output(v_scatter_graph_id, 'figure'),
+                   [
+                       Input(v_scatter_graph_x_dropdown_id, 'value'),
+                       Input(v_scatter_graph_y_dropdown_id, 'value'),
+                       Input(v_scatter_graph_slider_id, 'value'),
+                   ])
+def update_v_scatter_graph(x_axis_type: str, y_axis_type: str, views):
+    if not x_axis_type or not y_axis_type:
+        return None
+    min_views = v_scatter_graph_view_range_nums[views[0]]
+    max_views = v_scatter_graph_view_range_nums[views[1]]
     db_path = join(get_project_dir_path_from_cookie(), DB_NAME)
     conn = sqlite_connection(db_path)
-    data = analyze.top_liked_or_disliked_videos_by_ratio(
-        conn, True, 100, pick_from[views[0]], pick_from[views[1]])
+    data = videos_scatter_graph.get_data(conn, x_axis_type, y_axis_type,
+                                         min_views=min_views,
+                                         max_views=max_views)
+    if x_axis_type in ['LikeRatioAsc', 'LikeRatioDesc']:
+        x_axis_type = 'Ratio'
     conn.close()
-    return ratios_graphs(data, True)
+    return construct_v_scatter_graph(data, x_axis_type, y_axis_type)
 
 
-@dash_app.callback(Output(disliked_ratio_graph_id, 'figure'),
-                   [Input(ratio_graphs_slider_id, 'value')])
-def update_disliked_ratio_videos_graph(views):
-    pick_from = list(ratio_graphs_slider_marks.keys())
-    db_path = get_db_path()
-    conn = sqlite_connection(db_path)
-    data = analyze.top_liked_or_disliked_videos_by_ratio(
-        conn, False, 100, pick_from[views[0]], pick_from[views[1]])
-    conn.close()
-    return ratios_graphs(data, False)
-
-
-@dash_app.callback(Output(ratio_graphs_summary_id, 'children'),
-                   [Input(liked_ratio_graph_id, 'hoverData'),
-                    Input(disliked_ratio_graph_id, 'hoverData')])
-def ratio_graph_hover_summary(liked_hover_data: dict,
-                              disliked_hover_data: dict):
-    if disliked_hover_data:
-        point_of_interest = disliked_hover_data['points'][0]['customdata']
-    elif liked_hover_data:
-        point_of_interest = liked_hover_data['points'][0]['customdata']
+@dash_app.callback(Output(v_scatter_graph_summary_id, 'children'),
+                   [Input(v_scatter_graph_id, 'hoverData')])
+def update_v_scatter_graph_summary(hover_data: dict):
+    if hover_data:
+        point_of_interest = hover_data['points'][0]['customdata']
     else:
         point_of_interest = None
 
@@ -259,23 +315,29 @@ def ratio_graph_hover_summary(liked_hover_data: dict,
         conn = sqlite_connection(get_db_path())
         '''Views, Ratio, Likes, Dislikes, Title, Channel, Upload date'''
         query = '''SELECT v.title, c.title, v.published_at, v.view_count,
-        v.like_count, v.dislike_count, (v.like_count * 1.0 / dislike_count) FROM
+        v.like_count, v.dislike_count, (v.like_count * 1.0 / dislike_count),
+        v.status, v.last_updated FROM
         videos v JOIN channels c ON v.channel_id = c.id
         WHERE v.id = ?'''
         r = execute_query(conn, query, (point_of_interest,))[0]
         conn.close()
-        
+
         views = format_num(r[3])
         likes = format_num(r[4])
         dislikes = format_num(r[5])
+        status = f'**Status:** {r[7]}'
+        if r[7] == 'active':
+            status += f', last checked on {r[8][:10]}'
 
+        like_dislike_ratio = round(r[6], 2) if r[6] else 'n/a'
         return dcc.Markdown(dedent(
-                f'''**Title:** {r[0]}    
+            f'''**Title:** {r[0]}    
                     **Channel:** {r[1]}    
-                    **Uploaded:** {r[2][:10]}    
+                    **Published:** {r[2][:10]}    
                     **Views:** {views}    
                     **Likes:** {likes}    
                     **Dislikes:** {dislikes}    
-                    **Ratio:** {round(r[6], 2)}    
-                    **ID:** {point_of_interest}
+                    **Ratio:** {like_dislike_ratio}    
+                    **ID:** {point_of_interest}    
+                    {status}
                 '''))
