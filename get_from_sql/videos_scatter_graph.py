@@ -79,8 +79,6 @@ def make_query(x_axis_type, y_axis_type: str = None):
             JOIN channels c on v.channel_id = c.id
             {y_join}
             WHERE NOT v.title = 'unknown'
-            AND v.dislike_count > 0
-            AND v.like_count > 0
             AND Views >= ? AND Views <= ?
             {y_qualifier}
             

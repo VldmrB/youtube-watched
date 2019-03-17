@@ -152,10 +152,11 @@ def retrieve_data_for_a_date_period(conn: sqlite3.Connection, date: str):
     views = (date + ' (total views: ' + str(channels.Views.sum()) + ')')
     for col_entry in table_cols:
         col_entry['name'].insert(0, views)
+    tables_margin = {'margin': '5'}
     main_table = dash_table.DataTable(
         columns=table_cols,
         data=table_rows, id='channels-table',
-        style_table={'maxHeight': '360', 'maxWidth': '800', 'margin': '5'},
+        style_table={'maxHeight': '370', 'maxWidth': '800', **tables_margin},
         n_fixed_rows=2,
         style_cell_conditional=style_cell_cond_main,
         **generic_table_settings)
@@ -165,7 +166,7 @@ def retrieve_data_for_a_date_period(conn: sqlite3.Connection, date: str):
     tags_table = dash_table.DataTable(
         columns=tags_cols,
         data=tags_rows, id='tags-table',
-        style_table={'maxHeight': '377', 'maxWidth': '300', 'margin': '5'},
+        style_table={'maxHeight': '377', 'maxWidth': '300', **tables_margin},
         n_fixed_rows=1,
         style_cell_conditional=style_cell_cond_aux,
         **generic_table_settings)
@@ -176,7 +177,7 @@ def retrieve_data_for_a_date_period(conn: sqlite3.Connection, date: str):
     topics_table = dash_table.DataTable(
         columns=topics_cols,
         data=topics_rows, id='topics-table',
-        style_table={'maxHeight': '377', 'maxWidth': '300', 'margin': '5'},
+        style_table={'maxHeight': '377', 'maxWidth': '300', **tables_margin},
         n_fixed_rows=1,
         style_cell_conditional=style_cell_cond_aux,
         **generic_table_settings)
@@ -225,39 +226,3 @@ def top_watched_channels(conn: sqlite3.Connection, amount: int):
         """
     df = pd.read_sql(query, conn, params=(amount,))
     return df
-
-
-def top_liked_or_disliked_videos_by_ratio(
-        conn: sqlite3.Connection,
-        liked=True,
-        number_of_records: int = 25,
-        minimum_video_views: int = 1,
-        maximum_video_views: int = 100_000_000_000
-        ):
-
-    order_by = 'DESC' if liked else 'ASC'
-
-    query = f"""SELECT
-    (v.like_count * 1.0 / v.dislike_count) AS Ratio,
-    v.id as VideoID,
-    v.view_count as Views
-    -- Comment count
-    FROM videos v JOIN channels c ON v.channel_id = c.id
-
-    WHERE NOT v.title = 'unknown'
-    AND v.dislike_count > 0
-    AND v.like_count > 0
-    AND Ratio > 0
-    AND Views >= ? AND Views <= ?
-
-    ORDER BY Ratio {order_by} 
-    LIMIT ?; 
-        """
-    df = pd.read_sql(query, conn,
-                     params=(minimum_video_views, maximum_video_views,
-                             number_of_records)
-                     )
-    df['Ratio'] = df['Ratio'].round(2)
-
-    return df
-
