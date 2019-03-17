@@ -77,11 +77,14 @@ group_by_slider = Div(
     id=history_date_period_slider_container_id)
 history_graph_id = 'watch-history'
 history_graph = Div(
-    dcc.Graph(
-        id=history_graph_id,
-        config=dict(displaylogo=False,
-                    modeBarButtonsToRemove=graph_tools_to_remove),
-        style=dict(height=400)))
+    children=[
+        html.H3('Videos opened/watched'),
+        dcc.Graph(
+            id=history_graph_id,
+            config=dict(displaylogo=False,
+                        modeBarButtonsToRemove=graph_tools_to_remove),
+            style={'height': 400}
+            )], style={'margin': '5px 15px'})
 
 history_date_period_summary_msg = dcc.Markdown(
     'Click on a point on the above graph to '
@@ -93,13 +96,13 @@ v_scatter_graph_view_slider_marks = {1: '1', 100_000: '100K', 1_000_000: '1M',
                                      10_000_000_000: '10B',
                                      50_000_000_000: '50B'}
 v_scatter_graph_view_range_nums = list(v_scatter_graph_view_slider_marks.keys())
-v_scatter_graph_slider_container_id = 'scatter-graph-slider-container'
-v_scatter_graph_x_dropdown_id = 'scatter-graph-x-dropdown'
-v_scatter_graph_y_dropdown_id = 'scatter-graph-y-dropdown'
-v_scatter_graph_slider_id = 'scatter-graph-slider'
-v_scatter_graph_summary_id = 'scatter-graph-hover-summary'
-v_scatter_graph_container_id = 'scatter-graph-container'
-v_scatter_graph_id = 'scatter-graph'
+v_scatter_graph_slider_container_id = 'v-scatter-graph-slider-container'
+v_scatter_graph_x_dropdown_id = 'v-scatter-graph-x-dropdown'
+v_scatter_graph_y_dropdown_id = 'v-scatter-graph-y-dropdown'
+v_scatter_graph_slider_id = 'v-scatter-graph-slider'
+v_scatter_graph_summary_id = 'v-scatter-graph-hover-summary'
+v_scatter_graph_container_id = 'v-scatter-graph-container'
+v_scatter_graph_id = 'v-scatter-graph'
 
 v_scatter_graph_slider = html.Div(
     [dcc.RangeSlider(id=v_scatter_graph_slider_id,
@@ -108,11 +111,11 @@ v_scatter_graph_slider = html.Div(
                      marks=list(v_scatter_graph_view_slider_marks.values()))],
     id=v_scatter_graph_slider_container_id, style={'width': 800})
 
-scatter_dropdown_style = {'display': 'flex',
-                          'justify-content': 'space-between',
-                          'align-items': 'center',
-                          'margin': 5,
-                          'width': 350}
+v_scatter_dropdown_style = {'display': 'flex',
+                            'justify-content': 'space-between',
+                            'align-items': 'center',
+                            'margin': 5,
+                            'width': 350}
 
 x_axis_list = {
     'Likes/dislikes ratio (highest)': 'LikeRatioDesc',
@@ -139,7 +142,7 @@ v_scatter_graph_x_dropdown = Div(
         options=[{'label': k, 'value': v} for k, v in x_axis_list.items()],
         style={'width': 300},
         id=v_scatter_graph_x_dropdown_id)],
-    style=scatter_dropdown_style)
+    style=v_scatter_dropdown_style)
 
 v_scatter_graph_y_dropdown = Div(
     children=['Y axis: ', dcc.Dropdown(
@@ -147,7 +150,7 @@ v_scatter_graph_y_dropdown = Div(
         options=[{'label': k, 'value': v} for k, v in y_axis_list.items()],
         style={'width': 300},
         id=v_scatter_graph_y_dropdown_id)],
-    style=scatter_dropdown_style)
+    style=v_scatter_dropdown_style)
 
 v_scatter_graph = Div(
     dcc.Graph(
@@ -158,32 +161,34 @@ v_scatter_graph = Div(
     style=dict(display='inline-block'))
 
 v_scatter_graph_section = Div(
-    [
-        Div(
-            children=[
-                v_scatter_graph_x_dropdown,
-                v_scatter_graph_y_dropdown
-            ],
-            style={
-                'display': 'flex',
-                'justify-content': 'space-between',
-                'width': 720
-            }),
-        Div(
-            children=[
-                v_scatter_graph,
-                Div(
-                    id=v_scatter_graph_summary_id,
-                    children='Mouseover summary'
-                )
-            ],
-            style={'display': 'flex'}
-        ),
-        v_scatter_graph_slider,
-    ],
-    style={'margin': 15},
-    id='scatter-graph-section-container'
-)
+        [
+            html.H3('Exploratory videos\' graphs (top 100 records from chosen '
+                    'criteria)'),
+            Div(
+                children=[
+                    v_scatter_graph_x_dropdown,
+                    v_scatter_graph_y_dropdown
+                ],
+                style={
+                    'display': 'flex',
+                    'justify-content': 'space-between',
+                    'width': 720
+                }),
+            Div(
+                children=[
+                    v_scatter_graph,
+                    Div(
+                        id=v_scatter_graph_summary_id,
+                        style={'margin': '0 20px'}
+                    ),
+                ],
+                style={'display': 'flex'}
+            ),
+            v_scatter_graph_slider,
+        ],
+        style={'margin': 15},
+        id='v-scatter-graph-section-container'
+    )
 
 # ------ Layout organizing/setting {Final}
 dash_app.layout = Div(
@@ -202,7 +207,7 @@ dash_app.layout = Div(
 
 
 def chart_history(data: pd.DataFrame, date_period='M'):
-    title = 'Videos opened/watched'
+    # title = 'Videos opened/watched'
     if date_period == 'Y':
         data = data.groupby(pd.Grouper(freq='YS')).aggregate(np.sum)
     elif date_period == 'M':
@@ -214,7 +219,7 @@ def chart_history(data: pd.DataFrame, date_period='M'):
     data = [go.Scatter(x=data.watched_at.values.astype('str'), y=data.times,
                        mode='lines')]
     layout = go.Layout(
-        title=title,
+        # title=title,
         yaxis=go.layout.YAxis(fixedrange=True),
         margin=dict.fromkeys(list('ltrb'), 30),
         hovermode='closest'
@@ -263,22 +268,34 @@ def history_chart_date_summary(data, date_period):
 
 def construct_v_scatter_graph(df: pd.DataFrame,
                               x_axis_col: str, y_axis_col: str):
-    clr_dict = {k: v for k, v in zip(df.Channel.unique(),
-                                     list(range(len(df.Channel.unique()))))}
-    marker_options = {'color': [clr_dict[i] for i in df.Channel],
-                      'colorscale': 'Electric', 'opacity': 0.7, 'size': 8
-                      }
-    data = [go.Scatter(x=df[x_axis_col], y=df[y_axis_col], mode='markers',
-                       marker=marker_options,
-                       customdata=df.VideoID,
-                       showlegend=True,
-                       name=''
-                       )]
+
+    marker_options = {'opacity': 0.8, 'size': 14}
+    df = df.sort_values(by='Views', ascending=False)
+    data = []
+    for c in df.Channel.unique():
+        c_df = df[df.Channel == c]
+        if len(c) > 20:
+            c = c[:20] + '...'
+        if len(c_df) == 1:
+            legendgroup = {'legendgroup': '1 record per Channel'}
+            trace_name = f'{c}'
+        else:
+            legendgroup = dict()
+            trace_name = f'{c} ({len(c_df)})'
+        data.append(go.Scatter(x=c_df[x_axis_col], y=c_df[y_axis_col],
+                               mode='markers',
+                               marker=marker_options,
+                               customdata=c_df.VideoID,
+                               name=trace_name,
+                               **legendgroup
+                               ))
+    data = sorted(data, key=lambda graph: len(graph.customdata), reverse=True)
     layout = go.Layout(
         margin=dict.fromkeys(list('ltrb'), 40),
-        hovermode='closest', colorscale=go.layout.Colorscale()
+        hovermode='closest',  # legend={'xarino': 1}
     )
-    return go.Figure(data=data, layout=layout)
+    figure = go.Figure(data=data, layout=layout)
+    return figure
 
 
 @dash_app.callback(Output(v_scatter_graph_id, 'figure'),
@@ -297,9 +314,9 @@ def update_v_scatter_graph(x_axis_type: str, y_axis_type: str, views):
     data = videos_scatter_graph.get_data(conn, x_axis_type, y_axis_type,
                                          min_views=min_views,
                                          max_views=max_views)
+    conn.close()
     if x_axis_type in ['LikeRatioAsc', 'LikeRatioDesc']:
         x_axis_type = 'Ratio'
-    conn.close()
     return construct_v_scatter_graph(data, x_axis_type, y_axis_type)
 
 
@@ -321,10 +338,9 @@ def update_v_scatter_graph_summary(hover_data: dict):
         WHERE v.id = ?'''
         r = execute_query(conn, query, (point_of_interest,))[0]
         conn.close()
-
         views = format_num(r[3])
-        likes = format_num(r[4])
-        dislikes = format_num(r[5])
+        likes = format_num(r[4]) if r[4] else None
+        dislikes = format_num(r[5]) if r[5] else None
         status = f'**Status:** {r[7]}'
         if r[7] == 'active':
             status += f', last checked on {r[8][:10]}'

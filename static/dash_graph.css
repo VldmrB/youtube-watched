@@ -1,6 +1,17 @@
+body {
+    background-color: #fcfafa
+}
+
 body > * {
     font-family: "Open Sans", verdana, arial, sans-serif ;
-    color: #444444;
+}
+
+h3 {
+    color: dodgerblue;
+}
+
+._dash-undo-redo {
+  display: none;
 }
 
 .rc-slider-track {
