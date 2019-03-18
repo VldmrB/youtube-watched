@@ -107,25 +107,25 @@ def make_query(x_axis_type, y_axis_type: str = None):
             ORDER BY TagCount DESC
             LIMIT ?;''',
 
-        'Duration': f'''
-            SELECT
-            v.id as VideoID, 
-            v.duration as Duration,
-            v.view_count as Views,
-            c.title as Channel
-            {y_select}
-            FROM
-            videos v
-            JOIN channels c on v.channel_id = c.id
-            {y_join}
-
-            WHERE NOT v.title = 'unknown'
-            AND Views >= ? AND Views <= ?
-            {y_qualifier}
-            
-            {y_group_by}
-            ORDER BY Duration DESC
-            LIMIT ?;''',
+        # 'Duration': f'''
+        #     SELECT
+        #     v.id as VideoID,
+        #     v.duration as Duration,
+        #     v.view_count as Views,
+        #     c.title as Channel
+        #     {y_select}
+        #     FROM
+        #     videos v
+        #     JOIN channels c on v.channel_id = c.id
+        #     {y_join}
+        #
+        #     WHERE NOT v.title = 'unknown'
+        #     AND Views >= ? AND Views <= ?
+        #     {y_qualifier}
+        #
+        #     {y_group_by}
+        #     ORDER BY Duration DESC
+        #     LIMIT ?;''',
 
         'CommentCount': f'''
             SELECT

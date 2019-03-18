@@ -10,6 +10,7 @@ import plotly.graph_objs as go
 from dash.dependencies import Input, Output, State
 from dash_html_components import Div
 from flask import Flask
+from plotly.colors import PLOTLY_SCALES, find_intermediate_color
 
 import analyze
 from config import DB_NAME
@@ -33,6 +34,27 @@ hoverClosestCartesian
 hoverCompareCartesian
 toggleSpikelines
 """
+
+
+def get_colors_from_colorscale(color_candidates_dict: dict):
+    color_scale = PLOTLY_SCALES['Rainbow']
+    color_scale_floats = [i[0] for i in color_scale]
+    color_scale_rgbs = [i[1] for i in color_scale]
+    color_scale = {k: v for k, v in PLOTLY_SCALES['Rainbow']}
+    float_rgb_dict = dict()
+    for k, v in color_candidates_dict.items():
+        if v in color_scale_floats:
+            float_rgb_dict[k] = color_scale[v]
+        else:
+            for i, s_v in enumerate(color_scale_floats):
+                if v < s_v:
+                    float_rgb_dict[k] = find_intermediate_color(
+                        color_scale_rgbs[i-1],
+                        color_scale_rgbs[i],
+                        v,
+                        'rgb')
+                    break
+    return float_rgb_dict
 
 
 def get_db_path():
@@ -99,13 +121,13 @@ v_scatter_graph_view_range_nums = list(v_scatter_graph_view_slider_marks.keys())
 v_scatter_graph_slider_container_id = 'v-scatter-graph-slider-container'
 v_scatter_graph_x_dropdown_id = 'v-scatter-graph-x-dropdown'
 v_scatter_graph_y_dropdown_id = 'v-scatter-graph-y-dropdown'
-v_scatter_graph_slider_id = 'v-scatter-graph-slider'
+v_scatter_graph_views_slider_id = 'v-scatter-graph-slider'
 v_scatter_graph_summary_id = 'v-scatter-graph-hover-summary'
 v_scatter_graph_container_id = 'v-scatter-graph-container'
 v_scatter_graph_id = 'v-scatter-graph'
 
-v_scatter_graph_slider = html.Div(
-    [dcc.RangeSlider(id=v_scatter_graph_slider_id,
+v_scatter_graph_views_slider = html.Div(
+    [dcc.RangeSlider(id=v_scatter_graph_views_slider_id,
                      min=0, max=len(v_scatter_graph_view_slider_marks) - 1,
                      value=[1, 3],
                      marks=list(v_scatter_graph_view_slider_marks.values()))],
@@ -117,17 +139,17 @@ v_scatter_dropdown_style = {'display': 'flex',
                             'margin': 5,
                             'width': 350}
 
-x_axis_list = {
+v_scatter_x_axis_list = {
     'Likes/dislikes ratio (highest)': 'LikeRatioDesc',
     'Likes/dislikes ratio (lowest)': 'LikeRatioAsc',
     'Views': 'Views',
     'Tag count': 'TagCount',
-    'Duration': 'Duration',
+    # 'Duration': 'Duration',
     'Comment count': 'CommentCount',
     'Title length': 'TitleLength',
 }
 
-y_axis_list = {
+v_scatter_y_axis_list = {
     'Likes/dislikes ratio': 'Ratio',
     'Views': 'Views',
     'Tag count': 'TagCount',
@@ -139,7 +161,8 @@ y_axis_list = {
 v_scatter_graph_x_dropdown = Div(
     children=['X axis: ', dcc.Dropdown(
         value='LikeRatioDesc',
-        options=[{'label': k, 'value': v} for k, v in x_axis_list.items()],
+        options=[{'label': k, 'value': v}
+                 for k, v in v_scatter_x_axis_list.items()],
         style={'width': 300},
         id=v_scatter_graph_x_dropdown_id)],
     style=v_scatter_dropdown_style)
@@ -147,7 +170,8 @@ v_scatter_graph_x_dropdown = Div(
 v_scatter_graph_y_dropdown = Div(
     children=['Y axis: ', dcc.Dropdown(
         value='Views',
-        options=[{'label': k, 'value': v} for k, v in y_axis_list.items()],
+        options=[{'label': k, 'value': v}
+                 for k, v in v_scatter_y_axis_list.items()],
         style={'width': 300},
         id=v_scatter_graph_y_dropdown_id)],
     style=v_scatter_dropdown_style)
@@ -184,7 +208,7 @@ v_scatter_graph_section = Div(
                 ],
                 style={'display': 'flex'}
             ),
-            v_scatter_graph_slider,
+            v_scatter_graph_views_slider,
         ],
         style={'margin': 15},
         id='v-scatter-graph-section-container'
@@ -206,8 +230,7 @@ dash_app.layout = Div(
 # -------------------- Layout {End}
 
 
-def chart_history(data: pd.DataFrame, date_period='M'):
-    # title = 'Videos opened/watched'
+def construct_history_chart(data: pd.DataFrame, date_period='M'):
     if date_period == 'Y':
         data = data.groupby(pd.Grouper(freq='YS')).aggregate(np.sum)
     elif date_period == 'M':
@@ -219,7 +242,6 @@ def chart_history(data: pd.DataFrame, date_period='M'):
     data = [go.Scatter(x=data.watched_at.values.astype('str'), y=data.times,
                        mode='lines')]
     layout = go.Layout(
-        # title=title,
         yaxis=go.layout.YAxis(fixedrange=True),
         margin=dict.fromkeys(list('ltrb'), 30),
         hovermode='closest'
@@ -237,7 +259,7 @@ def update_history_chart(value):
                              detect_types=decl_types | decl_colnames)
     data = analyze.retrieve_watch_data(conn)
     conn.close()
-    return chart_history(data, date_periods_vals[value])
+    return construct_history_chart(data, date_periods_vals[value])
 
 
 @dash_app.callback(Output(history_date_period_summary_id, 'children'),
@@ -268,32 +290,67 @@ def history_chart_date_summary(data, date_period):
 
 def construct_v_scatter_graph(df: pd.DataFrame,
                               x_axis_col: str, y_axis_col: str):
+    channels = df.Channel.unique()
 
-    marker_options = {'opacity': 0.8, 'size': 14}
+    channels_dict = {k: v for k, v in zip(channels, list(range(len(channels))))}
+    max_val = max(channels_dict.values())
+    for i in channels_dict:
+        channels_dict[i] /= max_val
+    channels_colors = get_colors_from_colorscale(channels_dict)
+
+    duration_dict = dict()
+    if x_axis_col == 'Duration' or y_axis_col == 'Duration':
+        duration_max = df.Duration.max()
+        tick_vals = list(range(0, duration_max + duration_max,
+                               duration_max // 20))
+        tick_vals.insert(0, 0)
+        tick_text = []
+        for v in tick_vals:
+            if v >= 86400:
+                tick_text.append(f'{v//86400}d')
+            elif v >= 3600:
+                tick_text.append(f'{v//3600}h')
+            elif v >= 60:
+                tick_text.append(f'{v//60}m')
+            else:
+                tick_text.append(f'{v}s')
+
+        # Duration currently disabled for the X axis (looks bad due to videos
+        # that are much longer than most)
+        # if x_axis_col == 'Duration':
+        #     duration_dict['xaxis'] = go.layout.XAxis(tickvals=tick_vals,
+        #                                              ticktext=tick_text)
+        if y_axis_col == 'Duration':
+            duration_dict['yaxis'] = go.layout.YAxis(tickvals=tick_vals,
+                                                     ticktext=tick_text)
+    # so the legend entries for channels with only one video are ordered in
+    # descending order by views, for relevancy
     df = df.sort_values(by='Views', ascending=False)
     data = []
-    for c in df.Channel.unique():
+    for c in channels:
         c_df = df[df.Channel == c]
+        c_name = c
         if len(c) > 20:
-            c = c[:20] + '...'
+            c_name = c[:20] + '...'
         if len(c_df) == 1:
-            legendgroup = {'legendgroup': '1 record per Channel'}
-            trace_name = f'{c}'
+            legend_group = {'legendgroup': '1 record per Channel'}
+            trace_name = f'{c_name}'
         else:
-            legendgroup = dict()
-            trace_name = f'{c} ({len(c_df)})'
+            legend_group = dict()
+            trace_name = f'{c_name} ({len(c_df)})'
         data.append(go.Scatter(x=c_df[x_axis_col], y=c_df[y_axis_col],
                                mode='markers',
-                               marker=marker_options,
+                               marker={'opacity': 0.8, 'size': 14,
+                                       'color': channels_colors[c]},
                                customdata=c_df.VideoID,
                                name=trace_name,
-                               **legendgroup
+                               **legend_group,
                                ))
+    # so the legend list shows channels with most videos first
     data = sorted(data, key=lambda graph: len(graph.customdata), reverse=True)
-    layout = go.Layout(
-        margin=dict.fromkeys(list('ltrb'), 40),
-        hovermode='closest',  # legend={'xarino': 1}
-    )
+
+    layout = go.Layout(margin=dict.fromkeys(list('ltrb'), 40),
+                       hovermode='closest', **duration_dict)
     figure = go.Figure(data=data, layout=layout)
     return figure
 
@@ -302,9 +359,9 @@ def construct_v_scatter_graph(df: pd.DataFrame,
                    [
                        Input(v_scatter_graph_x_dropdown_id, 'value'),
                        Input(v_scatter_graph_y_dropdown_id, 'value'),
-                       Input(v_scatter_graph_slider_id, 'value'),
+                       Input(v_scatter_graph_views_slider_id, 'value'),
                    ])
-def update_v_scatter_graph(x_axis_type: str, y_axis_type: str, views):
+def update_v_scatter_graph(x_axis_type: str, y_axis_type: str, views: list):
     if not x_axis_type or not y_axis_type:
         return None
     min_views = v_scatter_graph_view_range_nums[views[0]]
@@ -322,7 +379,7 @@ def update_v_scatter_graph(x_axis_type: str, y_axis_type: str, views):
 
 @dash_app.callback(Output(v_scatter_graph_summary_id, 'children'),
                    [Input(v_scatter_graph_id, 'hoverData')])
-def update_v_scatter_graph_summary(hover_data: dict):
+def v_scatter_graph_summary(hover_data: dict):
     if hover_data:
         point_of_interest = hover_data['points'][0]['customdata']
     else:
