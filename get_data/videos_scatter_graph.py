@@ -147,25 +147,25 @@ def make_query(x_axis_type, y_axis_type: str = None):
             ORDER BY CommentCount DESC
             LIMIT ?;''',
 
-        'TitleLength': f'''
-            SELECT
-            v.id as VideoID,
-            length(v.title) as TitleLength,
-            v.view_count as Views,
-            c.title as Channel
-            {y_select}
-            FROM
-            videos v
-            JOIN channels c on v.channel_id = c.id
-            {y_join}
-
-            WHERE NOT v.title = 'unknown'
-            AND Views >= ? AND Views <= ?
-            {y_qualifier}
-            
-            {y_group_by}
-            ORDER BY TitleLength DESC
-            LIMIT ?;''',
+        # 'TitleLength': f'''
+        #     SELECT
+        #     v.id as VideoID,
+        #     length(v.title) as TitleLength,
+        #     v.view_count as Views,
+        #     c.title as Channel
+        #     {y_select}
+        #     FROM
+        #     videos v
+        #     JOIN channels c on v.channel_id = c.id
+        #     {y_join}
+        #
+        #     WHERE NOT v.title = 'unknown'
+        #     AND Views >= ? AND Views <= ?
+        #     {y_qualifier}
+        #
+        #     {y_group_by}
+        #     ORDER BY TitleLength DESC
+        #     LIMIT ?;''',
     }
     return x_axis_queries[x_axis_type]
 

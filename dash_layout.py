@@ -140,7 +140,7 @@ v_scatter_x_axis_list = {
     'Tag count': 'TagCount',
     # 'Duration': 'Duration',
     'Comment count': 'CommentCount',
-    'Title length': 'TitleLength',
+    # 'Title length': 'TitleLength',
 }
 
 v_scatter_y_axis_list = {
@@ -302,8 +302,8 @@ def construct_v_scatter_graph(df: pd.DataFrame,
             else:
                 tick_text.append(f'{v}s')
 
-        # Duration currently disabled for the X axis (looks bad due to videos
-        # that are much longer than most)
+        # Duration currently disabled for the X axis (looks bad due to some
+        # videos being much longer than most)
         # if x_axis_col == 'Duration':
         #     duration_dict['xaxis'] = go.layout.XAxis(tickvals=tick_vals,
         #                                              ticktext=tick_text)
