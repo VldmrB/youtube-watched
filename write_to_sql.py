@@ -3,13 +3,13 @@ import logging
 import sqlite3
 import time
 from datetime import datetime
+from typing import Union
 
 import youtube
 from config import video_keys_and_columns
-from sql_utils import generate_insert_query, generate_unconditional_update_query
-from sql_utils import execute_query
 from topics import topics
-from utils import get_final_key_paths, convert_duration, calculate_subpercentage
+from utils.sql import execute_query
+from utils.sql import generate_insert_query, generate_unconditional_update_query
 
 logger = logging.getLogger(__name__)
 
@@ -122,6 +122,121 @@ add_failed_request_query = generate_insert_query(
 add_dead_video_query = generate_insert_query('dead_videos_ids',
                                              columns=DEAD_VIDEOS_IDS_COLUMNS,
                                              on_conflict_ignore=True)
+
+
+def get_final_key_paths(
+        obj: Union[dict, list, tuple], cur_path: str = '',
+        append_values: bool = False,
+        paths: list = None, black_list: list = None,
+        final_keys_only: bool = False):
+    """
+    Returns Python ready, full key paths as strings
+
+    :param obj:
+    :param cur_path: name of the variable that's being passed as the obj can be
+    passed here to create eval ready key paths
+    :param append_values: return corresponding key values along with the keys
+    :param paths: the list that will contain all the found key paths, no need
+    to pass anything
+    :param black_list: dictionary keys which will be ignored
+    :param final_keys_only: return only the final key from each path
+    :return:
+    """
+    if paths is None:
+        paths = []
+
+    if isinstance(obj, (dict, list, tuple)):
+        if isinstance(obj, dict):
+            for key in obj:
+                new_path = cur_path + f'[\'{key}\']'
+                if isinstance(obj[key], dict):
+                    if black_list is not None and key in black_list:
+                        continue
+                    get_final_key_paths(
+                        obj[key], new_path, append_values, paths, black_list,
+                        final_keys_only)
+                elif isinstance(obj[key], (list, tuple)):
+                    get_final_key_paths(
+                        obj[key], new_path, append_values, paths, black_list,
+                        final_keys_only)
+                else:
+                    if final_keys_only:
+                        last_bracket = new_path.rfind('[\'')
+                        new_path = new_path[
+                                   last_bracket+2:new_path.rfind('\'')]
+                    if append_values:
+                        to_append = [new_path, obj[key]]
+                    else:
+                        to_append = new_path
+                    paths.append(to_append)
+        else:
+            key_added = False  # same as in get_final_keys function
+            for i in range(len(obj)):
+                if isinstance(obj[i], (dict, tuple, list)):
+                    get_final_key_paths(
+                        obj[i], cur_path + f'[{i}]', append_values,
+                        paths, black_list, final_keys_only)
+                else:
+                    if not key_added:
+                        if final_keys_only:
+                            last_bracket = cur_path.rfind('[\'')
+                            cur_path = cur_path[
+                                       last_bracket+2:cur_path.rfind('\'')]
+                        if append_values:
+                            to_append = [cur_path, obj]
+                        else:
+                            to_append = cur_path
+                        paths.append(to_append)
+                        key_added = True
+
+    return paths
+
+
+def convert_duration(duration_iso8601: str):
+    duration = duration_iso8601.split('T')
+    duration = {'P': duration[0][1:], 'T': duration[1]}
+    int_value = 0
+    for key, value in duration.items():
+        new_value = ''
+        if not value:
+            continue
+        for element in value:
+            if element.isnumeric():
+                new_value += element
+            else:
+                new_value += element + ' '
+        split_vals = new_value.strip().split(' ')
+        for val in split_vals:
+            if val[-1] == 'Y':
+                int_value += int(val[:-1]) * 31_536_000
+            elif val[-1] == 'M':
+                if key == 'P':
+                    int_value += int(val[:-1]) * 2_592_000
+                else:
+                    int_value += int(val[:-1]) * 60
+            elif val[-1] == 'W':
+                int_value += int(val[:-1]) * 604800
+            elif val[-1] == 'D':
+                int_value += int(val[:-1]) * 86400
+            elif val[-1] == 'H':
+                int_value += int(val[:-1]) * 3600
+            elif val[-1] == 'S':
+                int_value += int(val[:-1])
+
+    return int_value
+
+
+def calculate_subpercentage(records_amount: int):
+    total_records = records_amount
+    if total_records >= 1000:
+        sub_percent = total_records / 1000
+    elif total_records >= 100:
+        sub_percent = total_records / 100
+    elif total_records >= 10:
+        sub_percent = total_records / 10
+    else:
+        sub_percent = total_records
+    return sub_percent, int(sub_percent)
 
 
 def wrangle_video_record(json_obj: dict):

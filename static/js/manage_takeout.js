@@ -28,6 +28,12 @@ let takeoutCancelButton = document.querySelector("#takeout-cancel-button");
 let newProjectButton = document.querySelector("#new-project-button");
 let buttonsToDisableWhenWorkingDB = [takeoutSubmitButton, updateRecordsButton, newProjectButton];
 
+let visualizeButton = document.querySelector("#visualize-button");
+
+visualizeButton.onclick = function() {
+    window.location = "/dash/";
+};
+
 function disableOrEnableSomeButtons() {
     for (let i = 0; i < buttonsToDisableWhenWorkingDB.length; i++) {
         if (!buttonsToDisableWhenWorkingDB[i].getAttribute("disabled")) {
@@ -120,6 +126,9 @@ function processTakeout(event) {
 
                             if (msgJSON.hasOwnProperty("records_in_db")) {
                                 msgString += "<br>Total in the database: " + msgJSON["records_in_db"];
+                                if (visualizeButton.getAttribute("disabled")) {
+                                    visualizeButton.removeAttribute("disabled");
+                                }
                             }
                             if (msgJSON.hasOwnProperty("failed_api_requests") &&
                                 msgJSON["failed_api_requests"] !== 0) {

@@ -10,10 +10,9 @@ from flask import (Response, Blueprint, request, redirect, make_response,
 
 import write_to_sql
 import youtube
-from flask_utils import (get_project_dir_path_from_cookie, db_has_records,
-                         flash_err, strong)
-from sql_utils import sqlite_connection
-from utils import load_file
+from utils.app import (get_project_dir_path_from_cookie, flash_err, strong)
+from utils.sql import sqlite_connection, db_has_records
+from utils.gen import load_file
 
 record_management = Blueprint('records', __name__)
 
@@ -172,7 +171,7 @@ def update_db(project_path: str):
     import write_to_sql
     import youtube
     import time
-    from utils import load_file
+    from utils.gen import load_file
 
     progress.clear()
     progress.append('Starting updating...')

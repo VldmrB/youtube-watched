@@ -10,37 +10,20 @@
             <a href="#" id="multiple-files-link" class="link-btn">For multiple Takeout downloads...</a>
         </div>
         <div id="takeout-multiple-files-description" class="hidden">
-            <p>
-                Enter the path to the directory with the files. Files with partially overlapping records are
-                fine.
-            </p>
-            <p>
-                It's best to either extract each Takeout archive to a directory with the same name as the
-                archive and then point to the directory containing all of them
-                <br>
-                --- or ---
-                <br>
-                manually move the actual watch-history files into one directory while appending a number
-                at the end of each name, e.g. watch-history_001.html, from oldest to newest.
-            </p>
-            The files will only be located within the given directory if any of the following is inside:
-            <ul>
-                <li>watch-history files themselves</li>
-                <li>Directories of the download archives, extracted with the same
-                    name as the archives e.g. "takeout-20181120T163352Z-001"</li>
-            </ul>
-            <p>
-                The search will become confined to one of these types after the first match, e.g. if a
-                watch-history file is found in the very directory that was passed, it'll continue looking for
-                those in the same place, but not in Takeout directories.
-            </p>
+                Extract each Takeout archive to a directory with the same name as the
+                archive and then point to the directory containing all of them, e.g.:
+            <pre>
+    &lt;Containing directory&gt;
+        takeout-20181120T163352Z-001
+        takeout-20181211T162142Z-001
+            </pre>
         </div>
     </div>
     <hr>
     <div class="help-item">
         <h3>Data retrieval and insertion</h3>
         <p>
-            Depending on the amount of video records, the process will likely take 30+ minutes. ~15k records
+            Depending on the amount of video records, the process will likely take 40+ minutes. ~15k records
             will create a database of ~40MB.
         </p>
         <p>

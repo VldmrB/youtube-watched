@@ -1,10 +1,10 @@
 import json
 import plotly
-from flask import Response
+from flask import Response, url_for
 from plotly.utils import iso_to_plotly_time_string, NotEncodable
 from dash import Dash
 from dash_html_components import Div, A
-from flask_utils import db_has_records
+from utils.sql import db_has_records
 
 
 # Makes the layout database-presence aware. Done this way since an active
@@ -16,7 +16,8 @@ class Dashing(Dash):
             layout = self.layout
         else:
             layout = Div(['No data found. Make sure to first import your ',
-                          A('Takeout data', href='http://127.0.0.1:5000')])
+                          A('Takeout', href=url_for(
+                              'records.index'))])
 
         return Response(json.dumps(layout, cls=plotly.utils.PlotlyJSONEncoder),
                         mimetype='application/json')

@@ -6,8 +6,6 @@ from typing import Union
 from bs4 import BeautifulSoup as BSoup
 from tzlocal import get_localzone
 
-from utils import extract_video_id_from_url
-
 """
 In addition to seemingly only returning an oddly even number of records 
 (20300 the first time, 18300 the second), Takeout also seems to only return 
@@ -41,6 +39,15 @@ local_tz = get_localzone()
 local_tz_offset = datetime.now(get_localzone()).utcoffset().total_seconds()/3600
 watch_url_re = re.compile(r'watch\?v=')
 channel_url_re = re.compile(r'youtube\.com/channel')
+
+
+def extract_video_id_from_url(url):
+    video_id = url[url.find('=') + 1:]
+    id_end = video_id.find('&t=')
+    if id_end > 0:
+        video_id = video_id[:id_end]
+
+    return video_id
 
 
 def get_watch_history_files(takeout_path: str = '.') -> Union[list, None]:
