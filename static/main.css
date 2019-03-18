@@ -176,6 +176,30 @@ input:not([type=submit]) {
     transition: 0.05s;
 }
 
+#visualize-button-container {
+    display: flex;
+}
+
+#visualize-button {
+    width: 200px;
+    height: 50px;
+    border: 1px solid limegreen;
+    background-color: white;
+    color: limegreen;
+    transition: 0.05s;
+    margin: 50px auto;
+}
+
+#visualize-button:hover:enabled {
+    background-color: limegreen;
+    color: white;
+    transition: 0.05s;
+}
+#visualize-button:disabled {
+    background-color: lightgray;
+    color: darkslategrey;
+}
+
 hr {
     border: none;
     height: 1px;

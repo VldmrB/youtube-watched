@@ -4,7 +4,6 @@ from textwrap import dedent
 
 import dash_core_components as dcc
 import dash_html_components as html
-import numpy as np
 import pandas as pd
 import plotly.graph_objs as go
 from dash.dependencies import Input, Output, State
@@ -12,12 +11,11 @@ from dash_html_components import Div
 from flask import Flask
 from plotly.colors import PLOTLY_SCALES, find_intermediate_color
 
-import analyze
 from config import DB_NAME
 from dashing.overrides import Dashing
-from flask_utils import get_project_dir_path_from_cookie
-from get_from_sql import videos_scatter_graph
-from sql_utils import sqlite_connection, execute_query
+from utils.app import get_project_dir_path_from_cookie, get_db_path
+from get_data import history_chart, videos_scatter_graph
+from utils.sql import sqlite_connection, execute_query
 
 """
 zoom2d
@@ -57,11 +55,7 @@ def get_colors_from_colorscale(color_candidates_dict: dict):
     return float_rgb_dict
 
 
-def get_db_path():
-    return join(get_project_dir_path_from_cookie(), DB_NAME)
-
-
-def format_num(num: int):
+def add_commas_to_num(num: int):
     new_num = ''
     num = str(num)[::-1]
     last_index = len(num) - 1
@@ -230,16 +224,8 @@ dash_app.layout = Div(
 # -------------------- Layout {End}
 
 
-def construct_history_chart(data: pd.DataFrame, date_period='M'):
-    if date_period == 'Y':
-        data = data.groupby(pd.Grouper(freq='YS')).aggregate(np.sum)
-    elif date_period == 'M':
-        data = data.groupby(pd.Grouper(freq='MS')).aggregate(np.sum)
-    elif date_period == 'D':
-        data = data.groupby(pd.Grouper(freq='D')).aggregate(np.sum)
-
-    data = data.reset_index()
-    data = [go.Scatter(x=data.watched_at.values.astype('str'), y=data.times,
+def construct_history_chart(data: pd.DataFrame):
+    data = [go.Scatter(x=data.watched_at, y=data.times,
                        mode='lines')]
     layout = go.Layout(
         yaxis=go.layout.YAxis(fixedrange=True),
@@ -257,9 +243,9 @@ def update_history_chart(value):
     decl_colnames = sqlite3.PARSE_COLNAMES
     conn = sqlite_connection(db_path,
                              detect_types=decl_types | decl_colnames)
-    data = analyze.retrieve_watch_data(conn)
+    data = history_chart.retrieve_watch_data(conn, date_periods_vals[value])
     conn.close()
-    return construct_history_chart(data, date_periods_vals[value])
+    return construct_history_chart(data)
 
 
 @dash_app.callback(Output(history_date_period_summary_id, 'children'),
@@ -281,7 +267,8 @@ def history_chart_date_summary(data, date_period):
 
         db_path = join(get_project_dir_path_from_cookie(), DB_NAME)
         conn = sqlite_connection(db_path)
-        summary_tables = analyze.retrieve_data_for_a_date_period(conn, date)
+        summary_tables = history_chart.retrieve_data_for_a_date_period(
+            conn, date)
         conn.close()
         return [*summary_tables]
     else:
@@ -395,9 +382,9 @@ def v_scatter_graph_summary(hover_data: dict):
         WHERE v.id = ?'''
         r = execute_query(conn, query, (point_of_interest,))[0]
         conn.close()
-        views = format_num(r[3])
-        likes = format_num(r[4]) if r[4] else None
-        dislikes = format_num(r[5]) if r[5] else None
+        views = add_commas_to_num(r[3])
+        likes = add_commas_to_num(r[4]) if r[4] else None
+        dislikes = add_commas_to_num(r[5]) if r[5] else None
         status = f'**Status:** {r[7]}'
         if r[7] == 'active':
             status += f', last checked on {r[8][:10]}'

@@ -40,5 +40,8 @@
             <div id="wait-for-db"></div>
         </div>
     </div>
+    <div id="visualize-button-container">
+        <button id="visualize-button" {{ "" if db else "disabled" }}>Visualize</button>
+    </div>
     <script src="{{ url_for('static', filename='js/manage_takeout.js') }}"></script>
 {% endblock %}

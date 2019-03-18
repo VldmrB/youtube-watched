@@ -1,8 +1,8 @@
 from os.path import join
 
 from dash_layout import app, dash_app
-from flask_utils import get_project_dir_path_from_cookie
-from utils import logging_config
+from utils.app import get_project_dir_path_from_cookie
+from utils.gen import logging_config
 
 from manage_records.views import record_management
 from new_project.views import setup_new_project

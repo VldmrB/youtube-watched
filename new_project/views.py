@@ -4,8 +4,8 @@ from os.path import join
 from flask import render_template, url_for, Blueprint
 from flask import request, redirect, make_response, flash
 
-from flask_utils import flash_note, flash_err, strong
-from flask_utils import get_project_dir_path_from_cookie
+from utils.app import flash_note, flash_err, strong
+from utils.app import get_project_dir_path_from_cookie
 
 setup_new_project = Blueprint('project', __name__)
 

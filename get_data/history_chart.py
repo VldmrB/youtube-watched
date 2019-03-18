@@ -7,6 +7,33 @@ import pandas as pd
 pd.set_option('display.max_columns', 400)
 pd.set_option('display.width', 400)
 
+
+def retrieve_watch_data(conn: sqlite3.Connection,
+                        date_period: str) -> pd.DataFrame:
+    query = 'SELECT watched_at FROM videos_timestamps'
+    df = pd.read_sql(query, conn, index_col='watched_at')
+    times = pd.Series(np.ones(len(df.index.values)))
+    df = df.assign(times=times.values)
+    if date_period == 'Y':
+        df = df.groupby(pd.Grouper(freq='YS')).aggregate(np.sum)
+        full_df_range = pd.date_range(df.index[0], df.index[-1], freq='YS')
+    elif date_period == 'M':
+        df = df.groupby(pd.Grouper(freq='MS')).aggregate(np.sum)
+        full_df_range = pd.date_range(df.index[0], df.index[-1], freq='MS')
+    elif date_period == 'D':
+        df = df.groupby(pd.Grouper(freq='D')).aggregate(np.sum)
+        full_df_range = pd.date_range(df.index[0], df.index[-1], freq='D')
+    else:
+        df = df.groupby(pd.Grouper(freq='H')).agg(np.sum)
+        full_df_range = pd.date_range(df.index[0], df.index[-1], freq='H')
+
+    df = df.reindex(full_df_range, fill_value=0)
+    df.index.name = 'watched_at'
+    df = df.reset_index()
+
+    return df
+
+
 gen_query = """SELECT v.title AS Title, c.title AS Channel,
     count(v.title) AS Views FROM 
     videos_timestamps vt JOIN videos v ON v.id = vt.video_id 
@@ -76,20 +103,6 @@ style_cell_cond_aux = [
      }]
 
 
-def retrieve_watch_data(conn: sqlite3.Connection) -> pd.DataFrame:
-    query = 'SELECT watched_at FROM videos_timestamps'
-    df = pd.read_sql(query, conn, index_col='watched_at')
-    times = pd.Series(np.ones(len(df.index.values)))
-    df = df.assign(times=times.values)
-
-    df = df.groupby(pd.Grouper(freq='H')).agg(np.sum)
-    full_df_range = pd.date_range(df.index[0], df.index[-1], freq='H')
-    df = df.reindex(full_df_range, fill_value=0)
-    df.index.name = 'watched_at'
-
-    return df
-
-
 def retrieve_data_for_a_date_period(conn: sqlite3.Connection, date: str):
     params = (date + '%',)
 
@@ -103,12 +116,6 @@ def retrieve_data_for_a_date_period(conn: sqlite3.Connection, date: str):
     tags = tags.reset_index()
     topics = pd.read_sql(topics_query, conn, params=params)
     if len(date) > 7:
-        if len(date) == 13:
-            date = date + ':00'
-        table_cols = [
-            {'name': ['Channel/video'], 'id': 'Channel'},
-            {'name': ['Views'], 'id': 'Views'}
-        ]
         summary = pd.read_sql(gen_query, conn, params=params)
         channels = summary.drop('Title', axis=1)
         channels = channels.groupby(by='Channel').agg(np.sum)
@@ -117,6 +124,12 @@ def retrieve_data_for_a_date_period(conn: sqlite3.Connection, date: str):
         summary = summary.drop('Views', axis=1)
         summary = summary[summary['Title'] != 'unknown']
         channels = channels.reset_index()
+        if len(date) == 13:
+            date = date + ':00'
+        main_table_cols = [
+            {'name': ['Channel/video'], 'id': 'Channel'},
+            {'name': ['Views'], 'id': 'Views'}
+        ]
         channel_rows = channels.to_dict('rows')
         summary_rows = summary.to_dict('rows')
         table_rows = []
@@ -137,10 +150,10 @@ def retrieve_data_for_a_date_period(conn: sqlite3.Connection, date: str):
             [{'if': {'row_index': i}, 'backgroundColor': 'white'} for i
              in range(len(table_rows)) if i not in channel_rows_indexes])
     else:
-        column_names = ['Channel', 'Views']
-        table_cols = [{'name': [n], 'id': n}
-                      for n in column_names]
         channels = pd.read_sql(summary_channels_query, conn, params=params)
+        column_names = ['Channel', 'Views']
+        main_table_cols = [{'name': [n], 'id': n}
+                           for n in column_names]
         table_rows = channels.to_dict('rows')
         # below .extend necessary due to green colored cells remaining that way
         # the entire time after calling summary on a day/hour value, even when
@@ -150,11 +163,11 @@ def retrieve_data_for_a_date_period(conn: sqlite3.Connection, date: str):
              in range(len(table_rows))])
 
     views = (date + ' (total views: ' + str(channels.Views.sum()) + ')')
-    for col_entry in table_cols:
+    for col_entry in main_table_cols:
         col_entry['name'].insert(0, views)
     tables_margin = {'margin': '5'}
     main_table = dash_table.DataTable(
-        columns=table_cols,
+        columns=main_table_cols,
         data=table_rows, id='channels-table',
         style_table={'maxHeight': '370', 'maxWidth': '800', **tables_margin},
         n_fixed_rows=2,
@@ -183,46 +196,3 @@ def retrieve_data_for_a_date_period(conn: sqlite3.Connection, date: str):
         **generic_table_settings)
 
     return main_table, tags_table, topics_table
-
-
-def top_tags_data(conn: sqlite3.Connection, amount: int):
-    query = """SELECT t.tag AS Tag FROM
-    videos_timestamps vt JOIN videos_tags vtgs ON vtgs.video_id = vt.video_id 
-    JOIN tags t ON vtgs.tag_id = t.id
-    WHERE NOT t.tag = 'the';"""
-    results = pd.read_sql(query, conn)
-    print(results.memory_usage(index=True, deep=True).sum() / (1024 * 2))
-    results['Tag'] = results['Tag'].str.lower()
-    results = results.assign(Count=np.ones(len(results.index)))
-    results = results.groupby('Tag')
-    results = results.agg(np.sum).sort_values(by='Count', ascending=False)
-    print(results.memory_usage(index=True, deep=True).sum() / (1024 * 2))
-    return results[:amount]
-
-
-def top_watched_videos(conn: sqlite3.Connection, amount: int):
-    query = """SELECT v.title AS Title, c.title AS Channel,
-        count(v.title) AS Views FROM 
-        videos_timestamps vt JOIN videos v ON v.id = vt.video_id 
-        JOIN channels c ON v.channel_id = c.id
-        WHERE NOT v.title = 'unknown'
-        GROUP BY v.id
-        ORDER BY Views DESC
-        LIMIT ?; 
-        """
-    df = pd.read_sql(query, conn, params=(amount,))
-    return df
-
-
-def top_watched_channels(conn: sqlite3.Connection, amount: int):
-    query = """SELECT c.title AS Channel,
-        count(c.title) AS Views FROM 
-        videos_timestamps vt JOIN videos v ON v.id = vt.video_id 
-        JOIN channels c ON v.channel_id = c.id
-        WHERE NOT v.title = 'unknown'
-        GROUP BY c.id
-        ORDER BY Views DESC
-        LIMIT ?; 
-        """
-    df = pd.read_sql(query, conn, params=(amount,))
-    return df

@@ -1,5 +1,10 @@
-import sqlite3
 import logging
+import os
+import sqlite3
+from os.path import join
+
+from utils.app import get_project_dir_path_from_cookie
+from config import DB_NAME
 from typing import Union
 
 logger = logging.getLogger(__name__)
@@ -36,6 +41,23 @@ def generate_insert_query(table: str,
     else:
         query = 'INSERT' + query
     return query
+
+
+def db_has_records():
+    db_path = join(get_project_dir_path_from_cookie(), DB_NAME)
+    if os.path.exists(db_path):
+        conn = sqlite_connection(db_path)
+        cur = conn.cursor()
+        try:
+            cur.execute("SELECT 'id' FROM videos")
+            total_records = len(cur.fetchall())
+            if total_records:
+                return True
+            cur.close()
+        except sqlite3.OperationalError:
+            return
+        finally:
+            conn.close()
 
 
 def generate_unconditional_update_query(table: str,
