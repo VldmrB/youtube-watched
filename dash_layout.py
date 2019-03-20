@@ -117,8 +117,7 @@ v_scatter_views_slider_container_id = 'v-scatter-graph-slider-container'
 v_scatter_views_slider_id = 'v-scatter-graph-slider'
 # ---
 v_scatter_recs_slider_marks = {50: '50', 100: '100', 1_000: '1K',
-                                     10_000: '10K', 100_000_000: 'All',
-                                     }
+                               10_000: '10K', 100_000_000: 'All'}
 v_scatter_slider_recs_nums = list(v_scatter_recs_slider_marks.keys())
 v_scatter_slider_recs_container_id = 'v-scatter-graph-recs-slider-container'
 v_scatter_recs_id = 'v-scatter-graph-recs-slider'
@@ -233,7 +232,8 @@ tracking_graph_id = 'tag-tracking-graph'
 
 tracking_choice = dcc.RadioItems(
     id=tracking_choice_id,
-    options=[{'label': i, 'value': i} for i in ['Channels', 'Tags', 'Videos']],
+    options=[{'label': i, 'value': i} for i in ['Channels', 'Tags', 'Videos',
+                                                'Topics', 'Categories']],
     value='Channels',
     labelStyle={'display': 'inline-block'}
 )

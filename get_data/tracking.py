@@ -23,8 +23,6 @@ generic_table_settings = dict(
     css=[{'selector': '.dash-cell div.dash-cell-value',
           'rule': 'display: inline; white-space: inherit;'
                   'overflow: inherit; text-overflow: inherit;'}],
-    # style_header={'backgroundColor': 'rgb(31, 119, 180)',
-    #               'color': 'white'},
     style_cell={
         'whiteSpace': 'no-wrap',
         'overflow': 'hidden',
@@ -33,8 +31,7 @@ generic_table_settings = dict(
     })
 
 top_watched_queries = {
-    'Tags': '''
-    SELECT t.tag AS Tag, vtts.watched_at AS Timestamp FROM tags t 
+    'Tags': '''SELECT t.tag AS Tag, vtts.watched_at AS Timestamp FROM tags t 
     JOIN videos_tags vt ON t.id = vt.tag_id 
     JOIN videos_timestamps vtts ON vt.video_id = vtts.video_id''',
 
@@ -46,22 +43,32 @@ top_watched_queries = {
     ORDER BY Views DESC
     LIMIT ?;''',
 
-    'Videos':  """SELECT v.title AS Video, count(v.title) AS Views, v.id as Id
-    FROM 
-        videos_timestamps vt JOIN videos v ON v.id = vt.video_id 
-        WHERE NOT v.title = 'unknown'
-        GROUP BY v.id
-        ORDER BY Views DESC
-        LIMIT ?; 
-        """
+    'Videos':  '''SELECT v.title AS Video, count(v.title) AS Views, v.id as Id
+    FROM videos_timestamps vt JOIN videos v ON v.id = vt.video_id 
+    WHERE NOT v.title = 'unknown'
+    GROUP BY v.id
+    ORDER BY Views DESC
+    LIMIT ?; 
+        ''',
+
+    'Topics': '''SELECT t.topic AS Topic, count(Topic) AS Views FROM topics t 
+    JOIN videos_topics vt ON t.id = vt.topic_id
+    JOIN videos_timestamps vtts ON vt.video_id = vtts.video_id
+    GROUP BY Topic
+    ORDER BY Views DESC
+    LIMIT ?;''',
+    
+    'Categories': '''SELECT c.title AS Category, count(c.title) AS Views
+    FROM categories c JOIN videos v on c.id = v.category_id
+    JOIN videos_timestamps vtts ON v.id = vtts.video_id
+    GROUP BY Category
+    ORDER BY Views DESC
+    LIMIT ?;'''
 }
 
 
 class DataKeeper:
-    channels = None
-    tags = None
-    all_tags_ungrouped = None
-    videos = None
+    pass
 
 
 data_keeper = DataKeeper()
@@ -71,7 +78,7 @@ def get_top_results(conn: sqlite3.Connection,
                     query_type: str,
                     number_of_records: int = 200):
     conn.create_function('py_lower', 1, str.lower)
-    if getattr(data_keeper, query_type.lower()) is None:
+    if getattr(data_keeper, query_type.lower(), None) is None:
         if query_type == 'Tags':
             params = tuple()
         else:
@@ -127,8 +134,19 @@ history_charts_queries = {
     'Videos': '''SELECT v.id as Id, vt.watched_at AS Timestamp,
     v.title AS Video FROM 
 videos v JOIN videos_timestamps vt ON v.id = vt.video_id 
-WHERE v.id IN ?; '''
+WHERE v.id IN ?; ''',
 
+    'Topics': '''SELECT vtts.watched_at AS Timestamp, t.topic AS Topic FROM 
+    topics t JOIN videos_topics vt ON t.id = vt.topic_id
+    JOIN videos_timestamps vtts ON vt.video_id = vtts.video_id 
+    WHERE t.topic IN ?
+    ORDER BY t.topic DESC;''',
+
+    'Categories': '''SELECT vt.watched_at AS Timestamp, c.title AS Category FROM 
+    categories c JOIN videos v ON c.id = v.category_id
+    JOIN videos_timestamps vt ON v.id = vt.video_id 
+    WHERE c.title IN ?
+    ORDER BY c.title DESC;'''
 }
 
 
