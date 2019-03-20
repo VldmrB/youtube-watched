@@ -13,8 +13,8 @@ from plotly.colors import PLOTLY_SCALES, find_intermediate_color
 
 from config import DB_NAME
 from dashing.overrides import Dashing
+from get_data import history_chart, videos_scatter_graph, tracking
 from utils.app import get_project_dir_path_from_cookie, get_db_path
-from get_data import history_chart, videos_scatter_graph
 from utils.sql import sqlite_connection, execute_query
 
 """
@@ -70,6 +70,7 @@ css = ['/static/dash_graph.css']
 app = Flask(__name__)
 dash_app = Dashing(__name__, server=app,
                    routes_pathname_prefix='/dash/', external_stylesheets=css)
+dash_app.config['suppress_callback_exceptions'] = True
 dash_app.title = 'Graphs'
 
 # -------------------- Layout element creation
@@ -208,6 +209,38 @@ v_scatter_graph_section = Div(
         id='v-scatter-graph-section-container'
     )
 
+# ------ Tracking channels, videos and tags over time
+tracking_container_id = 'tag-tracking-container'
+tracking_choice_id = 'tracking-choice'
+tracking_table_container_id = 'tag-table-container'
+tracking_graph_container_id = 'tag-tracking-graph-container'
+tracking_graph_id = 'tag-tracking-graph'
+
+tracking_choice = dcc.RadioItems(
+    id=tracking_choice_id,
+    options=[{'label': i, 'value': i} for i in ['Channels', 'Tags', 'Videos']],
+    value='Channels',
+    labelStyle={'display': 'inline-block'}
+)
+tracking_table_container = Div(id=tracking_table_container_id)
+tracking_graph_container = Div(id=tracking_graph_container_id,
+                               )
+tracking_graph = dcc.Graph(
+    id=tracking_graph_id,
+    style={'height': 377, 'width': 700, 'margin': 5},
+    config=dict(displaylogo=False,
+                modeBarButtonsToRemove=graph_tools_to_remove),
+                           )
+tracking_container = Div(
+    children=[tracking_table_container, tracking_graph],
+    id=tracking_container_id,
+    style={'display': 'flex'})
+tracking_section = Div(children=[html.H3('Top watched'),
+                                 tracking_choice,
+                                 tracking_container],
+                       style={'margin': '50px 15px'})
+
+
 # ------ Layout organizing/setting {Final}
 dash_app.layout = Div(
     [
@@ -219,7 +252,9 @@ dash_app.layout = Div(
             style={'display': 'flex',
                    'margin': '0 15px'}
             ),
-        v_scatter_graph_section
+        v_scatter_graph_section,
+        # top tags/ tag tracking graph section
+        tracking_section
     ])
 # -------------------- Layout {End}
 
@@ -401,3 +436,53 @@ def v_scatter_graph_summary(hover_data: dict):
                     **ID:** {point_of_interest}    
                     {status}
                 '''))
+
+
+@dash_app.callback(Output(tracking_table_container_id, 'children'),
+                   [Input(tracking_choice_id, 'value')]
+                   )
+def top_watched_tracking(tracking_type):
+    conn = sqlite_connection(get_db_path())
+    results = tracking.get_top_results(conn, tracking_type)
+    conn.close()
+    return results
+
+
+@dash_app.callback(Output(tracking_graph_id, 'figure'),
+                   [Input('top-watched-table', 'selected_rows')],
+                   [State(tracking_choice_id, 'value')]
+                   )
+def top_watched_tracking_graph(rows: list, query_type: str):
+    entries: pd.DataFrame = getattr(tracking.data_keeper, query_type.lower())
+    if query_type == 'Videos':
+        ind = 2
+    else:
+        ind = 0
+    entries: list = entries.iloc[rows, ind].values
+    conn = sqlite_connection(get_db_path(), types=True)
+    data = []
+
+    df = tracking.selected_history_charts_mass(conn, entries, query_type)
+    for value in entries:
+        sub_df = df[df[df.columns[0]] == value]
+        if query_type == 'Videos':
+            name = sub_df.iloc[0, 1]
+        else:
+            name = value
+        if len(name) > 20:
+            name = name[:20] + '...'
+        sub_df = sub_df.groupby(pd.Grouper(freq='MS'))
+        sub_df = sub_df.size().reset_index(name='Views')
+        data.append(go.Scatter(x=sub_df.Timestamp,
+                               y=sub_df.Views,
+                               mode='lines',
+                               name=name
+                               ))
+    conn.close()
+    layout = go.Layout(
+        yaxis=go.layout.YAxis(fixedrange=True),
+        margin=dict.fromkeys(list('ltrb'), 30),
+        hovermode='closest'
+    )
+
+    return {'data': data, 'layout': layout}
