@@ -4,6 +4,7 @@ import dash_table
 import numpy as np
 import pandas as pd
 
+from get_data.misc import generic_table_settings
 pd.set_option('display.max_columns', 400)
 pd.set_option('display.width', 400)
 
@@ -12,24 +13,11 @@ def retrieve_watch_data(conn: sqlite3.Connection,
                         date_period: str) -> pd.DataFrame:
     query = 'SELECT watched_at FROM videos_timestamps'
     df = pd.read_sql(query, conn, index_col='watched_at')
-    times = pd.Series(np.ones(len(df.index.values)))
-    df = df.assign(times=times.values)
-    if date_period == 'Y':
-        df = df.groupby(pd.Grouper(freq='YS')).aggregate(np.sum)
-        full_df_range = pd.date_range(df.index[0], df.index[-1], freq='YS')
-    elif date_period == 'M':
-        df = df.groupby(pd.Grouper(freq='MS')).aggregate(np.sum)
-        full_df_range = pd.date_range(df.index[0], df.index[-1], freq='MS')
-    elif date_period == 'D':
-        df = df.groupby(pd.Grouper(freq='D')).aggregate(np.sum)
-        full_df_range = pd.date_range(df.index[0], df.index[-1], freq='D')
-    else:
-        df = df.groupby(pd.Grouper(freq='H')).agg(np.sum)
-        full_df_range = pd.date_range(df.index[0], df.index[-1], freq='H')
+    if date_period in ('Y', 'M'):
+        date_period += 'S'
 
-    df = df.reindex(full_df_range, fill_value=0)
-    df.index.name = 'watched_at'
-    df = df.reset_index()
+    df = df.groupby(pd.Grouper(freq=date_period))
+    df = df.size().reset_index(name='times')
 
     return df
 
@@ -64,19 +52,6 @@ topics_query = f"""SELECT t.topic AS Topic, count(t.topic) AS Count FROM
     ORDER BY Count DESC
     LIMIT 10;"""
 
-generic_table_settings = dict(
-    merge_duplicate_headers=True,
-    css=[{'selector': '.dash-cell div.dash-cell-value',
-          'rule': 'display: inline; white-space: inherit;'
-                  'overflow: inherit; text-overflow: inherit;'}],
-    style_header={'backgroundColor': 'rgb(31, 119, 180)',
-                  'color': 'white'},
-    style_cell={
-        'whiteSpace': 'no-wrap',
-        'overflow': 'hidden',
-        'textOverflow': 'ellipsis',
-        'maxWidth': 0,
-    })
 style_cell_cond_main = [
     {'if': {'column_id': 'Title'}, 'textAlign': 'left',
      'width': '600px', 'maxWidth': '600px', 'minWidth': '600px'

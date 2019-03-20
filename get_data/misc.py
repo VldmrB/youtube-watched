@@ -4,6 +4,22 @@ import numpy as np
 import pandas as pd
 
 
+generic_table_settings = dict(
+    merge_duplicate_headers=True,
+    # css=[{'selector': '.dash-cell div.dash-cell-value',
+    #       'rule': 'display: inline; white-space: inherit;'
+    #               'overflow: inherit; text-overflow: inherit;'}],
+    style_header={'backgroundColor': 'rgb(31, 119, 180)',
+                  'color': 'white'},
+    style_as_list_view=True,
+    style_cell={
+        'whiteSpace': 'no-wrap',
+        'overflow': 'hidden',
+        'textOverflow': 'ellipsis',
+        'maxWidth': 0,
+    })
+
+
 def top_tags_data(conn: sqlite3.Connection, amount: int):
     query = """SELECT t.tag AS Tag FROM
     videos_timestamps vt JOIN videos_tags vtgs ON vtgs.video_id = vt.video_id 
