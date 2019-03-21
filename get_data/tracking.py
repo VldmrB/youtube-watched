@@ -13,6 +13,12 @@ style_cell_cond_main = [
     {'if': {'column_id': 'Video'}, 'textAlign': 'left',
      'width': '50px', 'maxWidth': '300px', 'minWidth': '300px'
      },
+    {'if': {'column_id': 'Topic'}, 'textAlign': 'left',
+     'width': '50px', 'maxWidth': '300px', 'minWidth': '300px'
+     },
+    {'if': {'column_id': 'Category'}, 'textAlign': 'left',
+     'width': '50px', 'maxWidth': '300px', 'minWidth': '300px'
+     },
     {'if': {'column_id': 'Views'},
      'width': '50px', 'maxWidth': '50px', 'minWidth': '50px'
      },
