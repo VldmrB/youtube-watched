@@ -11,7 +11,7 @@
         </div>
         <div id="takeout-multiple-files-description" class="hidden">
                 Extract each Takeout archive to a directory with the same name as the
-                archive and then point to the directory containing all of them, e.g.:
+                archive and then point to the directory containing all of them, i.e.:
             <pre>
     &lt;Containing directory&gt;
         takeout-20181120T163352Z-001
@@ -41,21 +41,33 @@
         </p>
     </div>
     <div class="help-item">
-        <h3>Takeout quirks</h3>
+        <h3>Takeout quirks and data accuracy</h3>
         <p>
-            Takeout works strangely (badly). The three times I've used it, varying numbers of records were returned,
-            the second time returning fewer than the first and the last returning more than the first two, including
-            records older than the ones in the first two as well as records sprinkled throughout the whole watch
-            history that too were missing from the first two Takeouts. The oldest records were from the start of 2014,
-            with the Youtube account being created and first used sometime in 2011.
+            Takeout works strangely (badly). The first three times I've used it, varying numbers of records were
+            returned each time. The second time returned fewer than the first and the last returned more than the
+            first two, including records older than the ones in the first two as well as previously missing records
+            throughout the whole watch history. I've stopped keeping track afterwards.
+            The oldest records were from April of 2014, with the Youtube account having been created and first
+            used sometime in 2011.
         </p>
-        It does not seem to return a full watch history in any case, when compared to the History page on Youtube,
-        though the difference is not drastic.
         <p>
+            It does not seem to return a full watch history in any case, when compared to the History page on Youtube,
+            though the difference is not drastic. Curiously, the History page is also missing some videos that are
+            present in Takeout.
         </p>
         <p>
             If a video has been deleted, its only data will be the timestamp of when it was watched and
-            sometimes its id. These will be inserted as 'unknown'.
+            sometimes its id. Those without ids are collectively inserted into the database as a single 'unknown'.
+        </p>
+        <p>
+            The timestamps for when the videos were opened/watched, based on my experience, are returned in local
+            time of your PC, including those for videos that you may have watched in a different timezone.
+
+            Furthermore, in case of Daylight Saving Time (DST), all of the timestamps are set to one
+            timezone, which depends on during which time the archive was created/downloaded. That is, if you
+            live somewhere on the East coast of US and download an archive during May, all the timestamps, even the
+            ones that should be in EST (November - March) will be set to to EDT and vice versa if you download in
+            February. No timezone information is present in the timestamps.
         </p>
     </div>
     <script>

@@ -34,13 +34,13 @@ toggleSpikelines
 """
 
 
-def get_colors_from_colorscale(color_candidates_dict: dict):
+def get_colors_from_colorscale(color_candidates: dict):
     color_scale = PLOTLY_SCALES['Rainbow']
     color_scale_floats = [i[0] for i in color_scale]
     color_scale_rgbs = [i[1] for i in color_scale]
     color_scale = {k: v for k, v in PLOTLY_SCALES['Rainbow']}
     float_rgb_dict = dict()
-    for k, v in color_candidates_dict.items():
+    for k, v in color_candidates.items():
         if v in color_scale_floats:
             float_rgb_dict[k] = color_scale[v]
         else:
@@ -78,11 +78,18 @@ graph_tools_to_remove = [
     'select2d', 'lasso2d', 'hoverCompareCartesian', 'resetScale2d',
     'hoverClosestCartesian', 'zoomIn2d', 'zoomOut2d', 'toggleSpikelines']
 
+# ------ Small summary
+fake_input_id = 'fake-input'
+fake_input = Div('Yes', style={'display': 'none'}, id=fake_input_id)
+basic_summary_text_id = 'basic-summary'
+basic_summary_text = Div(id=basic_summary_text_id)
+basic_summary = Div([html.H3('Basic stats'), basic_summary_text, fake_input],
+                    style={'margin': '5px 15px'})
+
+# ------ Watch history graph
 group_by_values = ['Year', 'Month', 'Day', 'Hour']
 date_periods_vals = {i: group_by_values[i][0]
                      for i in range(len(group_by_values))}
-
-# ------ Watch history graph
 history_date_period_slider_id = 'date-period-slider'
 history_date_period_slider_container_id = 'date-period-slider-container'
 history_date_period_summary_id = 'history-date-period-summary'
@@ -259,6 +266,9 @@ tracking_section = Div(children=[html.H3('Top watched'),
 # ------ Layout organizing/setting {Final}
 dash_app.layout = Div(
     [
+        Div(id='disclaimer-accuracy'),
+        # basic stats
+        basic_summary,
         # introductory history graph
         Div(history_graph), Div(group_by_slider),
         # summary for a clicked on point on the above graph (date period)
@@ -267,11 +277,39 @@ dash_app.layout = Div(
             style={'display': 'flex',
                    'margin': '0 15px'}
             ),
+        # exploratory scatter graph for videos with changeable axis
         v_scatter_section,
         # top tags/ tag tracking graph section
         tracking_section
     ])
 # -------------------- Layout {End}
+
+
+@dash_app.callback(Output(basic_summary_text_id, 'children'),
+                   [Input(fake_input_id, 'children')])
+def basic_stats(fake_input_content):
+    if fake_input_content:
+        pass
+    conn = sqlite_connection(get_db_path())
+
+    unique_vids = execute_query(conn, "SELECT count(*) FROM videos "
+                                      "WHERE NOT videos.id = 'unknown';")[0][0]
+    total_opened = execute_query(conn, "SELECT count(*) FROM "
+                                       "videos_timestamps;")[0][0]
+    total_channels = execute_query(conn, "SELECT count(*) FROM channels;")[0][0]
+    total_tags = execute_query(conn, "SELECT count(*) FROM videos_tags;")[0][0]
+    unique_tags = execute_query(conn, "SELECT count(*) FROM tags;")[0][0]
+    conn.close()
+    mark_down = dcc.Markdown(dedent(f'''
+    **{unique_vids}** unique videos 
+    (and some with no identifying info available), opened/watched 
+    **{total_opened}** times    
+    **{total_tags}** tags across all videos (**{unique_tags}** unique), 
+    an average of **{round(total_tags /unique_vids)}** per video    
+    **{total_channels}** channels
+    '''))
+
+    return mark_down
 
 
 def construct_history_chart(data: pd.DataFrame):
@@ -326,7 +364,7 @@ def history_chart_date_summary(data, date_period):
 
 
 def construct_v_scatter(df: pd.DataFrame,
-                              x_axis_col: str, y_axis_col: str):
+                        x_axis_col: str, y_axis_col: str):
 
     layout = go.Layout(margin=dict.fromkeys(list('ltrb'), 40),
                        hovermode='closest',
@@ -336,7 +374,6 @@ def construct_v_scatter(df: pd.DataFrame,
         duration_max = df.Duration.max()
         tick_vals = list(range(df.Duration.min(), duration_max + duration_max,
                                duration_max // 20))
-        # tick_vals.insert(0, 0)
         tick_text = []
         for v in tick_vals:
             if v >= 86400:
@@ -412,7 +449,7 @@ def construct_v_scatter(df: pd.DataFrame,
                        Input(v_scatter_recs_id, 'value'),
                    ])
 def update_v_scatter(x_axis_type: str, y_axis_type: str, views: list,
-                           num_of_records: int):
+                     num_of_records: int):
     if not x_axis_type or not y_axis_type:
         return None
     num_of_records = v_scatter_slider_recs_nums[num_of_records]
