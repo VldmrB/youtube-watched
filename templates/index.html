@@ -10,15 +10,15 @@
             Project directory: <span class="path">{{ path }}</span>
         </div>
     </div>
-
     <div id="takeout-section" data-full="{{ 'True' if db else '' }}">
         <div id="all-buttons">
             <div id="takeout-buttons">
                     <button id="takeout-setup-button" class="button">Add Takeout</button>
                     <button id="update-records-button" class="button" {{ 'disabled' if not db else '' }}>
                         Update existing records</button>
-                    <button id="takeout-cancel-button" class="button-cancel hidden">Stop</button>
+                    <button id="takeout-cancel-button" class="button-cancel invisible">Stop</button>
             </div>
+            <button id="visualize-button" class="button" {{ 'disabled' if not db else '' }}>Visualize</button>
             <button id="new-project-button" class="button">New project</button>
         </div>
         <div id="takeout-setup" class="{{ 'hidden' if db else '' }}">
@@ -27,7 +27,14 @@
                 <input id="takeout-input" name="takeout-dir" placeholder="Takeout path" required>
                 <input class="button" type="submit" value="Start">
             </form>
-            {% include "help/takeout_help.html" %}
+            <div>
+                Extract each Takeout archive to a directory with the same name as the
+                archive and then point to the directory containing all of them, i.e.:
+                <pre>&lt;Containing directory&gt;
+<!--             -->        takeout-20181120T163352Z-001
+<!--             -->        takeout-20181211T162142Z-001
+<!--             -->        ...</pre>
+            </div>
         </div>
         <div id="db-progress">
             <div id="progress-bar-container">
@@ -40,8 +47,6 @@
             <div id="wait-for-db"></div>
         </div>
     </div>
-    <div id="visualize-button-container">
-        <button id="visualize-button" {{ "" if db else "disabled" }}>Visualize</button>
-    </div>
+    {% include "help/takeout_help.html" %}
     <script src="{{ url_for('static', filename='js/manage_takeout.js') }}"></script>
 {% endblock %}
