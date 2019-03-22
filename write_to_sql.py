@@ -496,7 +496,6 @@ def insert_videos(conn, records: dict, api_auth, verbosity=1):
 
     # due to its made up ID, the unknown record is best handled manually
     if 'unknown' in records:
-        records_passed += 1
         unknown_record = records.pop('unknown')
         unknown_record['id'] = 'unknown'
         unknown_record['title'] = 'unknown'
@@ -508,6 +507,7 @@ def insert_videos(conn, records: dict, api_auth, verbosity=1):
             add_channel(conn, 'unknown', 'unknown', verbosity_level_2)
         if 'unknown' not in video_ids:
             add_video(conn, unknown_record, verbosity_level_2)
+            inserted += 1
         for timestamp in unknown_timestamps:
             if timestamp not in timestamps['unknown']:
                 add_time(conn, timestamp, 'unknown', verbosity_level_3)
@@ -519,7 +519,8 @@ def insert_videos(conn, records: dict, api_auth, verbosity=1):
         if records_passed % sub_percent_int == 0:
             if verbosity_level_1:
                 print(f'Processing entry # {records_passed}')
-            yield (records_passed // sub_percent) / 10
+            yield ((records_passed // sub_percent) / 10,
+                   updated, failed_api_requests)
         record['id'] = video_id
 
         if video_id not in video_ids or video_id in failed_requests_ids:
@@ -669,7 +670,6 @@ def insert_videos(conn, records: dict, api_auth, verbosity=1):
                "records_in_db": len(video_ids),
                "failed_api_requests": failed_api_requests,
                "dead_records": dead}
-    yield json.dumps(results)
 
     logger.info(json.dumps(results, indent=4))
     logger.info('\n' + '-'*100 + f'\nPopulating finished')

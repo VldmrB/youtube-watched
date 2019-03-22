@@ -1,43 +1,30 @@
     <a href="#" id="takeout-help-link" class="link-btn">How this works{{ ':' if description or not db else '...' }}</a>
 <div id="takeout-help" class="{{ '' if description or not db else 'hidden' }}">
-    <div class="help-item">
-        <div id="takeout-single-file-description">
-            Enter the path to the watch-history.html file from
-            <a class="link-btn link-btn:visited"
-               href="https://takeout.google.com/settings/takeout"
-               target="_blank">Google Takeout</a>.
-            <br>
-            <a href="#" id="multiple-files-link" class="link-btn">For multiple Takeout downloads...</a>
-        </div>
-        <div id="takeout-multiple-files-description" class="hidden">
-                Extract each Takeout archive to a directory with the same name as the
-                archive and then point to the directory containing all of them, i.e.:
-            <pre>
-    &lt;Containing directory&gt;
-        takeout-20181120T163352Z-001
-        takeout-20181211T162142Z-001
-            </pre>
-        </div>
-    </div>
     <hr>
     <div class="help-item">
         <h3>Data retrieval and insertion</h3>
         <p>
-            Depending on the amount of video records, the process will likely take 40+ minutes. ~15k records
-            will create a database of ~40MB.
+            The Takeout watch-history.html file(s) gets parsed for the available info. Some records will only contain a
+            timestamp of when the video was opened/watched, presumably when the video itself is no longer available.
+            Most will also contain the video ID, title and the channel title.
         </p>
         <p>
-            Should the process get interrupted for any reason, it's safe to restart it using the same Takeout
-            files; no duplicates will be created.
+            All the IDs are then queried against YouTube Data API for additional information. Combined with the
+            timestamps from Takeout, the records are then inserted into a database, located in the project directory
+            under the default name of yt.sqlite. Those without identifying info are collectively inserted
+            as a single 'unknown', to keep track of the total amount of videos ever opened.
         </p>
         <p>
-            Google API standard daily quota is 1M query points. Each video request (at least a successful one)
-            seems to use 11 points. The Quotas tab on Google's
+            Each successful query to the API uses 11 points, with the standard daily quota being 1M.
+            The Quotas tab on Google's
             <a class="link-btn link-btn:visited"
                href="https://console.developers.google.com/apis/api/youtube.googleapis.com/overview"
                target="_blank">Console</a>
             page will show how many have been used up.
-
+        </p>
+        <p>
+            Should the process get interrupted for any reason, it's safe to restart it using the same Takeout
+            files; no duplicates will be created and no duplicate queries will be made.
         </p>
     </div>
     <div class="help-item">
@@ -45,7 +32,7 @@
         <p>
             Takeout works strangely (badly). The first three times I've used it, varying numbers of records were
             returned each time. The second time returned fewer than the first and the last returned more than the
-            first two, including records older than the ones in the first two as well as previously missing records
+            first two, including records older than the ones in the first two as well as additional records
             throughout the whole watch history. I've stopped keeping track afterwards.
             The oldest records were from April of 2014, with the Youtube account having been created and first
             used sometime in 2011.
@@ -56,23 +43,22 @@
             present in Takeout.
         </p>
         <p>
-            If a video has been deleted, its only data will be the timestamp of when it was watched and
-            sometimes its id. Those without ids are collectively inserted into the database as a single 'unknown'.
+            The timestamps for when the videos were opened contain no timezone information and seem to be
+            returned in local time of the computer the Takeout archive creation was initiated on. That includes those
+            for videos that may have been watched in a different timezone.
         </p>
         <p>
-            The timestamps for when the videos were opened/watched, based on my experience, are returned in local
-            time of your PC, including those for videos that you may have watched in a different timezone.
-
-            Furthermore, in case of Daylight Saving Time (DST), all of the timestamps are set to one
-            timezone, which depends on during which time the archive was created/downloaded. That is, if you
-            live somewhere on the East coast of US and download an archive during May, all the timestamps, even the
-            ones that should be in EST (November - March) will be set to to EDT and vice versa if you download in
-            February. No timezone information is present in the timestamps.
+            Furthermore, in the case of zones observing Daylight Saving Time (DST), all of the timestamps are set to
+            either the DST timezone or the non-DST one, dependent on the date the archive was created. That
+            is, if someone who lives on the East coast of US creates an archive in May, all the timestamps, including
+            ones that should be in EST (November - March) will be set to EDT and vice versa if it was created in
+            February.
+        </p>
+        <p>
+            The app attempts to correct the timestamps' DST offsets, if the machine it's run on is in such a timezone.
         </p>
     </div>
     <script>
-        toggleElementVisibility('multiple-files-link', "takeout-multiple-files-description",
-            "For multiple Takeout downloads:");
         toggleElementVisibility("takeout-help-link", "takeout-help",
             "How this works{{ '...' if description or not db else ':' }}");
     </script>

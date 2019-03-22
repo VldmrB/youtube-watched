@@ -9,12 +9,12 @@ from tzlocal import get_localzone
 """
 In addition to seemingly only returning an oddly even number of records 
 (20300 the first time, 18300 the second), Takeout also seems to only return 
-about 4 years worth of videos. 
+from no farther back than 2014.
 When compared to the list you'd get from scraping your YouTube history web page 
 directly (which seems to go back to the very start of your account), 
-it's missing a number of videos from every year, even the current. Year 2018 
-is only missing 15, but the number increases the further back you go, 
-ending up in hundreds.
+it's missing a number of videos from every year, even the current. The 
+current year is only missing 15, but the number increases the further back you 
+go, ending up in hundreds.
 Inversely, Takeout has 1352 records which are not present on Youtube's 
 history page. Only 9 of them were videos that were still up when last checked, 
 however. Most or all of them have their urls listed as their titles in Takeout.
@@ -69,11 +69,6 @@ def get_watch_history_files(takeout_path: str = '.') -> Union[list, None]:
     :param takeout_path: 
     :return: 
     """
-    if os.path.isfile(takeout_path):
-        if 'watch-history' in takeout_path:
-            return [takeout_path]
-        else:
-            return
 
     dir_contents = os.listdir(takeout_path)
     watch_histories = []
@@ -91,7 +86,6 @@ def get_watch_history_files(takeout_path: str = '.') -> Union[list, None]:
                      takeout_download_local.dst()])
             else:
                 print(f'Expected watch-history.html in {path}, found none')
-
     return watch_histories
 
 

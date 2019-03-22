@@ -32,15 +32,12 @@ div>#project-buttons {
 }
 
 #all-buttons>button {
-    margin-left: auto;
+    /*margin-left: auto;*/
 }
 
 #all-buttons {
     display: flex;
-}
-
-#takeout-buttons>button {
-    margin-right: 3px;
+    justify-content: space-between;
 }
 
 .path {
@@ -49,6 +46,10 @@ div>#project-buttons {
 
 .hidden {
     display: none;
+}
+
+.invisible {
+    visibility: hidden;
 }
 
 form {
@@ -102,11 +103,12 @@ h1, h3 {
 }
 
 #db-progress {
+    height: 100px;
     margin: 20px 0;
 }
 
 #progress-bar-container {
-    display: none;
+    visibility: hidden;
     flex-direction: row;
     align-items: center;
 }
@@ -182,12 +184,11 @@ input:not([type=submit]) {
 
 #visualize-button {
     width: 200px;
-    height: 50px;
     border: 1px solid limegreen;
     background-color: white;
     color: limegreen;
     transition: 0.05s;
-    margin: 50px auto;
+    /*margin-right: 200px;*/
 }
 
 #visualize-button:hover:enabled {
