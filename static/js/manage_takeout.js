@@ -55,11 +55,11 @@ function wipeProgressIndicators(preserveMsg = false) {
 }
 
 function closeEventSource() {
+    progress.close();
     let AJAX = new XMLHttpRequest();
-    AJAX.open("POST", "stop_event_stream");
+    AJAX.open("POST", "stop_event_stream", false);
     AJAX.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
     AJAX.send();
-    progress.close();
     console.log('Closed event source')
 }
 
@@ -123,10 +123,11 @@ let onEventError = function(event) {
         progressMsg.innerHTML = event.data;
         progressMsg.style.color = "red";
     } else {
-        if (progress.readyState === 2) {
+        if (progress.readyState === 0) {
+            progressMsg.innerHTML = ("Lost connection to the server. Attempting to re-connect...")
+        } else if (progress.readyState === 2) {
             progressMsg.style.color = "red";
-            progressMsg.innerHTML = ("Looks like the server is down. Please " +
-                "restart it and refresh the page.")
+            progressMsg.innerHTML = ("Looks like the server is down. Please restart it and refresh the page.")
         }
     }
     cleanUpAfterTakeoutInsertion();
