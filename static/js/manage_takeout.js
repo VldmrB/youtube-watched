@@ -71,6 +71,11 @@ function cleanUpAfterTakeoutInsertion() {
 
 function closeEventStreamServerSide() {
     let AJAX = new XMLHttpRequest();
+    AJAX.onreadystatechange = function () {
+        if (this.readyState === 4) {
+            console.log('Boiiiii!')
+        }
+    };
     AJAX.open("POST", "stop_event_stream");
     AJAX.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
     AJAX.send();
@@ -86,6 +91,7 @@ function makeCancelButtonCancel() {
         if (cancelAJAX.readyState === 4 && cancelAJAX.status === 200) {
             progressUnfinishedDBProcessWarning.innerHTML = "";
             cleanUpAfterTakeoutInsertion();
+            takeoutCancelButton.style.visibility = "hidden";
             disableOrEnableSomeButtons();
             if (progressMsg.innerHTML.indexOf("watch-history") !== -1 || progressMsg.innerHTML === "") {
                 // process interrupted before watch-history file(s) parsing was finished, no progress stats to show
@@ -129,9 +135,13 @@ let onEventStats = function(event) {
 };
 
 let onEventError = function(event) {
+    if  (event.data !== undefined){
     progressMsg.style.color = "red";
     progressMsg.innerHTML = event.data;
     cleanUpAfterTakeoutInsertion();
+    } else {
+        progressMsg.innerHTML = progress.readyState;
+    }
 };
 
 let onEventMsg = function (event) {
@@ -139,6 +149,8 @@ let onEventMsg = function (event) {
     progressBar.style.width = progressVal;
     progressBarPercentage.innerHTML = progressVal;
 };
+// ------------------------ Event Source listeners for various events {End} ------------------------
+
 
 function showProgress() {
     if (this.readyState === 4 && this.status === 200) {
@@ -152,16 +164,11 @@ function showProgress() {
             document.querySelector("#progress-bar-container").style.visibility = "visible";
             takeoutCancelButton.style.visibility = "visible";
             disableOrEnableSomeButtons();
-            progress.addEventListener("stage", onEventStage);
-            progress.addEventListener("stats", onEventStats);
-            progress.addEventListener("error", onEventError);
-            progress.addEventListener("message", onEventMsg);
         }
     }
 }
-// ------------------------ Event Source listeners for various events {End} ------------------------
 
-window.addEventListener("beforeunload", closeEventSource);
+// window.addEventListener("beforeunload", closeEventSource);
 takeoutCancelButton.addEventListener("click", makeCancelButtonCancel);
 
 function retrieveActiveProcess () {
@@ -201,17 +208,19 @@ function processTakeout(event) {
     let idOfElementActedOn = this.id;
     let takeoutDirectoryVal = document.querySelector("#takeout-input").value;
     progress = new EventSource("/db_progress_stream");
-
+    progress.addEventListener("stage", onEventStage);
+    progress.addEventListener("stats", onEventStats);
+    progress.addEventListener("error", onEventError);
+    progress.addEventListener("message", onEventMsg);
 
     let anAJAX = new XMLHttpRequest();
+    anAJAX.addEventListener("readystatechange", showProgress);
     if (idOfElementActedOn === "takeout-form") {
         anAJAX.open("POST", "/convert_takeout");
         anAJAX.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
-        anAJAX.addEventListener("readystatechange", showProgress);
         anAJAX.send("takeout-dir=" + takeoutDirectoryVal);
     } else {
         anAJAX.open("GET", "/update_records");
-        anAJAX.addEventListener("readystatechange", showProgress);
         anAJAX.send();
     }
 
