@@ -29,10 +29,9 @@ class ThreadControl:
     def is_thread_alive(self):
         return self.thread and self.thread.is_alive()
 
-    # todo have this stop the SSE?
     def exit_thread_check(self):
         if self.exit_thread_flag:
-            # self.active_event_stream = False
+            DBProcessState.stage = None
             print('Stopped the DB update thread')
             return True
 
@@ -45,8 +44,7 @@ def add_sse_event(data: str = '', event: str = '', id_: str = ''):
     progress.append(f'data: {data}\n'
                     f'event: {event}\n'
                     f'id: {id_}\n\n')
-    if event in ['error', 'stats']:
-        DBProcessState.active_event_stream = False
+    # if event in ['error', 'stats']:
 
 
 @record_management.route('/')
@@ -67,8 +65,14 @@ def index():
     return render_template('index.html', path=project_path, db=db)
 
 
+@record_management.route('/process_status')
+def process_status():
+    return 'Quiet' if not DBProcessState.stage else DBProcessState.stage
+
+
 @record_management.route('/cancel_db_process', methods=['POST'])
 def cancel_db_process():
+    DBProcessState.stage = None
     if DBProcessState.thread and DBProcessState.thread.is_alive():
         DBProcessState.exit_thread_flag = True
         while True:
@@ -76,7 +80,6 @@ def cancel_db_process():
                 sleep(0.5)
             else:
                 DBProcessState.exit_thread_flag = False
-                DBProcessState.stage = None
                 break
     return 'Process stopped'
 
@@ -132,7 +135,6 @@ def populate_db(takeout_path: str, project_path: str):
     if DBProcessState.exit_thread_check():
         return
 
-    # todo check if below needs to be un-commented
     progress.clear()
     DBProcessState.stage = 'Locating and processing watch-history.html files...'
     add_sse_event(DBProcessState.stage, 'stage')
