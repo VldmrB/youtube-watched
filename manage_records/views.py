@@ -121,7 +121,7 @@ def populate_db_form():
     if DBProcessState.is_thread_alive():
         return DBProcessState.live_thread_warning
 
-    takeout_path = request.form['takeout-dir']
+    takeout_path = request.form['takeout-dir'].strip()
 
     project_path = get_project_dir_path_from_cookie()
     DBProcessState.thread = Thread(target=populate_db,
@@ -137,7 +137,6 @@ def populate_db(takeout_path: str, project_path: str):
     if DBProcessState.exit_thread_check():
         return
 
-    # todo check if below needs to be un-commented
     progress.clear()
     DBProcessState.stage = 'Locating and processing watch-history.html files...'
     add_sse_event(DBProcessState.stage, 'stage')
