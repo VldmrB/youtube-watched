@@ -56,10 +56,6 @@ function wipeProgressIndicators(preserveMsg = false) {
 
 function closeEventSource() {
     progress.close();
-    let AJAX = new XMLHttpRequest();
-    AJAX.open("POST", "stop_event_stream", false);
-    AJAX.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
-    AJAX.send();
     console.log('Closed event source')
 }
 
@@ -87,6 +83,30 @@ function makeCancelButtonCancel() {
     }
     cancelAJAX.addEventListener("readystatechange", cancelTakeout);
     cancelAJAX.send();
+}
+
+function retrieveActiveProcess () {
+    function activeProcessResults () {
+        if (this.readyState === 4 && this.status === 200 && this.responseText !== "Quiet") {
+            disableOrEnableSomeButtons();
+            document.querySelector("#progress-bar-container").style.visibility = "visible";
+            takeoutCancelButton.style.visibility = "visible";
+            console.log("msg is empty: " + (progressMsg.innerHTML === ""));
+            console.log(progressMsg.innerHTML);
+            if (progressMsg.innerHTML === "") {
+                progressMsg.innerHTML = this.responseText;
+                console.log("Set msg to " + progressMsg.innerHTML);
+                if (progressBarPercentage.innerHTML === ""){
+                    progressBar.style.width = "0%";
+                    progressBarPercentage.innerHTML = "0%";
+                }
+            }
+        }
+    }
+    let AJAX = new XMLHttpRequest();
+    AJAX.open("GET", "/process_status");
+    AJAX.addEventListener("readystatechange", activeProcessResults);
+    AJAX.send();
 }
 
 
@@ -123,11 +143,9 @@ let onEventError = function(event) {
         progressMsg.innerHTML = event.data;
         progressMsg.style.color = "red";
     } else {
-        if (progress.readyState === 0) {
-            progressMsg.innerHTML = ("Lost connection to the server. Attempting to re-connect...")
-        } else if (progress.readyState === 2) {
+        if (progress.readyState === 2) {
             progressMsg.style.color = "red";
-            progressMsg.innerHTML = ("Looks like the server is down. Please restart it and refresh the page.")
+            progressMsg.innerHTML = ("Looks like the server is down. Please restart it and refresh the page.");
         }
     }
     cleanUpAfterTakeoutInsertion();
@@ -162,32 +180,6 @@ function showProgress() {
             disableOrEnableSomeButtons();
         }
     }
-}
-
-function retrieveActiveProcess () {
-    function results () {
-        if (this.readyState === 4 && this.status === 200 && this.responseText !== "Quiet") {
-            disableOrEnableSomeButtons();
-            document.querySelector("#progress-bar-container").style.visibility = "visible";
-            takeoutCancelButton.style.visibility = "visible";
-            console.log("msg is empty: " + (progressMsg.innerHTML === ""));
-            console.log(progressMsg.innerHTML);
-            if (progressMsg.innerHTML === "") {
-                progressMsg.innerHTML = this.responseText;
-                console.log("Set msg to " + progressMsg.innerHTML);
-                if (progressBarPercentage.innerHTML === ""){
-                    progressBar.style.width = "0%";
-                    progressBarPercentage.innerHTML = "0%";
-                }
-            }
-        } else {
-            console.log("All is quiet on this glorious day!")
-        }
-    }
-    let AJAX = new XMLHttpRequest();
-    AJAX.open("GET", "/process_status");
-    AJAX.addEventListener("readystatechange", results);
-    AJAX.send();
 }
 
 window.addEventListener("beforeunload", closeEventSource);
