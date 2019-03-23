@@ -34,7 +34,6 @@ visualizeButton.onclick = function() {
     window.location = "/dash/";
 };
 
-let progress;
 
 function disableOrEnableSomeButtons() {
     for (let i = 0; i < buttonsToDisableWhenWorkingDB.length; i++) {
@@ -56,29 +55,12 @@ function wipeProgressIndicators(preserveMsg = false) {
 }
 
 function closeEventSource() {
-    try {
-        progress.close();
-        console.log('Closed event source')
-    } catch(err) {
-        console.log('Event source already closed')
-    }
+    progress.close();
+    console.log('Closed event source')
 }
 
 function cleanUpAfterTakeoutInsertion() {
     takeoutCancelButton.style.visibility = "hidden";
-    closeEventSource();
-}
-
-function closeEventStreamServerSide() {
-    let AJAX = new XMLHttpRequest();
-    AJAX.onreadystatechange = function () {
-        if (this.readyState === 4) {
-            console.log('Boiiiii!')
-        }
-    };
-    AJAX.open("POST", "stop_event_stream");
-    AJAX.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
-    AJAX.send();
 }
 
 function makeCancelButtonCancel() {
@@ -95,7 +77,6 @@ function makeCancelButtonCancel() {
             disableOrEnableSomeButtons();
             if (progressMsg.innerHTML.indexOf("watch-history") !== -1 || progressMsg.innerHTML === "") {
                 // process interrupted before watch-history file(s) parsing was finished, no progress stats to show
-                closeEventStreamServerSide();
                 wipeProgressIndicators();
             }
             takeoutCancelButton.removeAttribute("disabled");
@@ -103,6 +84,30 @@ function makeCancelButtonCancel() {
     }
     cancelAJAX.addEventListener("readystatechange", cancelTakeout);
     cancelAJAX.send();
+}
+
+function retrieveActiveProcess () {
+    function activeProcessResults () {
+        if (this.readyState === 4 && this.status === 200 && this.responseText !== "Quiet") {
+            disableOrEnableSomeButtons();
+            document.querySelector("#progress-bar-container").style.visibility = "visible";
+            takeoutCancelButton.style.visibility = "visible";
+            console.log("msg is empty: " + (progressMsg.innerHTML === ""));
+            console.log(progressMsg.innerHTML);
+            if (progressMsg.innerHTML === "") {
+                progressMsg.innerHTML = this.responseText;
+                console.log("Set msg to " + progressMsg.innerHTML);
+                if (progressBarPercentage.innerHTML === ""){
+                    progressBar.style.width = "0%";
+                    progressBarPercentage.innerHTML = "0%";
+                }
+            }
+        }
+    }
+    let AJAX = new XMLHttpRequest();
+    AJAX.open("GET", "/process_status");
+    AJAX.addEventListener("readystatechange", activeProcessResults);
+    AJAX.send();
 }
 
 
@@ -135,12 +140,10 @@ let onEventStats = function(event) {
 };
 
 let onEventError = function(event) {
-    if  (event.data !== undefined){
-    progressMsg.style.color = "red";
-    progressMsg.innerHTML = event.data;
-    cleanUpAfterTakeoutInsertion();
-    } else {
-        progressMsg.innerHTML = progress.readyState;
+    if (event.data !== undefined) {
+        progressMsg.innerHTML = event.data;
+        progressMsg.style.color = "red";
+        cleanUpAfterTakeoutInsertion();
     }
 };
 
@@ -151,6 +154,12 @@ let onEventMsg = function (event) {
 };
 // ------------------------ Event Source listeners for various events {End} ------------------------
 
+let progress = new EventSource("/db_progress_stream");
+
+progress.addEventListener("stage", onEventStage);
+progress.addEventListener("stats", onEventStats);
+progress.addEventListener("error", onEventError);
+progress.addEventListener("message", onEventMsg);
 
 function showProgress() {
     if (this.readyState === 4 && this.status === 200) {
@@ -168,39 +177,10 @@ function showProgress() {
     }
 }
 
-// window.addEventListener("beforeunload", closeEventSource);
 takeoutCancelButton.addEventListener("click", makeCancelButtonCancel);
 
-function retrieveActiveProcess () {
-    function results () {
-        if (this.readyState === 4 && this.status === 200 && this.responseText !== "Quiet") {
-            progress = new EventSource("/db_progress_stream");
-            disableOrEnableSomeButtons();
-            document.querySelector("#progress-bar-container").style.visibility = "visible";
-            takeoutCancelButton.style.visibility = "visible";
-            progress.addEventListener("stage", onEventStage);
-            progress.addEventListener("stats", onEventStats);
-            progress.addEventListener("error", onEventError);
-            progress.addEventListener("message", onEventMsg);
-            console.log("msg is empty: " + (progressMsg.innerHTML === ""));
-            console.log(progressMsg.innerHTML);
-            if (progressMsg.innerHTML === "") {
-                progressMsg.innerHTML = this.responseText;
-                console.log("Set msg to " + progressMsg.innerHTML);
-                if (progressBarPercentage.innerHTML === ""){
-                    progressBar.style.width = "0%";
-                    progressBarPercentage.innerHTML = "0%";
-                }
-            }
-        } else {
-            console.log("All is quiet on this glorious day!")
-        }
-    }
-    let AJAX = new XMLHttpRequest();
-    AJAX.open("GET", "/process_status");
-    AJAX.addEventListener("readystatechange", results);
-    AJAX.send();
-}
+window.addEventListener("beforeunload", closeEventSource);
+takeoutCancelButton.addEventListener("click", makeCancelButtonCancel);
 
 function processTakeout(event) {
     event.preventDefault();
