@@ -23,16 +23,15 @@ class ThreadControl:
     exit_thread_flag = False
     live_thread_warning = 'Wait for the current operation to finish'
 
-    active_event_stream = True
+    active_event_stream = None
     stage = None
 
     def is_thread_alive(self):
         return self.thread and self.thread.is_alive()
 
-    # todo have this stop the SSE?
     def exit_thread_check(self):
         if self.exit_thread_flag:
-            # self.active_event_stream = False
+            DBProcessState.stage = None
             print('Stopped the DB update thread')
             return True
 
@@ -45,8 +44,7 @@ def add_sse_event(data: str = '', event: str = '', id_: str = ''):
     progress.append(f'data: {data}\n'
                     f'event: {event}\n'
                     f'id: {id_}\n\n')
-    if event in ['error', 'stats']:
-        DBProcessState.active_event_stream = False
+    # if event in ['error', 'stats']:
 
 
 @record_management.route('/')
@@ -57,6 +55,12 @@ def index():
     elif not os.path.exists(project_path):
         flash(f'{flash_err} could not find directory {strong(project_path)}')
         return redirect(url_for('setup_project'))
+
+    if DBProcessState.active_event_stream is None:
+        DBProcessState.active_event_stream = True
+    else:
+        # event_stream() will set this back to True after disengaging
+        DBProcessState.active_event_stream = False
 
     db = db_has_records()
     if not request.cookies.get('description-seen'):
@@ -99,15 +103,6 @@ def event_stream():
     # allow SSE for potential subsequent Takeout processes
     DBProcessState.active_event_stream = True
     progress.clear()
-    print('SSE stopped')
-
-
-@record_management.route('/stop_event_stream', methods=['POST'])
-def stop_event_stream():
-    print('Received SSE stop request')
-    DBProcessState.active_event_stream = False
-
-    return 'SSE stopped'
 
 
 @record_management.route('/db_progress_stream')
