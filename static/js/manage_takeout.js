@@ -161,9 +161,39 @@ function showProgress() {
 }
 // ------------------------ Event Source listeners for various events {End} ------------------------
 
-
 window.addEventListener("beforeunload", closeEventSource);
 takeoutCancelButton.addEventListener("click", makeCancelButtonCancel);
+
+function retrieveActiveProcess () {
+    function results () {
+        if (this.readyState === 4 && this.status === 200 && this.responseText !== "Quiet") {
+            progress = new EventSource("/db_progress_stream");
+            disableOrEnableSomeButtons();
+            document.querySelector("#progress-bar-container").style.visibility = "visible";
+            takeoutCancelButton.style.visibility = "visible";
+            progress.addEventListener("stage", onEventStage);
+            progress.addEventListener("stats", onEventStats);
+            progress.addEventListener("error", onEventError);
+            progress.addEventListener("message", onEventMsg);
+            console.log("msg is empty: " + (progressMsg.innerHTML === ""));
+            console.log(progressMsg.innerHTML);
+            if (progressMsg.innerHTML === "") {
+                progressMsg.innerHTML = this.responseText;
+                console.log("Set msg to " + progressMsg.innerHTML);
+                if (progressBarPercentage.innerHTML === ""){
+                    progressBar.style.width = "0%";
+                    progressBarPercentage.innerHTML = "0%";
+                }
+            }
+        } else {
+            console.log("All is quiet on this glorious day!")
+        }
+    }
+    let AJAX = new XMLHttpRequest();
+    AJAX.open("GET", "/process_status");
+    AJAX.addEventListener("readystatechange", results);
+    AJAX.send();
+}
 
 function processTakeout(event) {
     event.preventDefault();
@@ -187,5 +217,6 @@ function processTakeout(event) {
 
 }
 
+retrieveActiveProcess();
 takeoutSubmit.addEventListener("submit", processTakeout);
 updateRecordsButton.addEventListener("click", processTakeout);

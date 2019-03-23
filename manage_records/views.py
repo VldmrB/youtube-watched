@@ -67,8 +67,14 @@ def index():
     return render_template('index.html', path=project_path, db=db)
 
 
+@record_management.route('/process_status')
+def process_status():
+    return 'Quiet' if not DBProcessState.stage else DBProcessState.stage
+
+
 @record_management.route('/cancel_db_process', methods=['POST'])
 def cancel_db_process():
+    DBProcessState.stage = None
     if DBProcessState.thread and DBProcessState.thread.is_alive():
         DBProcessState.exit_thread_flag = True
         while True:
@@ -76,7 +82,6 @@ def cancel_db_process():
                 sleep(0.5)
             else:
                 DBProcessState.exit_thread_flag = False
-                DBProcessState.stage = None
                 break
     return 'Process stopped'
 
