@@ -23,7 +23,7 @@ class ThreadControl:
     exit_thread_flag = False
     live_thread_warning = 'Wait for the current operation to finish'
 
-    active_event_stream = True
+    active_event_stream = None
     stage = None
 
     def is_thread_alive(self):
@@ -55,6 +55,12 @@ def index():
     elif not os.path.exists(project_path):
         flash(f'{flash_err} could not find directory {strong(project_path)}')
         return redirect(url_for('setup_project'))
+
+    if DBProcessState.active_event_stream is None:
+        DBProcessState.active_event_stream = True
+    else:
+        # event_stream() will set this back to True after disengaging
+        DBProcessState.active_event_stream = False
 
     db = db_has_records()
     if not request.cookies.get('description-seen'):
@@ -97,15 +103,6 @@ def event_stream():
     # allow SSE for potential subsequent Takeout processes
     DBProcessState.active_event_stream = True
     progress.clear()
-    print('SSE stopped')
-
-
-@record_management.route('/stop_event_stream', methods=['POST'])
-def stop_event_stream():
-    print('Received SSE stop request')
-    DBProcessState.active_event_stream = False
-
-    return 'SSE stopped'
 
 
 @record_management.route('/db_progress_stream')
@@ -119,7 +116,7 @@ def populate_db_form():
     if DBProcessState.is_thread_alive():
         return DBProcessState.live_thread_warning
 
-    takeout_path = request.form['takeout-dir']
+    takeout_path = request.form['takeout-dir'].strip()
 
     project_path = get_project_dir_path_from_cookie()
     DBProcessState.thread = Thread(target=populate_db,
