@@ -188,12 +188,11 @@ function processTakeout(event) {
 
     let anAJAX = new XMLHttpRequest();
     anAJAX.addEventListener("readystatechange", showProgress);
+    anAJAX.open("POST", "/start_db_process");
+    anAJAX.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
     if (idOfElementActedOn === "takeout-form") {
-        anAJAX.open("POST", "/convert_takeout");
-        anAJAX.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
         anAJAX.send("takeout-dir=" + takeoutDirectoryVal);
     } else {
-        anAJAX.open("GET", "/update_records");
         anAJAX.send();
     }
 
