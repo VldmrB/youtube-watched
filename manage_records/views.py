@@ -44,7 +44,8 @@ def add_sse_event(data: str = '', event: str = '', id_: str = ''):
     progress.append(f'data: {data}\n'
                     f'event: {event}\n'
                     f'id: {id_}\n\n')
-    # if event in ['error', 'stats']:
+    if event in ['errors', 'stats']:
+        DBProcessState.stage = None
 
 
 @record_management.route('/')
@@ -139,7 +140,7 @@ def populate_db(takeout_path: str, project_path: str):
         records = get_all_records(takeout_path)
     except FileNotFoundError:
         add_sse_event(f'Invalid/non-existent path for watch-history.html files',
-                      'error')
+                      'errors')
         raise
 
     if DBProcessState.exit_thread_check():
@@ -147,7 +148,8 @@ def populate_db(takeout_path: str, project_path: str):
 
     if not records:
         add_sse_event(f'No Takeout directories found in "{takeout_path}"',
-                      'error')
+                      'errors')
+        DBProcessState.stage = None
         raise ValueError('No watch-history files found')
     db_path = join(project_path, 'yt.sqlite')
     conn = sqlite_connection(db_path)
@@ -179,13 +181,13 @@ def populate_db(takeout_path: str, project_path: str):
         print(time.time() - tm_start, 'seconds!')
         conn.close()
     except youtube.ApiKeyError:
-        add_sse_event(f'Missing or invalid API key', 'error')
+        add_sse_event(f'Missing or invalid API key', 'errors')
         raise
     except (sqlite3.OperationalError, sqlite3.DatabaseError) as e:
-        add_sse_event(f'Fatal database error - {e!r}', 'error')
+        add_sse_event(f'Fatal database error - {e!r}', 'errors')
         raise
     except FileNotFoundError:
-        add_sse_event(f'Invalid database path', 'error')
+        add_sse_event(f'Invalid database path', 'errors')
         raise
 
     conn.close()

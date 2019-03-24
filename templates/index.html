@@ -16,7 +16,7 @@
                     <button id="takeout-setup-button" class="button">Add Takeout</button>
                     <button id="update-records-button" class="button" {{ 'disabled' if not db else '' }}>
                         Update existing records</button>
-                    <button id="takeout-cancel-button" class="button-cancel invisible">Stop</button>
+                    <button id="takeout-cancel-button" class="button-cancel" disabled>Stop</button>
             </div>
             <button id="visualize-button" class="button" {{ 'disabled' if not db else '' }}>Visualize</button>
             <button id="new-project-button" class="button">New project</button>
