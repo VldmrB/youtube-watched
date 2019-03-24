@@ -684,7 +684,8 @@ def update_videos(conn: sqlite3.Connection, api_auth,
     records_passed, updated, failed_api_requests = 0, 0, 0
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
-    cur.execute("""SELECT * FROM videos WHERE status != ? and id != ?;""",
+    cur.execute("""SELECT * FROM videos WHERE status != ? and id != ?
+                   ORDER BY last_updated;""",
                 ('inactive', 'unknown'))
     records = list(cur.fetchall())
     cur.execute("""SELECT * FROM channels WHERE title is not NULL;""")
