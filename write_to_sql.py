@@ -624,9 +624,9 @@ def insert_videos(conn, records: dict, api_auth, verbosity=1):
             # key for video records
 
         if 'relevant_topic_ids' in record:
-            topics = record.pop('relevant_topic_ids')
+            topics_list = record.pop('relevant_topic_ids')
         else:
-            topics = None
+            topics_list = None
         if 'tags' in record:
             tags = record.pop('tags')
         else:
@@ -654,8 +654,8 @@ def insert_videos(conn, records: dict, api_auth, verbosity=1):
             add_tags_to_table_and_video(conn, tags, video_id, existing_tags,
                                         verbose=verbosity_level_3)
 
-        if topics:
-            for topic in topics:
+        if topics_list:
+            for topic in topics_list:
                 add_topic_to_video(conn, topic, video_id, verbosity_level_3)
 
         conn.commit()  # committing after every record ensures each record's
@@ -714,9 +714,11 @@ def update_videos(conn: sqlite3.Connection, api_auth,
         if records_passed % sub_percent_int == 0:
             if verbosity >= 1:
                 print(f'Processing entry # {records_passed}')
-            yield (records_passed // sub_percent)/10
-
-        if (now - record['last_updated']).total_seconds() < update_age_cutoff:
+            yield ((records_passed // sub_percent)/10, updated,
+                   failed_api_requests)
+        last_updated_dtm = datetime.strptime(record['last_updated'],
+                                             '%Y-%m-%d %H:%M:%S')
+        if (now - last_updated_dtm).total_seconds() < update_age_cutoff:
             skipped += 1
             continue
         record = dict(record)
@@ -779,8 +781,8 @@ def update_videos(conn: sqlite3.Connection, api_auth,
                 update_channel(
                     conn, channel_id, channel_title, verbosity_level_1)
         if 'relevant_topic_ids' in record:
-            topics = record.pop('relevant_topic_ids')
-            for topic in topics:
+            topics_list = record.pop('relevant_topic_ids')
+            for topic in topics_list:
                 if existing_topics_tags.get(video_id):
                     if topic not in existing_topics_tags[video_id]:
                         add_topic_to_video(conn, topic,
@@ -798,7 +800,6 @@ def update_videos(conn: sqlite3.Connection, api_auth,
     results = {"records_processed": records_passed,
                "records_updated": updated,
                "failed_api_requests": failed_api_requests}
-    yield json.dumps(results)
 
     logger.info(json.dumps(results, indent=4))
     logger.info('\n' + '-'*100 + f'\nUpdating finished')
