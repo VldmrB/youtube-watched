@@ -11,7 +11,7 @@ from flask import (Response, Blueprint, request, redirect, make_response,
 
 import write_to_sql
 import youtube
-from utils.app import (get_project_dir_path_from_cookie, flash_err, strong)
+from utils.app import get_project_dir_path_from_cookie, flash_err, strong
 from utils.sql import sqlite_connection, db_has_records, execute_query
 from utils.gen import load_file
 
@@ -33,6 +33,7 @@ class ThreadControl:
     def exit_thread_check(self):
         if self.exit_thread_flag:
             DBProcessState.stage = None
+            add_sse_event(event='stop')
             print('Stopped the DB update thread')
             return True
 
@@ -45,7 +46,7 @@ def add_sse_event(data: str = '', event: str = '', id_: str = ''):
     progress.append(f'data: {data}\n'
                     f'event: {event}\n'
                     f'id: {id_}\n\n')
-    if event in ['errors', 'stats']:
+    if event in ['errors', 'stats', 'stop']:
         DBProcessState.stage = None
 
 
@@ -180,11 +181,13 @@ def populate_db(takeout_path: str, project_path: str):
             results['failed_api_requests'] = record[2]
 
             if DBProcessState.exit_thread_check():
-                break
+                add_sse_event(json.dumps(results), 'stats')
+                return
 
         results['records_in_db'] = execute_query(
             conn, 'SELECT count(*) from videos')[0][0]
         results['inserted'] = results['records_in_db'] - records_at_start
+        add_sse_event(event='stop')
         add_sse_event(json.dumps(results), 'stats')
         print(time.time() - tm_start, 'seconds!')
         conn.close()
@@ -238,14 +241,18 @@ def update_db(project_path: str):
         tm_start = time.time()
         DBProcessState.stage = 'Updating...'
         add_sse_event(DBProcessState.stage, 'stage')
+        if DBProcessState.exit_thread_check():
+            return
         for record in write_to_sql.update_videos(conn, api_auth, 86400):
             if DBProcessState.exit_thread_check():
-                break
+                add_sse_event(json.dumps(results), 'stats')
+                return
             DBProcessState.percent = str(record[0])
             add_sse_event(DBProcessState.percent)
             results['updated'] = record[1]
             results['failed_api_requests'] = record[2]
         print(time.time() - tm_start, 'seconds!')
+        add_sse_event(event='stop')
         add_sse_event(json.dumps(results), 'stats')
     except youtube.ApiKeyError:
         add_sse_event(f'{flash_err} Missing or invalid API key', 'errors')
