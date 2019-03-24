@@ -37,10 +37,11 @@ visualizeButton.onclick = function() {
 
 function disableOrEnableSomeButtons() {
     for (let i = 0; i < buttonsToDisableWhenWorkingDB.length; i++) {
+        // noinspection RedundantIfStatementJS
         if (buttonsToDisableWhenWorkingDB[i].disabled) {
-            buttonsToDisableWhenWorkingDB[i].removeAttribute("disabled");
+            buttonsToDisableWhenWorkingDB[i].disabled = false;
         } else {
-            buttonsToDisableWhenWorkingDB[i].setAttribute("disabled", "true");
+            buttonsToDisableWhenWorkingDB[i].disabled = true;
         }
     }
 }
@@ -48,7 +49,7 @@ function disableOrEnableSomeButtons() {
 function wipeProgressIndicators(preserveMsg = false) {
     document.querySelector("#progress-bar-container").style.visibility = "hidden";
     progressBar.style.width = "0%";
-    progressBarPercentage.innerHTML = "0%";
+    progressBarPercentage.innerHTML = "0.0%";
     if (!preserveMsg) {
         progressMsg.innerHTML = "";
         progressMsg.style.color = "black";
@@ -66,7 +67,7 @@ function makeCancelButtonCancel() {
     let cancelAJAX = new XMLHttpRequest();
     cancelAJAX.open("POST", "cancel_db_process");
     cancelAJAX.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
-    function cancelTakeout() {
+    function resetTakeoutProcess() {
         if (cancelAJAX.readyState === 4 && cancelAJAX.status === 200) {
             progressUnfinishedDBProcessWarning.innerHTML = "";
             takeoutCancelButton.removeAttribute("disabled");
@@ -77,23 +78,27 @@ function makeCancelButtonCancel() {
             }
         }
     }
-    cancelAJAX.addEventListener("readystatechange", cancelTakeout);
+    cancelAJAX.addEventListener("readystatechange", resetTakeoutProcess);
     cancelAJAX.send();
 }
 
 function retrieveActiveProcess () {
     function activeProcessResults () {
-        if (this.readyState === 4 && this.status === 200 && this.responseText !== "Quiet") {
-            disableOrEnableSomeButtons();
-            takeoutCancelButton.disabled = false;
-            document.querySelector("#progress-bar-container").style.visibility = "visible";
-            takeoutCancelButton.style.visibility = "visible";
-            if (progressMsg.innerHTML === "") {
-                progressMsg.innerHTML = this.responseText;
-                if (progressBarPercentage.innerHTML === ""){
-                    progressBar.style.width = "0%";
-                    progressBarPercentage.innerHTML = "0%";
+        if (this.readyState === 4 && this.status === 200) {
+            let response = JSON.parse(this.responseText);
+            if (response["stage"] !== "Quiet") {
+                disableOrEnableSomeButtons();
+                takeoutCancelButton.disabled = false;
+                document.querySelector("#progress-bar-container").style.visibility = "visible";
+                takeoutCancelButton.style.visibility = "visible";
+                if (progressMsg.innerHTML === "") {
+                    progressMsg.innerHTML = response["stage"];
+                    if (progressBarPercentage.innerHTML === ""){
+                        progressBar.style.width = response["percent"] + "%";
+                        progressBarPercentage.innerHTML = response["percent"] + "%";
+                    }
                 }
+
             }
         }
     }
@@ -104,7 +109,7 @@ function retrieveActiveProcess () {
 }
 
 
-// ------------------------ Event Source listeners for various events {Start} ------------------------
+// ------------------------ Event Source listeners for various event types {Start} ------------------------
 let onEventStage = function(event) {progressMsg.innerHTML = event.data;};
 
 let onEventStats = function(event) {
@@ -128,7 +133,7 @@ let onEventStats = function(event) {
     }
     wipeProgressIndicators(true);
     // enable the Visualize button since the DB now has some records
-    if (visualizeButton.disabled === true) {visualizeButton.removeAttribute("disabled");}
+    if (visualizeButton.disabled) {visualizeButton.removeAttribute("disabled");}
 };
 
 let onEventError = function(event) {
@@ -145,7 +150,8 @@ let onEventMsg = function (event) {
     progressBar.style.width = progressVal;
     progressBarPercentage.innerHTML = progressVal;
 };
-// ------------------------ Event Source listeners for various events {End} ------------------------
+// ------------------------ Event Source listeners for various event types {End} ------------------------
+
 
 let progress = new EventSource("/db_progress_stream");
 
