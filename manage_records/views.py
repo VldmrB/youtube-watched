@@ -160,7 +160,7 @@ def populate_db(takeout_path: str, project_path: str):
         raise ValueError('No watch-history files found')
     db_path = join(project_path, 'yt.sqlite')
     conn = sqlite_connection(db_path)
-    results = {"updated": 0, "failed_api_requests": 0}
+    results = {'updated': 0, 'failed_api_requests': 0}
     try:
         api_auth = youtube.get_api_auth(
             load_file(join(project_path, 'api_key')).strip())
@@ -222,34 +222,39 @@ def update_db(project_path: str):
     from utils.gen import load_file
 
     progress.clear()
-    add_sse_event('Starting updating...')
+    DBProcessState.percent = '0.0'
+    DBProcessState.stage = 'Starting updating...'
+    add_sse_event(DBProcessState.stage, 'stage')
     db_path = join(project_path, 'yt.sqlite')
-    decl_types = sqlite3.PARSE_DECLTYPES
-    decl_colnames = sqlite3.PARSE_COLNAMES
-    # declarations are for the timestamps (maybe for more as well, later)
-    conn = sqlite_connection(db_path,
-                             detect_types=decl_types | decl_colnames)
+    conn = sqlite_connection(db_path)
+    results = {'updated': 0,
+               'failed_api_requests': 0,
+               'records_in_db': execute_query(
+                   conn,
+                   'SELECT count(*) from videos')[0][0]}
     try:
         api_auth = youtube.get_api_auth(
             load_file(join(project_path, 'api_key')).strip())
         tm_start = time.time()
-        add_sse_event('Updating...')
-        for records_processed in write_to_sql.update_videos(conn, api_auth):
+        DBProcessState.stage = 'Updating...'
+        add_sse_event(DBProcessState.stage, 'stage')
+        for record in write_to_sql.update_videos(conn, api_auth):
             if DBProcessState.exit_thread_check():
-                return
-            if isinstance(records_processed, int):
-                add_sse_event(str(records_processed))
-            else:
-                add_sse_event(records_processed)
+                break
+            DBProcessState.percent = str(record[0])
+            add_sse_event(DBProcessState.percent)
+            results['updated'] = record[1]
+            results['failed_api_requests'] = record[2]
         print(time.time() - tm_start, 'seconds!')
+        add_sse_event(json.dumps(results), 'stats')
     except youtube.ApiKeyError:
-        add_sse_event(f'{flash_err} Missing or invalid API key')
+        add_sse_event(f'{flash_err} Missing or invalid API key', 'errors')
         raise
     except (sqlite3.OperationalError, sqlite3.DatabaseError) as e:
-        add_sse_event(f'{flash_err} Fatal database error - {e!r}')
+        add_sse_event(f'{flash_err} Fatal database error - {e!r}', 'errors')
         raise
     except FileNotFoundError:
-        add_sse_event(f'{flash_err} Invalid database path')
+        add_sse_event(f'{flash_err} Invalid database path', 'errors')
         raise
 
     conn.close()
