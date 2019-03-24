@@ -18,6 +18,7 @@ document.querySelector("#new-project-button").onclick = function() {
 };
 
 let progressMsg = document.querySelector("#progress-msg");
+let processResults = document.querySelector("#process-results");
 let progressBar = document.querySelector("#progress-bar");
 let progressBarPercentage = document.querySelector("#progress-bar-text span");
 let progressUnfinishedDBProcessWarning = document.querySelector("#wait-for-db");
@@ -46,13 +47,15 @@ function disableOrEnableSomeButtons() {
     }
 }
 
-function wipeProgressIndicators(preserveMsg = false) {
+function wipeProgressIndicators(wipeResults = false) {
     document.querySelector("#progress-bar-container").style.visibility = "hidden";
     progressBar.style.width = "0%";
     progressBarPercentage.innerHTML = "0.0%";
-    if (!preserveMsg) {
-        progressMsg.innerHTML = "";
-        progressMsg.style.color = "black";
+    progressMsg.innerHTML = "";
+    progressMsg.style.color = "black";
+    if (wipeResults) {
+        processResults.innerHTML = "";
+        processResults.style.color = "black";
     }
 }
 
@@ -62,7 +65,7 @@ function closeEventSource() {
 }
 
 function makeCancelButtonCancel() {
-    takeoutCancelButton.setAttribute("disabled", "true");
+    takeoutCancelButton.disabled = true;
     progressUnfinishedDBProcessWarning.innerHTML = "Stopping the process, please wait...";
     let cancelAJAX = new XMLHttpRequest();
     cancelAJAX.open("POST", "cancel_db_process");
@@ -70,12 +73,6 @@ function makeCancelButtonCancel() {
     function resetTakeoutProcess() {
         if (cancelAJAX.readyState === 4 && cancelAJAX.status === 200) {
             progressUnfinishedDBProcessWarning.innerHTML = "";
-            takeoutCancelButton.removeAttribute("disabled");
-            disableOrEnableSomeButtons();
-            if (progressMsg.innerHTML.indexOf("watch-history") !== -1 || progressMsg.innerHTML === "") {
-                // process interrupted before watch-history file(s) parsing was finished, no progress stats to show
-                wipeProgressIndicators();
-            }
         }
     }
     cancelAJAX.addEventListener("readystatechange", resetTakeoutProcess);
@@ -127,21 +124,23 @@ let onEventStats = function(event) {
     }
     msgString += "Total in the database: " + msgJSON["records_in_db"];
 
-    progressMsg.innerHTML = msgString;
-    if (takeoutSubmitButton.disabled) {
-        disableOrEnableSomeButtons()
-    }
-    wipeProgressIndicators(true);
+    processResults.innerHTML = msgString;
     // enable the Visualize button since the DB now has some records
     if (visualizeButton.disabled) {visualizeButton.removeAttribute("disabled");}
 };
 
+let onEventStop = function() {
+    wipeProgressIndicators();
+    disableOrEnableSomeButtons();
+    takeoutCancelButton.disabled = true;
+};
+
 let onEventError = function(event) {
     if (event.data !== undefined) {
-        progressMsg.innerHTML = event.data;
-        progressMsg.style.color = "red";
+        processResults.innerHTML = event.data;
+        processResults.style.color = "red";
         disableOrEnableSomeButtons();
-        wipeProgressIndicators(true);
+        wipeProgressIndicators();
     }
 };
 
@@ -157,6 +156,7 @@ let progress = new EventSource("/db_progress_stream");
 
 progress.addEventListener("stage", onEventStage);
 progress.addEventListener("stats", onEventStats);
+progress.addEventListener("stop", onEventStop);
 progress.addEventListener("errors", onEventError);
 progress.addEventListener("message", onEventMsg);
 
@@ -168,7 +168,7 @@ function showProgress() {
                 setTimeout(function() {progressUnfinishedDBProcessWarning.innerHTML = "";}, 3000);
             }
         } else {
-            wipeProgressIndicators(); // reset the progress bar/messages for a fresh round
+            wipeProgressIndicators(true); // reset the progress bar/messages for a fresh round
             document.querySelector("#progress-bar-container").style.visibility = "visible";
             takeoutCancelButton.style.visibility = "visible";
             disableOrEnableSomeButtons();
