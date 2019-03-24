@@ -25,6 +25,7 @@ class ThreadControl:
 
     active_event_stream = None
     stage = None
+    percent = '0.0'
 
     def is_thread_alive(self):
         return self.thread and self.thread.is_alive()
@@ -74,12 +75,17 @@ def index():
 
 @record_management.route('/process_status')
 def process_status():
-    return 'Quiet' if not DBProcessState.stage else DBProcessState.stage
+    if not DBProcessState.stage:
+        return json.dumps({'stage': 'Quiet'})
+    else:
+        return json.dumps({'stage': DBProcessState.stage,
+                           'percent': DBProcessState.percent})
 
 
 @record_management.route('/cancel_db_process', methods=['POST'])
 def cancel_db_process():
     DBProcessState.stage = None
+    DBProcessState.percent = '0.0'
     if DBProcessState.thread and DBProcessState.thread.is_alive():
         DBProcessState.exit_thread_flag = True
         while True:
@@ -134,6 +140,8 @@ def populate_db(takeout_path: str, project_path: str):
         return
 
     progress.clear()
+
+    DBProcessState.percent = '0.0'
     DBProcessState.stage = 'Locating and processing watch-history.html files...'
     add_sse_event(DBProcessState.stage, 'stage')
     try:
@@ -149,7 +157,6 @@ def populate_db(takeout_path: str, project_path: str):
     if not records:
         add_sse_event(f'No Takeout directories found in "{takeout_path}"',
                       'errors')
-        DBProcessState.stage = None
         raise ValueError('No watch-history files found')
     db_path = join(project_path, 'yt.sqlite')
     conn = sqlite_connection(db_path)
@@ -167,7 +174,8 @@ def populate_db(takeout_path: str, project_path: str):
         tm_start = time.time()
         for record in write_to_sql.insert_videos(
                 conn, records, api_auth):
-            add_sse_event(str(record[0]))
+            DBProcessState.percent = str(record[0])
+            add_sse_event(DBProcessState.percent)
             results['updated'] = record[1]
             results['failed_api_requests'] = record[2]
 
