@@ -128,7 +128,7 @@ let onEventStats = function(event) {
     msgString += "Total in the database: " + msgJSON["records_in_db"];
 
     progressMsg.innerHTML = msgString;
-    if (addMoreTakeoutButton.getAttribute("disabled")) {
+    if (takeoutSubmitButton.disabled) {
         disableOrEnableSomeButtons()
     }
     wipeProgressIndicators(true);

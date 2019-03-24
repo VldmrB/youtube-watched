@@ -238,7 +238,7 @@ def update_db(project_path: str):
         tm_start = time.time()
         DBProcessState.stage = 'Updating...'
         add_sse_event(DBProcessState.stage, 'stage')
-        for record in write_to_sql.update_videos(conn, api_auth):
+        for record in write_to_sql.update_videos(conn, api_auth, 86400):
             if DBProcessState.exit_thread_check():
                 break
             DBProcessState.percent = str(record[0])
