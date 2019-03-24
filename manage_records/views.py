@@ -118,17 +118,23 @@ def db_progress_stream():
     return Response(event_stream(), mimetype="text/event-stream")
 
 
-@record_management.route('/convert_takeout', methods=['POST'])
-def populate_db_form():
+@record_management.route('/start_db_process', methods=['POST'])
+def start_db_process():
     
     if DBProcessState.is_thread_alive():
         return DBProcessState.live_thread_warning
 
-    takeout_path = request.form['takeout-dir'].strip()
+    takeout_path = request.form.get('takeout-dir', None)
 
     project_path = get_project_dir_path_from_cookie()
-    DBProcessState.thread = Thread(target=populate_db,
-                                   args=(takeout_path, project_path))
+    if takeout_path:
+        args = (takeout_path.strip(), project_path)
+        target = populate_db
+    else:
+        args = (project_path,)
+        target = update_db
+
+    DBProcessState.thread = Thread(target=target, args=args)
     DBProcessState.thread.start()
 
     return ''
@@ -202,19 +208,6 @@ def populate_db(takeout_path: str, project_path: str):
         raise
 
     conn.close()
-
-
-@record_management.route('/update_records')
-def update_db_form():
-    if DBProcessState.is_thread_alive():
-        return DBProcessState.live_thread_warning
-
-    project_path = get_project_dir_path_from_cookie()
-    
-    DBProcessState.thread = Thread(target=update_db, args=(project_path,))
-    DBProcessState.thread.start()
-
-    return ''
 
 
 def update_db(project_path: str):

@@ -23,7 +23,7 @@
         </div>
         <div id="takeout-setup" class="{{ 'hidden' if db else '' }}">
             <form id="takeout-form" class="single-field-form-inputs"
-                  action="{{ url_for('records.populate_db_form') }}" method="POST">
+                  action="{{ url_for('records.start_db_process') }}" method="POST">
                 <input id="takeout-input" name="takeout-dir" placeholder="Takeout path" required>
                 <input class="button" type="submit" value="Start">
             </form>
