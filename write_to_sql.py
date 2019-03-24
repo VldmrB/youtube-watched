@@ -778,9 +778,24 @@ def update_videos(conn: sqlite3.Connection, api_auth,
         if 'channel_title' in record:
             channel_title = record.pop('channel_title')
             channel_id = record['channel_id']
-            if channel_title != channels[channel_id]:
-                update_channel(
-                    conn, channel_id, channel_title, verbosity_level_1)
+            try:
+                    # from pprint import pprint
+                    # pprint(record)
+                    if channel_title != channels[channel_id]:
+                        update_channel(
+                            conn, channel_id, channel_title, verbosity_level_1)
+            except KeyError:
+                """The channel now has a different ID... it's a thing.
+                One possible reason for this is large channels, belonging to 
+                large media companies, getting split off into smaller
+                channels. That's what it looked like when I came across it.
+                
+                Only encountered this once in ~19k of my own records.
+                The old channel is kept for potential usage as part of 
+                statistics"""
+                add_channel(conn, channel_id, channel_title, verbosity_level_2)
+
+            pass
         if 'relevant_topic_ids' in record:
             topics_list = record.pop('relevant_topic_ids')
             for topic in topics_list:
