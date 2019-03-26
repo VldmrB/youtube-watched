@@ -100,6 +100,8 @@ def from_divs_to_dict(path: str, occ_dict: dict = None,
     :return:
     """
 
+    max_delta = timedelta(days=1, hours=2)  # allowing for DST; ignoring Hwl Isl
+
     with open(path, 'r') as takeout_file:
         content = takeout_file.read()
         original_content = content
@@ -214,13 +216,8 @@ def from_divs_to_dict(path: str, occ_dict: dict = None,
                 It doesn't attempt to make timestamps accurate, and it may 
                 block an extremely small number of legitimate ones from being
                 entered, but mostly, it will block the duplicates"""
-                if (i - watched_at >= timedelta(hours=2) or
-                        i - watched_at <= -timedelta(hours=2)):
-                    print(i)
-                    print(watched_at)
-                    print(occ_dict['videos'][video_id])
-                break
-
+                if abs(i - watched_at) <= max_delta:
+                    break
         else:
             occ_dict['videos'][video_id]['timestamps'].append(watched_at)
             occ_dict['total_count'] += 1
