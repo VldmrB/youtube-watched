@@ -6,10 +6,11 @@ from datetime import datetime
 from typing import Union
 
 import youtube
-from config import video_keys_and_columns
+from config import video_keys_and_columns, MAX_TIME_DIFFERENCE
 from topics import topics
 from utils.sql import execute_query
 from utils.sql import generate_insert_query, generate_unconditional_update_query
+from utils.gen import are_different_timestamps
 
 logger = logging.getLogger(__name__)
 
@@ -494,7 +495,7 @@ def insert_videos(conn, records: dict, api_auth, verbosity=1):
     cur.close()
     logger.info(f'\nStarting records\' insertion...\n' + '-'*100)
 
-    # due to its made up ID, the unknown record is best handled manually
+    # due to its made up ID, the unknown record is best handled outside the loop
     if 'unknown' in records:
         unknown_record = records.pop('unknown')
         unknown_record['id'] = 'unknown'
@@ -508,10 +509,15 @@ def insert_videos(conn, records: dict, api_auth, verbosity=1):
         if 'unknown' not in video_ids:
             add_video(conn, unknown_record, verbosity_level_2)
             inserted += 1
-        for timestamp in unknown_timestamps:
-            if timestamp not in timestamps['unknown']:
-                add_time(conn, timestamp, 'unknown', verbosity_level_3)
-                
+        for candidate in unknown_timestamps:
+            for incumbent in timestamps['unknown']:
+                if not are_different_timestamps(candidate, incumbent,
+                                                MAX_TIME_DIFFERENCE):
+                    break
+            else:
+                add_time(conn, candidate, 'unknown', verbosity_level_3)
+                timestamps['unknown'].append(candidate)
+
     sub_percent, sub_percent_int = calculate_subpercentage(len(records))
 
     for video_id, record in records.items():
@@ -539,9 +545,14 @@ def insert_videos(conn, records: dict, api_auth, verbosity=1):
                 generated, but was deleted by the time the newer Takeout was.
             '''
             timestamps.setdefault(video_id, [])
-            for timestamp in record.pop('timestamps'):
-                if timestamp not in timestamps[video_id]:
-                    add_time(conn, timestamp, video_id, verbosity_level_2)
+            for candidate in record.pop('timestamps'):
+                for incumbent in timestamps[video_id]:
+                    if not are_different_timestamps(candidate, incumbent,
+                                                    MAX_TIME_DIFFERENCE):
+                        break
+                else:
+                    add_time(conn, candidate, video_id, verbosity_level_2)
+                    timestamps[video_id].append(candidate)
 
             if video_id in dead_videos_ids and 'title' in record:
                 # Older Takeout file which for some reason was added out of
@@ -632,7 +643,7 @@ def insert_videos(conn, records: dict, api_auth, verbosity=1):
         else:
             tags = None
 
-        current_timestamps = record.pop('timestamps')
+        candidate_timestamps = record.pop('timestamps')
 
         if video_id in video_ids:  # passing this check means the API request
             # has been successfully made on this pass, whereas previous
@@ -646,9 +657,14 @@ def insert_videos(conn, records: dict, api_auth, verbosity=1):
                 inserted += 1
 
         timestamps.setdefault(video_id, [])
-        for timestamp in current_timestamps:
-            if timestamp not in timestamps[video_id]:
-                add_time(conn, timestamp, video_id)
+        for candidate in candidate_timestamps:
+            for incumbent in timestamps[video_id]:
+                if not are_different_timestamps(candidate, incumbent,
+                                                MAX_TIME_DIFFERENCE):
+                    break
+            else:
+                add_time(conn, candidate, video_id, verbosity_level_3)
+                timestamps[video_id].append(candidate)
 
         if tags:
             add_tags_to_table_and_video(conn, tags, video_id, existing_tags,

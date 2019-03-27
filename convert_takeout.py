@@ -1,9 +1,12 @@
 import os
 import re
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Union
 
 from bs4 import BeautifulSoup as BSoup
+
+from config import MAX_TIME_DIFFERENCE
+from utils.gen import are_different_timestamps
 
 """
 In addition to seemingly only returning an oddly even number of records 
@@ -100,8 +103,6 @@ def from_divs_to_dict(path: str, occ_dict: dict = None,
     :return:
     """
 
-    max_delta = timedelta(days=1, hours=2)  # allowing for DST; ignoring Hwl Isl
-
     with open(path, 'r') as takeout_file:
         content = takeout_file.read()
         original_content = content
@@ -133,14 +134,6 @@ def from_divs_to_dict(path: str, occ_dict: dict = None,
         content = done_ + '\n' + content
     if occ_dict is None:
         occ_dict = {}
-    last_record_found = occ_dict.get('last_record_found')
-    last_record_found_now = None
-    if last_record_found:
-        new_content_end = content.find(last_record_found)
-        if new_content_end > 0:
-            content = content[:new_content_end]
-            content = content[:content.rfind('<div')]  # since the previous
-        # str.find() includes half a div from the previous watch-history.html
     if content != original_content and write_changes:
         print('Rewrote', path, '(trimmed junk HTML).')
         with open(path, 'w') as new_file:
@@ -150,6 +143,7 @@ def from_divs_to_dict(path: str, occ_dict: dict = None,
         occ_dict = {}
     occ_dict.setdefault('videos', {})
     occ_dict.setdefault('total_count', 0)
+    occ_dict['videos'].setdefault('unknown', {'timestamps': []})
     divs = soup.find_all('div', class_='awesome_class')
     if len(divs) == 0:
         raise ValueError(f'Could not find any records in {path} while '
@@ -159,16 +153,11 @@ def from_divs_to_dict(path: str, occ_dict: dict = None,
     removed_string = 'Watched a video that has been removed'
     removed_string_len = len(removed_string)
     story_string = 'Watched story'
-    for str_ in divs[0].stripped_strings:  # records are in descending order
-        last_record_found_now = str_.strip()
-        if last_record_found_now.startswith(removed_string):
-            last_record_found_now = last_record_found_now[removed_string_len:]
-    occ_dict['last_record_found'] = last_record_found_now
     for div in divs:
         default_values = {'timestamps': []}
         video_id = 'unknown'
         all_text = div.get_text().strip()
-        if all_text.startswith(removed_string):
+        if all_text.startswith(removed_string):  # only timestamp present
             watched_at = all_text[removed_string_len:]
         elif all_text.startswith(story_string):
             watched_at = all_text.splitlines()[-1].strip()
@@ -178,7 +167,8 @@ def from_divs_to_dict(path: str, occ_dict: dict = None,
             url = div.find(href=watch_url_re)
             video_id = extract_video_id_from_url(url['href'])
             video_title = url.get_text(strip=True)
-            if url['href'] != video_title:
+            if url['href'] != video_title:  # some videos have the url as the
+                # title. They're usually not available through YT or its API
                 default_values['title'] = video_title
                 try:
                     channel = div.find(href=channel_url_re)
@@ -195,32 +185,34 @@ def from_divs_to_dict(path: str, occ_dict: dict = None,
                                        '%b %d, %Y, %I:%M:%S %p')
 
         occ_dict['videos'].setdefault(video_id, default_values)
-        for i in occ_dict['videos'][video_id]['timestamps']:
-            if watched_at.replace(day=1, hour=0) == i.replace(day=1, hour=0):
-                """Since each archive could potentially have timestamps in a 
-                different timezone, the same ones from different files could 
-                show as unique timestamps.
-                
-                One way of fixing that would be to extract the timezone 
-                abbreviation from each watch-history file (there is only one 
-                per, it seems), retrieve a list of
-                timezones that use that abbreviation and provide the user 
-                with those timezones as choices, per each file as 
-                appropriate. The user would then pick the right one for each 
-                file and then timestamps from each file would be converted to 
-                UTC (or perhaps converted to the local time of the machine)
-                and then entered into the database.
-                
-                That would be quite time consuming to code 
-                and so the much simpler if check above was implemented.
-                It doesn't attempt to make timestamps accurate, and it may 
-                block an extremely small number of legitimate ones from being
-                entered, but mostly, it will block the duplicates"""
-                if abs(i - watched_at) <= max_delta:
-                    break
+        default_keys = list(default_values.keys())
+        default_keys.remove('timestamps')
+        for key in default_keys:
+            # tries to check if the newer record has some data that the one
+            # that's already set doesn't. Sets it if so
+            if not occ_dict['videos'][video_id].get(key, None):
+                occ_dict['videos'][video_id][key] = default_values[key]
+
+        for incumbent in occ_dict['videos'][video_id]['timestamps']:
+            if not are_different_timestamps(incumbent, watched_at,
+                                            MAX_TIME_DIFFERENCE):
+                break
         else:
             occ_dict['videos'][video_id]['timestamps'].append(watched_at)
             occ_dict['total_count'] += 1
+            # below tries to remove timestamps from the 'unknown' record that
+            # were found on a known record. This may happen if the unknown
+            # record was encountered first.
+            # Some minor casualties of legitimate unknown
+            # timestamps (due to the 25 hour timedelta used by
+            # are_different_timestamps) are possible, but they're worth it
+            if video_id != 'unknown':  # avoid comparing to itself
+                for incumbent in occ_dict['videos']['unknown']['timestamps']:
+                    if not are_different_timestamps(watched_at, incumbent,
+                                                    MAX_TIME_DIFFERENCE):
+                        occ_dict['videos']['unknown']['timestamps'].remove(
+                            incumbent)
+                        occ_dict['total_count'] -= 1
 
     return occ_dict
 
