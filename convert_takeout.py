@@ -83,8 +83,8 @@ def get_watch_history_files(takeout_path: str = '.') -> Union[list, None]:
     return watch_histories
 
 
-def from_divs_to_dict(path: str, occ_dict: dict = None,
-                      write_changes=False) -> dict:
+def _from_divs_to_dict(path: str, occ_dict: dict = None,
+                       write_changes=False) -> dict:
     """
     Retrieves all the available info from the passed watch-history.html file;
     returns them in a dict
@@ -135,9 +135,9 @@ def from_divs_to_dict(path: str, occ_dict: dict = None,
     if occ_dict is None:
         occ_dict = {}
     if content != original_content and write_changes:
-        print('Rewrote', path, '(trimmed junk HTML).')
         with open(path, 'w') as new_file:
             new_file.write(content)
+        print('Rewrote', path, '(trimmed junk HTML).')
     soup = BSoup(content, 'lxml')
     if occ_dict is None:
         occ_dict = {}
@@ -213,6 +213,7 @@ def from_divs_to_dict(path: str, occ_dict: dict = None,
                         occ_dict['videos']['unknown']['timestamps'].remove(
                             incumbent)
                         occ_dict['total_count'] -= 1
+                        break
 
     return occ_dict
 
@@ -240,10 +241,29 @@ def get_all_records(takeout_path: str = '.',
     occ_dict = {}
     for takeout_file in watch_files:
         print(takeout_file)
-        from_divs_to_dict(takeout_file, occ_dict=occ_dict,
-                          write_changes=prune_html)
+        _from_divs_to_dict(takeout_file, occ_dict=occ_dict,
+                           write_changes=prune_html)
+
+    all_known_timestamps_ids = list(occ_dict['videos'].keys())
+    all_known_timestamps_ids.remove('unknown')
+    all_known_timestamps_lists = [i for i in
+                                  [occ_dict['videos'][v_id]['timestamps']
+                                   for v_id in all_known_timestamps_ids]]
+    import itertools
+    all_known_timestamps = list(itertools.chain.from_iterable(
+        all_known_timestamps_lists))
+    clean_unknown_timestamps = []
+    for a in occ_dict['videos']['unknown']['timestamps']:
+        for i in all_known_timestamps:
+            if not are_different_timestamps(i, a, MAX_TIME_DIFFERENCE):
+                break
+        else:
+            clean_unknown_timestamps.append(a)
+    print(len(clean_unknown_timestamps))
+
     if verbose:
-        print('Total videos watched/opened:', occ_dict['total_count'])
+        print('Total videos watched/opened:',
+              len(all_known_timestamps) + len(clean_unknown_timestamps))
         print('Unique videos with ids:', len(occ_dict['videos']) - 1)
         # ^ minus one for 'unknown' key
     if dump_json_to:
