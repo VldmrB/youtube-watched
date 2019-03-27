@@ -1,4 +1,5 @@
 import os
+from datetime import timedelta
 
 if os.path.exists('api_key'):
     with open('api_key', 'r') as file:
@@ -32,3 +33,11 @@ video_parts_to_get = ','.join([
     "status",  # 2
     "topicDetails"  # 2
 ])
+
+# YouTube Takeout seems to return timestamps in local time,
+# but without a concrete timezone.
+# In case archives were downloaded in different parts of the world,
+# the same timestamp may show up as multiple different ones. The below value is
+# used by a function to eliminate/block such duplicates, though at a
+# potential cost of removing very few legitimate timestamps as well
+MAX_TIME_DIFFERENCE = timedelta(hours=25)

@@ -1,6 +1,7 @@
 import logging
 import sys
 from logging import handlers
+from datetime import datetime, timedelta
 
 loggers_to_remove = ['werkzeug', 'flask', 'matplotlib']
 
@@ -68,6 +69,22 @@ def logging_config(log_file_path: str,
 
     logging.basicConfig(format=log_format, level=file_level,
                         handlers=[file_handler, console_out, console_err])
+
+
+def are_different_timestamps(candidate: datetime,
+                             incumbent: datetime,
+                             max_diff: timedelta) -> bool:
+    """Since each archive could potentially have timestamps in a
+    different timezone, the same ones from different files could
+    show as multiple unique timestamps due to different day/hour
+
+    This function doesn't attempt to make timestamps accurate, and it may
+    block an extremely small number of legitimate ones from being
+    entered. Mostly, it will block the duplicates, however"""
+    if candidate.replace(day=1, hour=0) == incumbent.replace(day=1, hour=0):
+        if abs(incumbent - candidate) <= max_diff:
+            return False
+    return True
 
 
 def load_file(path: str):

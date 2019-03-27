@@ -89,12 +89,14 @@ form>span {
     margin: 5% auto 1.5% auto;
 }
 
-p, h3 {
+ h3, h4 {
     margin: 8px 0;
 }
 
-h1, h3 {
-    color: gray;
+p { margin: 8px 0;}
+
+h1, h2, h3, h4{
+    color: darkgrey;
 }
 
 .link-btn, .link-btn:visited {

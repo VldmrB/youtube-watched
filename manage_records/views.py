@@ -166,7 +166,7 @@ def populate_db(takeout_path: str, project_path: str):
                       'errors')
         raise ValueError('No watch-history files found')
     db_path = join(project_path, 'yt.sqlite')
-    conn = sqlite_connection(db_path)
+    conn = sqlite_connection(db_path, types=True)
     results = {'updated': 0, 'failed_api_requests': 0}
     try:
         api_auth = youtube.get_api_auth(
