@@ -1,4 +1,5 @@
 import bisect
+import itertools
 import os
 import re
 from datetime import datetime
@@ -143,9 +144,7 @@ def _from_divs_to_dict(path: str, occ_dict: dict = None,
     if occ_dict is None:
         occ_dict = {}
     occ_dict.setdefault('videos', {})
-    occ_dict.setdefault('total_count', 0)
     occ_dict['videos'].setdefault('unknown', {'timestamps': []})
-    unk_timestamps = occ_dict['videos']['unknown']['timestamps']
     divs = soup.find_all('div', class_='awesome_class')
     if len(divs) == 0:
         raise ValueError(f'Could not find any records in {path} while '
@@ -200,13 +199,12 @@ def _from_divs_to_dict(path: str, occ_dict: dict = None,
                                    watched_at - MAX_TIME_DIFFERENCE)
         end = bisect.bisect_right(cur_timestamps,
                                   watched_at + MAX_TIME_DIFFERENCE)
-        if start == end and start == 0:
+        if start == end and start == 0:  # no similar records found
             bisect.insort_left(cur_timestamps, watched_at)
         else:
             for incumbent in range(start, end):
                 if not are_different_timestamps(watched_at,
-                                                cur_timestamps[incumbent],
-                                                MAX_TIME_DIFFERENCE):
+                                                cur_timestamps[incumbent]):
                     break
             else:
                 bisect.insort_left(cur_timestamps, watched_at)
@@ -245,11 +243,12 @@ def get_all_records(takeout_path: str = '.',
     all_known_timestamps_lists = [i for i in
                                   [occ_dict['videos'][v_id]['timestamps']
                                    for v_id in all_known_timestamps_ids]]
-    import itertools
     all_known_timestamps = list(itertools.chain.from_iterable(
         all_known_timestamps_lists))
-    # clean_unknown_timestamps = []
     unk_timestamps = occ_dict['videos']['unknown']['timestamps']
+    unk_timestamps = sorted(
+        list(set(unk_timestamps).difference(all_known_timestamps)))
+    occ_dict['videos']['unknown']['timestamps'] = unk_timestamps
     for incumbent in all_known_timestamps:
         start = bisect.bisect_left(unk_timestamps,
                                    incumbent - MAX_TIME_DIFFERENCE)
@@ -258,16 +257,15 @@ def get_all_records(takeout_path: str = '.',
         if start != end:
             for unk_incumbent in range(start, end):
                 if not are_different_timestamps(incumbent,
-                                                unk_timestamps[unk_incumbent],
-                                                MAX_TIME_DIFFERENCE):
-                    unk_timestamps.pop(incumbent)
+                                                unk_timestamps[unk_incumbent]):
+                    unk_timestamps.pop(unk_incumbent)
                     break
 
     if verbose:
         print('Total videos watched/opened:',
               len(all_known_timestamps) + len(unk_timestamps))
-        print('Unique videos with ids:', len(occ_dict['videos']) - 1)
         print('Total unknown videos:', len(unk_timestamps))
+        print('Unique videos with ids:', len(occ_dict['videos']) - 1)
         # ^ minus one for 'unknown' key
     if dump_json_to:
         import json

@@ -511,8 +511,7 @@ def insert_videos(conn, records: dict, api_auth, verbosity=1):
             inserted += 1
         for candidate in unknown_timestamps:
             for incumbent in timestamps['unknown']:
-                if not are_different_timestamps(candidate, incumbent,
-                                                MAX_TIME_DIFFERENCE):
+                if not are_different_timestamps(candidate, incumbent):
                     break
             else:
                 add_time(conn, candidate, 'unknown', verbosity_level_3)
@@ -547,8 +546,7 @@ def insert_videos(conn, records: dict, api_auth, verbosity=1):
             timestamps.setdefault(video_id, [])
             for candidate in record.pop('timestamps'):
                 for incumbent in timestamps[video_id]:
-                    if not are_different_timestamps(candidate, incumbent,
-                                                    MAX_TIME_DIFFERENCE):
+                    if not are_different_timestamps(candidate, incumbent):
                         break
                 else:
                     add_time(conn, candidate, video_id, verbosity_level_2)
@@ -659,8 +657,7 @@ def insert_videos(conn, records: dict, api_auth, verbosity=1):
         timestamps.setdefault(video_id, [])
         for candidate in candidate_timestamps:
             for incumbent in timestamps[video_id]:
-                if not are_different_timestamps(candidate, incumbent,
-                                                MAX_TIME_DIFFERENCE):
+                if not are_different_timestamps(candidate, incumbent):
                     break
             else:
                 add_time(conn, candidate, video_id, verbosity_level_3)
