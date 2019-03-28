@@ -1,7 +1,10 @@
+import bisect
 import logging
 import sys
+from datetime import datetime
 from logging import handlers
-from datetime import datetime, timedelta
+
+from config import MAX_TIME_DIFFERENCE
 
 loggers_to_remove = ['werkzeug', 'flask', 'matplotlib']
 
@@ -72,8 +75,7 @@ def logging_config(log_file_path: str,
 
 
 def are_different_timestamps(candidate: datetime,
-                             incumbent: datetime,
-                             max_diff: timedelta) -> bool:
+                             incumbent: datetime) -> bool:
     """Since each archive could potentially have timestamps in a
     different timezone, the same ones from different files could
     show as multiple unique timestamps due to different day/hour
@@ -82,9 +84,41 @@ def are_different_timestamps(candidate: datetime,
     block an extremely small number of legitimate ones from being
     entered. Mostly, it will block the duplicates, however"""
     if candidate.replace(day=1, hour=0) == incumbent.replace(day=1, hour=0):
-        if abs(incumbent - candidate) <= max_diff:
-            return False
+        return False
     return True
+
+
+def remove_known_timestamps_from_unknown(known, unknown):
+    """Useful for when Takeouts are added out of order and/or for
+    when stories show up as normal videos in newer Takeouts"""
+    for incumbent in known:
+        start = bisect.bisect_left(unknown,
+                                   incumbent - MAX_TIME_DIFFERENCE)
+        end = bisect.bisect_right(unknown,
+                                  incumbent + MAX_TIME_DIFFERENCE)
+        if start != end:
+            for unk_incumbent in range(start, end):
+                if not are_different_timestamps(incumbent,
+                                                unknown[unk_incumbent]):
+                    unknown.pop(unk_incumbent)
+                    break
+
+
+def add_a_timestamp_if_no_duplicates(candidate, timestamps):
+    ""
+    start = bisect.bisect_left(timestamps,
+                               candidate - MAX_TIME_DIFFERENCE)
+    end = bisect.bisect_right(timestamps,
+                              candidate + MAX_TIME_DIFFERENCE)
+    if start == end and start == 0:  # no similar records found
+        bisect.insort_left(timestamps, candidate)
+    else:
+        for incumbent in range(start, end):
+            if not are_different_timestamps(candidate,
+                                            timestamps[incumbent]):
+                break
+        else:
+            bisect.insort_left(timestamps, candidate)
 
 
 def load_file(path: str):
