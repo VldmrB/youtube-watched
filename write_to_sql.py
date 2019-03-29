@@ -1,6 +1,7 @@
 import bisect
 import json
 import logging
+import itertools
 import sqlite3
 import time
 from datetime import datetime
@@ -11,7 +12,8 @@ from config import video_keys_and_columns, MAX_TIME_DIFFERENCE
 from topics import topics
 from utils.sql import execute_query
 from utils.sql import generate_insert_query, generate_unconditional_update_query
-from utils.gen import (are_different_timestamps, timestamp_is_unique_in_list)
+from utils.gen import (are_different_timestamps, timestamp_is_unique_in_list,
+                       remove_timestamps_from_one_list_from_another)
 
 logger = logging.getLogger(__name__)
 
@@ -506,13 +508,35 @@ def insert_videos(conn, records: dict, api_auth, verbosity=1):
     logger.info(f'\nStarting records\' insertion...\n' + '-'*100)
 
     # due to its made up ID, the unknown record is best handled outside the loop
-    # and after known timestamps, for efficiency
     unknown_record = records.pop('unknown', None)
     unk_db_timestamps = db_timestamps.setdefault('unknown', [])
+    if unknown_record:
+        unknown_record['id'] = 'unknown'
+        unknown_record['title'] = 'unknown'
+        unknown_record['channel_id'] = 'unknown'
+        unknown_record['status'] = 'inactive'
+        unknown_timestamps = unknown_record.pop('timestamps')
+        all_known_timestamps_ids = list(db_timestamps.keys())
+        all_known_timestamps_ids.remove('unknown')
+        all_known_timestamps_lists = [i for i in
+                                      [db_timestamps[v_id]
+                                       for v_id in all_known_timestamps_ids]]
+        all_known_timestamps = list(itertools.chain.from_iterable(
+            all_known_timestamps_lists))
+        remove_timestamps_from_one_list_from_another(all_known_timestamps,
+                                                     unknown_timestamps)
+        if 'unknown' not in channels:
+            add_channel(conn, 'unknown', 'unknown', verbosity_level_2)
+        if 'unknown' not in video_ids:
+            add_video(conn, unknown_record, verbosity_level_2)
+            inserted += 1
+        for candidate in unknown_timestamps:
+            if timestamp_is_unique_in_list(candidate, unk_db_timestamps):
+                add_time(conn, candidate, 'unknown', verbosity_level_3)
 
     def add_known_timestamps_and_remove_from_unknown(new_timestamps):
         db_timestamps.setdefault(video_id, [])
-        # db_timestamps[video_id].sort()  # todo shouldn't sort, but test
+        db_timestamps[video_id].sort()
         added_timestamps = []
         for new in new_timestamps:
             if timestamp_is_unique_in_list(new,
@@ -520,15 +544,15 @@ def insert_videos(conn, records: dict, api_auth, verbosity=1):
                 add_time(conn, new, video_id, verbosity_level_2)
                 added_timestamps.append(new)
         # clean db unknown timestamps of ones that are now known
-        for incumbent in added_timestamps:
+        for db_incumbent in added_timestamps:
             start = bisect.bisect_left(unk_db_timestamps,
-                                       incumbent - MAX_TIME_DIFFERENCE)
+                                       db_incumbent - MAX_TIME_DIFFERENCE)
             end = bisect.bisect_right(unk_db_timestamps,
-                                      incumbent + MAX_TIME_DIFFERENCE)
+                                      db_incumbent + MAX_TIME_DIFFERENCE)
             if start != end:
                 for unk_incumbent in range(start, end):
                     if not are_different_timestamps(
-                            incumbent, unk_db_timestamps[unk_incumbent]):
+                            db_incumbent, unk_db_timestamps[unk_incumbent]):
                         delete_time(conn,
                                     unk_db_timestamps.pop(unk_incumbent),
                                     'unknown', verbose=verbosity_level_1)
@@ -569,11 +593,7 @@ def insert_videos(conn, records: dict, api_auth, verbosity=1):
                 # deleted by the time newer Takeout containing entries for that
                 # video has been generated
                 if 'channel_id' in record:
-                    # todo any specific reason .pop(<item>, None) is not used?
-                    if 'channel_title' in record:
-                        channel_title = record.pop('channel_title')
-                    else:
-                        channel_title = None
+                    channel_title = record.pop('channel_title', None)
                     add_channel(conn, record['channel_id'], channel_title,
                                 verbosity_level_2)
                 record['status'] = 'inactive'
@@ -680,21 +700,6 @@ def insert_videos(conn, records: dict, api_auth, verbosity=1):
         conn.commit()  # committing after every record ensures each record's
         # info is inserted fully, or not at all, in case of an unforeseen
         # failure during some loop. An atomic insertion, of sorts
-
-    if unknown_record:
-        unknown_record['id'] = 'unknown'
-        unknown_record['title'] = 'unknown'
-        unknown_record['channel_id'] = 'unknown'
-        unknown_record['status'] = 'inactive'
-        unknown_timestamps = unknown_record.pop('timestamps')
-        if 'unknown' not in channels:
-            add_channel(conn, 'unknown', 'unknown', verbosity_level_2)
-        if 'unknown' not in video_ids:
-            add_video(conn, unknown_record, verbosity_level_2)
-            inserted += 1
-        for candidate in unknown_timestamps:
-            if timestamp_is_unique_in_list(candidate, unk_db_timestamps):
-                add_time(conn, candidate, 'unknown', verbosity_level_3)
 
     conn.commit()
 

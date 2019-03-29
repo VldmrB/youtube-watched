@@ -74,8 +74,8 @@ def logging_config(log_file_path: str,
                         handlers=[file_handler, console_out, console_err])
 
 
-def are_different_timestamps(candidate: datetime,
-                             incumbent: datetime) -> bool:
+def are_different_timestamps(ts1: datetime,
+                             ts2: datetime) -> bool:
     """Since each archive could potentially have timestamps in a
     different timezone, the same ones from different files could
     show as multiple unique timestamps due to different day/hour
@@ -83,24 +83,24 @@ def are_different_timestamps(candidate: datetime,
     This function doesn't attempt to make timestamps accurate, and it may
     block an extremely small number of legitimate ones from being
     entered. Mostly, it will block the duplicates, however"""
-    if candidate.replace(day=1, hour=0) == incumbent.replace(day=1, hour=0):
+    if ts1.replace(day=1, hour=0) == ts2.replace(day=1, hour=0):
         return False
     return True
 
 
-def remove_known_timestamps_from_unknown(known, unknown):
+def remove_timestamps_from_one_list_from_another(filter_, filteree):
     """Useful for when Takeouts are added out of order and/or for
     when stories show up as normal videos in newer Takeouts"""
-    for incumbent in known:
-        start = bisect.bisect_left(unknown,
-                                   incumbent - MAX_TIME_DIFFERENCE)
-        end = bisect.bisect_right(unknown,
-                                  incumbent + MAX_TIME_DIFFERENCE)
+    for timestamp in filter_:
+        start = bisect.bisect_left(filteree,
+                                   timestamp - MAX_TIME_DIFFERENCE)
+        end = bisect.bisect_right(filteree,
+                                  timestamp + MAX_TIME_DIFFERENCE)
         if start != end:
-            for unk_incumbent in range(start, end):
-                if not are_different_timestamps(incumbent,
-                                                unknown[unk_incumbent]):
-                    unknown.pop(unk_incumbent)
+            for potential_duplicate in range(start, end):
+                if not are_different_timestamps(timestamp,
+                                                filteree[potential_duplicate]):
+                    filteree.pop(potential_duplicate)
                     break
 
 
@@ -114,8 +114,7 @@ def timestamp_is_unique_in_list(candidate, timestamps, insert=False):
             bisect.insort_left(timestamps, candidate)
     else:
         for incumbent in range(start, end):
-            if not are_different_timestamps(candidate,
-                                            timestamps[incumbent]):
+            if not are_different_timestamps(candidate, timestamps[incumbent]):
                 return False
         else:
             if insert:

@@ -8,7 +8,7 @@ from typing import Union
 from bs4 import BeautifulSoup as BSoup
 
 from utils.gen import (timestamp_is_unique_in_list,
-                       remove_known_timestamps_from_unknown)
+                       remove_timestamps_from_one_list_from_another)
 
 """
 In addition to seemingly only returning an oddly even number of records 
@@ -237,7 +237,8 @@ def get_all_records(takeout_path: str = '.',
     unk_timestamps = sorted(
         list(set(unk_timestamps).difference(all_known_timestamps)))
     occ_dict['videos']['unknown']['timestamps'] = unk_timestamps
-    remove_known_timestamps_from_unknown(all_known_timestamps, unk_timestamps)
+    remove_timestamps_from_one_list_from_another(all_known_timestamps,
+                                                 unk_timestamps)
 
     if verbose:
         print('Total videos watched/opened:',
