@@ -148,11 +148,21 @@ def populate_db(takeout_path: str, project_path: str):
 
     progress.clear()
 
-    DBProcessState.percent = '0.0'
-    DBProcessState.stage = 'Locating and processing watch-history.html files...'
+    DBProcessState.percent = '0'
+    DBProcessState.stage = 'Processing watch-history.html file(s)...'
     add_sse_event(DBProcessState.stage, 'stage')
+    records = {}
     try:
-        records = get_all_records(takeout_path)
+        for f in get_all_records(takeout_path):
+            if DBProcessState.exit_thread_check():
+                return
+            if isinstance(f, tuple):
+                DBProcessState.percent = f'{round(f[0]/f[1], 1)*100}'
+                add_sse_event(DBProcessState.percent)
+
+            else:
+                records = f
+
     except FileNotFoundError:
         add_sse_event(f'Invalid/non-existent path for watch-history.html files',
                       'errors')
@@ -175,6 +185,8 @@ def populate_db(takeout_path: str, project_path: str):
         records_at_start = results['records_in_db'] = execute_query(
             conn, 'SELECT count(*) from videos')[0][0]
 
+        DBProcessState.percent = '0.0'
+        add_sse_event(DBProcessState.percent)
         DBProcessState.stage = 'Inserting records...'
         add_sse_event(DBProcessState.stage, 'stage')
 

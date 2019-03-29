@@ -103,6 +103,10 @@ fluff = [  # the order should not be changed
 ]
 done_ = '<span id="Done">'
 
+removed_string = 'Watched a video that has been removed'
+removed_string_len = len(removed_string)
+story_string = 'Watched story'
+
 
 def get_all_records(takeout_path: str = '.',
                     dump_json_to: str = None, prune_html=False,
@@ -126,11 +130,9 @@ def get_all_records(takeout_path: str = '.',
 
     occ_dict = {'videos': {'unknown': {'timestamps': []}}}
 
-    removed_string = 'Watched a video that has been removed'
-    removed_string_len = len(removed_string)
-    story_string = 'Watched story'
-
-    for watch_file_path in watch_files:
+    watch_files_amount = len(watch_files)
+    for ind, watch_file_path in enumerate(watch_files):
+        yield ind, watch_files_amount
         print(watch_file_path)
         with open(watch_file_path, 'r') as watch_file:
             content = watch_file.read()
@@ -225,4 +227,4 @@ def get_all_records(takeout_path: str = '.',
                       default=lambda o: str(o))
             print('Dumped JSON to', dump_json_to)
 
-    return occ_dict['videos']
+    yield occ_dict['videos']
