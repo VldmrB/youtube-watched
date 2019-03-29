@@ -104,21 +104,23 @@ def remove_known_timestamps_from_unknown(known, unknown):
                     break
 
 
-def add_a_timestamp_if_no_duplicates(candidate, timestamps):
-    ""
+def timestamp_is_unique_in_list(candidate, timestamps, insert=False):
     start = bisect.bisect_left(timestamps,
                                candidate - MAX_TIME_DIFFERENCE)
     end = bisect.bisect_right(timestamps,
                               candidate + MAX_TIME_DIFFERENCE)
     if start == end and start == 0:  # no similar records found
-        bisect.insort_left(timestamps, candidate)
+        if insert:
+            bisect.insort_left(timestamps, candidate)
     else:
         for incumbent in range(start, end):
             if not are_different_timestamps(candidate,
                                             timestamps[incumbent]):
-                break
+                return False
         else:
-            bisect.insort_left(timestamps, candidate)
+            if insert:
+                bisect.insort_left(timestamps, candidate)
+    return True
 
 
 def load_file(path: str):
