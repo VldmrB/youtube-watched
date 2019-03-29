@@ -1,14 +1,14 @@
-import bisect
 import itertools
 import os
 import re
+from copy import deepcopy
 from datetime import datetime
 from typing import Union
 
 from bs4 import BeautifulSoup as BSoup
 
-from config import MAX_TIME_DIFFERENCE
-from utils.gen import are_different_timestamps
+from utils.gen import (timestamp_is_unique_in_list,
+                       remove_known_timestamps_from_unknown)
 
 """
 In addition to seemingly only returning an oddly even number of records 
@@ -195,19 +195,7 @@ def _from_divs_to_dict(path: str, occ_dict: dict = None,
                 occ_dict['videos'][video_id][key] = default_values[key]
 
         cur_timestamps = occ_dict['videos'][video_id]['timestamps']
-        start = bisect.bisect_left(cur_timestamps,
-                                   watched_at - MAX_TIME_DIFFERENCE)
-        end = bisect.bisect_right(cur_timestamps,
-                                  watched_at + MAX_TIME_DIFFERENCE)
-        if start == end and start == 0:  # no similar records found
-            bisect.insort_left(cur_timestamps, watched_at)
-        else:
-            for incumbent in range(start, end):
-                if not are_different_timestamps(watched_at,
-                                                cur_timestamps[incumbent]):
-                    break
-            else:
-                bisect.insort_left(cur_timestamps, watched_at)
+        timestamp_is_unique_in_list(watched_at, cur_timestamps, insert=True)
 
     return occ_dict
 
@@ -249,17 +237,7 @@ def get_all_records(takeout_path: str = '.',
     unk_timestamps = sorted(
         list(set(unk_timestamps).difference(all_known_timestamps)))
     occ_dict['videos']['unknown']['timestamps'] = unk_timestamps
-    for incumbent in all_known_timestamps:
-        start = bisect.bisect_left(unk_timestamps,
-                                   incumbent - MAX_TIME_DIFFERENCE)
-        end = bisect.bisect_right(unk_timestamps,
-                                  incumbent + MAX_TIME_DIFFERENCE)
-        if start != end:
-            for unk_incumbent in range(start, end):
-                if not are_different_timestamps(incumbent,
-                                                unk_timestamps[unk_incumbent]):
-                    unk_timestamps.pop(unk_incumbent)
-                    break
+    remove_known_timestamps_from_unknown(all_known_timestamps, unk_timestamps)
 
     if verbose:
         print('Total videos watched/opened:',
@@ -269,8 +247,11 @@ def get_all_records(takeout_path: str = '.',
         # ^ minus one for 'unknown' key
     if dump_json_to:
         import json
-        with open(os.path.join(dump_json_to, 'all_records.json'),
-                  'w') as all_records_file:
-            json.dump(occ_dict['videos'], all_records_file, indent=4)
+        str_timestamps_dict = deepcopy(occ_dict['videos'])
+        with open(dump_json_to, 'w') as all_records_file:
+            for record in str_timestamps_dict.values():
+                for i in range(len(record['timestamps'])):
+                    record['timestamps'][i] = str(record['timestamps'][i])
+            json.dump(str_timestamps_dict, all_records_file, indent=4)
 
     return occ_dict['videos']

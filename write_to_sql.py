@@ -1,3 +1,4 @@
+import bisect
 import json
 import logging
 import sqlite3
@@ -10,7 +11,7 @@ from config import video_keys_and_columns, MAX_TIME_DIFFERENCE
 from topics import topics
 from utils.sql import execute_query
 from utils.sql import generate_insert_query, generate_unconditional_update_query
-from utils.gen import are_different_timestamps
+from utils.gen import (are_different_timestamps, timestamp_is_unique_in_list)
 
 logger = logging.getLogger(__name__)
 
@@ -117,6 +118,8 @@ add_topic_to_video_query = generate_insert_query('videos_topics',
 add_time_to_video_query = generate_insert_query(
     'videos_timestamps',
     columns=VIDEOS_TIMESTAMPS_COLUMNS)
+delete_time_query = '''DELETE FROM videos_timestamps
+                       WHERE video_id = ? AND watched_at = ?'''
 add_failed_request_query = generate_insert_query(
     'failed_requests_ids',
     columns=FAILED_REQUESTS_IDS_COLUMNS)
@@ -391,6 +394,14 @@ def add_time(conn: sqlite3.Connection, watched_at: str, video_id: str,
         return True
 
 
+def delete_time(conn: sqlite3.Connection, watched_at: str, video_id: str,
+                verbose=False):
+    if execute_query(conn, delete_time_query, (video_id, watched_at)):
+        if verbose:
+            logger.info(f'Removed timestamp {watched_at} from {video_id!r}')
+        return True
+
+
 def add_failed_request(conn: sqlite3.Connection, video_id: str, attempts: int,
                        verbose=False):
     if attempts == 1:
@@ -483,11 +494,10 @@ def insert_videos(conn, records: dict, api_auth, verbosity=1):
     cur.execute("""SELECT * FROM tags;""")
     existing_tags = {v: k for k, v in cur.fetchall()}
     cur.execute("""SELECT * FROM videos_timestamps;""")
-    timestamps = {}
+    db_timestamps = {}
     for timestamp_record in cur.fetchall():
-        timestamps.setdefault(timestamp_record[0], [])
-        timestamps[timestamp_record[0]].append(timestamp_record[1])
-
+        db_timestamps.setdefault(timestamp_record[0], [])
+        db_timestamps[timestamp_record[0]].append(timestamp_record[1])
     cur.execute("""SELECT id FROM dead_videos_ids;""")
     dead_videos_ids = [dead_video[0] for dead_video in cur.fetchall()]
     cur.execute("""SELECT * FROM failed_requests_ids;""")
@@ -496,26 +506,33 @@ def insert_videos(conn, records: dict, api_auth, verbosity=1):
     logger.info(f'\nStarting records\' insertion...\n' + '-'*100)
 
     # due to its made up ID, the unknown record is best handled outside the loop
-    if 'unknown' in records:
-        unknown_record = records.pop('unknown')
-        unknown_record['id'] = 'unknown'
-        unknown_record['title'] = 'unknown'
-        unknown_record['channel_id'] = 'unknown'
-        unknown_record['status'] = 'inactive'
-        unknown_timestamps = unknown_record.pop('timestamps')
-        timestamps.setdefault('unknown', [])
-        if 'unknown' not in channels:
-            add_channel(conn, 'unknown', 'unknown', verbosity_level_2)
-        if 'unknown' not in video_ids:
-            add_video(conn, unknown_record, verbosity_level_2)
-            inserted += 1
-        for candidate in unknown_timestamps:
-            for incumbent in timestamps['unknown']:
-                if not are_different_timestamps(candidate, incumbent):
-                    break
-            else:
-                add_time(conn, candidate, 'unknown', verbosity_level_3)
-                timestamps['unknown'].append(candidate)
+    # and after known timestamps, for efficiency
+    unknown_record = records.pop('unknown', None)
+    unk_db_timestamps = db_timestamps.setdefault('unknown', [])
+
+    def add_known_timestamps_and_remove_from_unknown(new_timestamps):
+        db_timestamps.setdefault(video_id, [])
+        # db_timestamps[video_id].sort()  # todo shouldn't sort, but test
+        added_timestamps = []
+        for new in new_timestamps:
+            if timestamp_is_unique_in_list(new,
+                                           db_timestamps[video_id]):
+                add_time(conn, new, video_id, verbosity_level_2)
+                added_timestamps.append(new)
+        # clean db unknown timestamps of ones that are now known
+        for incumbent in added_timestamps:
+            start = bisect.bisect_left(unk_db_timestamps,
+                                       incumbent - MAX_TIME_DIFFERENCE)
+            end = bisect.bisect_right(unk_db_timestamps,
+                                      incumbent + MAX_TIME_DIFFERENCE)
+            if start != end:
+                for unk_incumbent in range(start, end):
+                    if not are_different_timestamps(
+                            incumbent, unk_db_timestamps[unk_incumbent]):
+                        delete_time(conn,
+                                    unk_db_timestamps.pop(unk_incumbent),
+                                    'unknown', verbose=verbosity_level_1)
+                        break
 
     sub_percent, sub_percent_int = calculate_subpercentage(len(records))
 
@@ -529,13 +546,13 @@ def insert_videos(conn, records: dict, api_auth, verbosity=1):
         record['id'] = video_id
 
         if video_id not in video_ids or video_id in failed_requests_ids:
-            pass
+            pass  # API attempt will be made further below
         else:
             '''
             This block deals with Takeout records already in the table. There 
             should only be two reasons for it being triggered: 
-                1. Updating timestamps for the record, in case the video has 
-                been watched again.
+                1. Updating timestamps for the record, in case new ones are 
+                found.
                 2. If an older Takeout file was added (out of order, that is) 
                 and contains info which was not available in the Takeouts 
                 already processed, which resulted in a video being added with 
@@ -543,14 +560,8 @@ def insert_videos(conn, records: dict, api_auth, verbosity=1):
                 video in question was still available when the older Takeout was 
                 generated, but was deleted by the time the newer Takeout was.
             '''
-            timestamps.setdefault(video_id, [])
-            for candidate in record.pop('timestamps'):
-                for incumbent in timestamps[video_id]:
-                    if not are_different_timestamps(candidate, incumbent):
-                        break
-                else:
-                    add_time(conn, candidate, video_id, verbosity_level_2)
-                    timestamps[video_id].append(candidate)
+            add_known_timestamps_and_remove_from_unknown(
+                record.pop('timestamps'))
 
             if video_id in dead_videos_ids and 'title' in record:
                 # Older Takeout file which for some reason was added out of
@@ -558,6 +569,7 @@ def insert_videos(conn, records: dict, api_auth, verbosity=1):
                 # deleted by the time newer Takeout containing entries for that
                 # video has been generated
                 if 'channel_id' in record:
+                    # todo any specific reason .pop(<item>, None) is not used?
                     if 'channel_title' in record:
                         channel_title = record.pop('channel_title')
                     else:
@@ -617,7 +629,7 @@ def insert_videos(conn, records: dict, api_auth, verbosity=1):
         # everything that doesn't go into the videos table gets popped
         # so the videos table insert query can be constructed
         # automatically with the remaining items, since their amount
-        # will vary from row to row
+        # will vary from entry to entry
 
         if 'channel_title' in record:
             channel_title = record.pop('channel_title')
@@ -630,7 +642,8 @@ def insert_videos(conn, records: dict, api_auth, verbosity=1):
         else:
             continue  # nothing else can/should be inserted without the
             # channel for it getting inserted first as channel_id is a foreign
-            # key for video records
+            # key for video records the video id field from which is in turn a
+            # foreign key for most other tables
 
         if 'relevant_topic_ids' in record:
             topics_list = record.pop('relevant_topic_ids')
@@ -643,9 +656,9 @@ def insert_videos(conn, records: dict, api_auth, verbosity=1):
 
         candidate_timestamps = record.pop('timestamps')
 
-        if video_id in video_ids:  # passing this check means the API request
-            # has been successfully made on this pass, whereas previous
-            # attempts have failed
+        if video_id in video_ids:
+            # passing this check means the API request has been successfully
+            # made during this run, whereas previous attempts have failed
             if update_video(conn, record, verbosity_level_1):
                 updated += 1
 
@@ -654,14 +667,7 @@ def insert_videos(conn, records: dict, api_auth, verbosity=1):
                 video_ids.append(video_id)
                 inserted += 1
 
-        timestamps.setdefault(video_id, [])
-        for candidate in candidate_timestamps:
-            for incumbent in timestamps[video_id]:
-                if not are_different_timestamps(candidate, incumbent):
-                    break
-            else:
-                add_time(conn, candidate, video_id, verbosity_level_3)
-                timestamps[video_id].append(candidate)
+        add_known_timestamps_and_remove_from_unknown(candidate_timestamps)
 
         if tags:
             add_tags_to_table_and_video(conn, tags, video_id, existing_tags,
@@ -674,6 +680,21 @@ def insert_videos(conn, records: dict, api_auth, verbosity=1):
         conn.commit()  # committing after every record ensures each record's
         # info is inserted fully, or not at all, in case of an unforeseen
         # failure during some loop. An atomic insertion, of sorts
+
+    if unknown_record:
+        unknown_record['id'] = 'unknown'
+        unknown_record['title'] = 'unknown'
+        unknown_record['channel_id'] = 'unknown'
+        unknown_record['status'] = 'inactive'
+        unknown_timestamps = unknown_record.pop('timestamps')
+        if 'unknown' not in channels:
+            add_channel(conn, 'unknown', 'unknown', verbosity_level_2)
+        if 'unknown' not in video_ids:
+            add_video(conn, unknown_record, verbosity_level_2)
+            inserted += 1
+        for candidate in unknown_timestamps:
+            if timestamp_is_unique_in_list(candidate, unk_db_timestamps):
+                add_time(conn, candidate, 'unknown', verbosity_level_3)
 
     conn.commit()
 
