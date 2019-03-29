@@ -1,7 +1,6 @@
 import itertools
 import os
 import re
-from copy import deepcopy
 from datetime import datetime
 from typing import Union
 
@@ -85,119 +84,24 @@ def get_watch_history_files(takeout_path: str = '.') -> Union[list, None]:
     return watch_histories
 
 
-def _from_divs_to_dict(path: str, occ_dict: dict = None,
-                       write_changes=False) -> dict:
-    """
-    Retrieves all the available info from the passed watch-history.html file;
-    returns them in a dict
-
-    If multiple watch-history.html files are present, get_all_records should be
-    used instead.
-
-    :param path:
-    :param occ_dict:
-    :param write_changes: cuts out unnecessary HTML, reducing the size of the
-    file and making its processing faster, if used again. When used through
-    get_all_records, will also remove all the duplicate entries found in
-    previously processed watch-history.html files (provided the files are in
-    chronological order), for faster processing still. Performance improvement
-    is negligible, if there's only a few files.
-    :return:
-    """
-
-    with open(path, 'r') as takeout_file:
-        content = takeout_file.read()
-        original_content = content
-    done_ = '<span id="Done">'
-    if not content.startswith(done_):  # cleans out all the junk for faster
-        # BSoup processing, in addition to fixing an out-of-place-tag which
-        # stops BSoup from working completely
-        content = content[content.find('<body>')+6:content.find('</body>')-6]
-        fluff = [  # the order should not be changed
-            ('<div class="mdl-grid">', ''),
-            ('<div class="outer-cell mdl-cell mdl-cell--12-col '
-             'mdl-shadow--2dp">', ''),
-            ('<div class="header-cell mdl-cell mdl-cell--12-col">'
-             '<p class="mdl-typography--title">YouTube<br></p></div>', ''),
-            ('"content-cell mdl-cell mdl-cell--6-col mdl-typography--body-1"',
-             '"awesome_class"'),
-            (('<div class="content-cell mdl-cell mdl-cell--6-col '
-              'mdl-typography--body-1 mdl-typography--text-right"></div><div '
-              'class="content-cell mdl-cell mdl' '-cell--12-col mdl-typography'
-              '--caption"><b>Products:</b><br>&emsp;YouTube'
-              '<br></div></div></div>'), ''),
-            ('<br>', ''),
-            ('<', '\n<'),
-            ('>', '>\n')
-        ]
-
-        for piece in fluff:
-            content = content.replace(piece[0], piece[1])
-        content = done_ + '\n' + content
-    if occ_dict is None:
-        occ_dict = {}
-    if content != original_content and write_changes:
-        with open(path, 'w') as new_file:
-            new_file.write(content)
-        print('Rewrote', path, '(trimmed junk HTML).')
-    soup = BSoup(content, 'lxml')
-    if occ_dict is None:
-        occ_dict = {}
-    occ_dict.setdefault('videos', {})
-    occ_dict['videos'].setdefault('unknown', {'timestamps': []})
-    divs = soup.find_all('div', class_='awesome_class')
-    if len(divs) == 0:
-        raise ValueError(f'Could not find any records in {path} while '
-                         f'processing Takeout data.\n'
-                         f'The file is either corrupt or its contents have'
-                         f' been changed.')
-    removed_string = 'Watched a video that has been removed'
-    removed_string_len = len(removed_string)
-    story_string = 'Watched story'
-    for div in divs:
-        default_values = {'timestamps': []}
-        video_id = 'unknown'
-        all_text = div.get_text().strip()
-        if all_text.startswith(removed_string):  # only timestamp present
-            watched_at = all_text[removed_string_len:]
-        elif all_text.startswith(story_string):
-            watched_at = all_text.splitlines()[-1].strip()
-            if '/watch?v=' in watched_at:
-                watched_at = watched_at[57:]
-        else:
-            url = div.find(href=watch_url_re)
-            video_id = extract_video_id_from_url(url['href'])
-            video_title = url.get_text(strip=True)
-            if url['href'] != video_title:  # some videos have the url as the
-                # title. They're usually not available through YT or its API
-                default_values['title'] = video_title
-                try:
-                    channel = div.find(href=channel_url_re)
-                    channel_url = channel['href']
-                    channel_id = channel_url[channel_url.rfind('/') + 1:]
-                    channel_title = channel.get_text(strip=True)
-                    default_values['channel_id'] = channel_id
-                    default_values['channel_title'] = channel_title
-                except TypeError:
-                    pass
-            watched_at = all_text.splitlines()[-1].strip()
-
-        watched_at = datetime.strptime(watched_at[:-4],
-                                       '%b %d, %Y, %I:%M:%S %p')
-
-        occ_dict['videos'].setdefault(video_id, default_values)
-        default_keys = list(default_values.keys())
-        default_keys.remove('timestamps')
-        for key in default_keys:
-            # tries to check if the newer record has some data that the one
-            # that's already set doesn't. Sets it if so
-            if not occ_dict['videos'][video_id].get(key, None):
-                occ_dict['videos'][video_id][key] = default_values[key]
-
-        cur_timestamps = occ_dict['videos'][video_id]['timestamps']
-        timestamp_is_unique_in_list(watched_at, cur_timestamps, insert=True)
-
-    return occ_dict
+fluff = [  # the order should not be changed
+    ('<div class="mdl-grid">', ''),
+    ('<div class="outer-cell mdl-cell mdl-cell--12-col '
+     'mdl-shadow--2dp">', ''),
+    ('<div class="header-cell mdl-cell mdl-cell--12-col">'
+     '<p class="mdl-typography--title">YouTube<br></p></div>', ''),
+    ('"content-cell mdl-cell mdl-cell--6-col mdl-typography--body-1"',
+     '"awesome_class"'),
+    (('<div class="content-cell mdl-cell mdl-cell--6-col '
+      'mdl-typography--body-1 mdl-typography--text-right"></div><div '
+      'class="content-cell mdl-cell mdl-cell--12-col mdl-typography'
+      '--caption"><b>Products:</b><br>&emsp;YouTube'
+      '<br></div></div></div>'), ''),
+    ('<br>', ''),
+    ('<', '\n<'),
+    ('>', '>\n')
+]
+done_ = '<span id="Done">'
 
 
 def get_all_records(takeout_path: str = '.',
@@ -207,24 +111,92 @@ def get_all_records(takeout_path: str = '.',
     Accumulates records from all found watch-history.html files and returns
     them in a dict.
 
-    :param takeout_path: directory with watch-history.html file(s) or with
-    Takeout directories
+    :param takeout_path: directory containing Takeout directories
     :param dump_json_to: saves the dict with accumulated records to a json file
-    :param prune_html: prunes unnecessary HTML and records found in a
-    previously processed file, as long as they're passed in chronological order
-    :param verbose: Controls verbosity
+    :param prune_html: prunes HTML that doesn't allow or slows down the
+    processing of files with BeautifulSoup
+    :param verbose:
     :return:
     """
+
     watch_files = get_watch_history_files(takeout_path)
     if not watch_files:
         print('Found no watch-history files.')
         return False
 
-    occ_dict = {}
-    for takeout_file in watch_files:
-        print(takeout_file)
-        _from_divs_to_dict(takeout_file, occ_dict=occ_dict,
-                           write_changes=prune_html)
+    occ_dict = {'videos': {'unknown': {'timestamps': []}}}
+
+    removed_string = 'Watched a video that has been removed'
+    removed_string_len = len(removed_string)
+    story_string = 'Watched story'
+
+    for watch_file_path in watch_files:
+        print(watch_file_path)
+        with open(watch_file_path, 'r') as watch_file:
+            content = watch_file.read()
+            original_content = content
+        if not content.startswith(done_):  # cleans out all the junk for faster
+            # BSoup processing, in addition to fixing an out-of-place-tag which
+            # stops BSoup from parsing more than a couple dozen records
+            content = content[content.find('<body>')+6:
+                              content.find('</body>')-6]
+            for piece in fluff:
+                content = content.replace(piece[0], piece[1])
+            content = done_ + '\n' + content
+        if content != original_content and prune_html:
+            with open(watch_file_path, 'w') as new_file:
+                new_file.write(content)
+            print('Rewrote', watch_file_path, '(trimmed junk HTML).')
+        soup = BSoup(content, 'lxml')
+        divs = soup.find_all('div', class_='awesome_class')
+        if len(divs) == 0:
+            raise ValueError(f'Could not find any records in '
+                             f'{watch_file_path} while processing Takeout '
+                             f'data.\nThe file is either corrupt or its '
+                             f'format is different from the expected.')
+        for div in divs:
+            default_values = {'timestamps': []}
+            video_id = 'unknown'
+            all_text = div.get_text().strip()
+            if all_text.startswith(removed_string):  # only timestamp present
+                watched_at = all_text[removed_string_len:]
+            elif all_text.startswith(story_string):
+                watched_at = all_text.splitlines()[-1].strip()
+                if '/watch?v=' in watched_at:
+                    watched_at = watched_at[57:]
+            else:
+                url = div.find(href=watch_url_re)
+                video_id = extract_video_id_from_url(url['href'])
+                video_title = url.get_text(strip=True)
+                if url['href'] != video_title:  # some videos have the url as
+                    # the title. They're usually not available through YT or
+                    # its API
+                    default_values['title'] = video_title
+                    try:
+                        channel = div.find(href=channel_url_re)
+                        channel_url = channel['href']
+                        channel_id = channel_url[channel_url.rfind('/') + 1:]
+                        channel_title = channel.get_text(strip=True)
+                        default_values['channel_id'] = channel_id
+                        default_values['channel_title'] = channel_title
+                    except TypeError:
+                        pass
+                watched_at = all_text.splitlines()[-1].strip()
+
+            watched_at = datetime.strptime(watched_at[:-4],
+                                           '%b %d, %Y, %I:%M:%S %p')
+
+            occ_dict['videos'].setdefault(video_id, default_values)
+            default_keys = list(default_values.keys())
+            default_keys.remove('timestamps')
+            for key in default_keys:
+                # checks if the newer record has some data that the one
+                # that's already set doesn't. Sets it if so
+                if not occ_dict['videos'][video_id].get(key, None):
+                    occ_dict['videos'][video_id][key] = default_values[key]
+
+            cur_timestamps = occ_dict['videos'][video_id]['timestamps']
+            timestamp_is_unique_in_list(watched_at, cur_timestamps, insert=True)
 
     all_known_timestamps_ids = list(occ_dict['videos'].keys())
     all_known_timestamps_ids.remove('unknown')
@@ -248,11 +220,9 @@ def get_all_records(takeout_path: str = '.',
         # ^ minus one for 'unknown' key
     if dump_json_to:
         import json
-        str_timestamps_dict = deepcopy(occ_dict['videos'])
         with open(dump_json_to, 'w') as all_records_file:
-            for record in str_timestamps_dict.values():
-                for i in range(len(record['timestamps'])):
-                    record['timestamps'][i] = str(record['timestamps'][i])
-            json.dump(str_timestamps_dict, all_records_file, indent=4)
+            json.dump(occ_dict['videos'], all_records_file, indent=4,
+                      default=lambda o: str(o))
+            print('Dumped JSON to', dump_json_to)
 
     return occ_dict['videos']
