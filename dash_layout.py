@@ -160,7 +160,7 @@ v_scatter_x_axis_list = {
     'Likes/dislikes ratio (lowest)': 'LikeRatioAsc',
     'Views': 'Views',
     'Tag count': 'TagCount',
-    # 'Duration': 'Duration',
+    'Duration': 'Duration',  # streams are excluded due to extreme values
     'Comment count': 'CommentCount',
     # 'Title length': 'TitleLength',
 }
@@ -222,7 +222,7 @@ v_scatter_section = Div(
             Div('Min - Max views per video', style={'margin': '10px 0 5px 0'}),
             v_scatter_views_slider,
             Div('Number of records (note: 10K+ takes a while to render, '
-                'is not interactive and will slow down the page while active)',
+                'is not interactive and will slow down the page while shown)',
                 style={'margin': '25px 0 5px 0'}),
             v_scatter_recs_slider
         ],
@@ -370,7 +370,8 @@ def construct_v_scatter(df: pd.DataFrame,
                        hovermode='closest',
                        yaxis=go.layout.YAxis(),
                        xaxis=go.layout.XAxis())
-    if y_axis_col == 'Duration':
+
+    if 'Duration' in [y_axis_col, x_axis_col]:
         duration_max = df.Duration.max()
         tick_vals = list(range(df.Duration.min(), duration_max + duration_max,
                                duration_max // 20))
@@ -384,8 +385,10 @@ def construct_v_scatter(df: pd.DataFrame,
                 tick_text.append(f'{v//60}m')
             else:
                 tick_text.append(f'{v}s')
-
-        layout.yaxis.update(tickvals=tick_vals, ticktext=tick_text)
+        if x_axis_col == 'Duration':
+            layout.xaxis.update(tickvals=tick_vals, ticktext=tick_text)
+        if y_axis_col == 'Duration':
+            layout.yaxis.update(tickvals=tick_vals, ticktext=tick_text)
     # so the legend entries for channels with only one video are ordered in
     # descending order by views, for relevancy
     if len(df) >= 1000:
