@@ -304,13 +304,14 @@ def add_channel(conn: sqlite3.Connection, channel_id: str,
 
 
 def update_channel(conn: sqlite3.Connection,
-                   channel_id: str, channel_name: str, verbose=False):
+                   channel_id: str, channel_name: str, old_name: str,
+                   verbose=False):
     if execute_query(conn,
                      '''UPDATE channels SET title = ?
                      WHERE id = ?''', (channel_name, channel_id)):
         if verbose:
             logger.info(f'Updated channel name; id# {channel_id}, '
-                        f'name {channel_name!r}')
+                        f'from {old_name!r} to {channel_name!r}')
         return True
 
 
@@ -830,7 +831,8 @@ def update_videos(conn: sqlite3.Connection, api_auth,
             try:
                     if channel_title != channels[channel_id]:
                         update_channel(
-                            conn, channel_id, channel_title, verbosity_level_1)
+                            conn, channel_id, channel_title,
+                            channels[channel_id], verbosity_level_1)
                         channels[channel_id] = channel_title
             except KeyError:
                 """The channel now has a different ID... it's a thing.
