@@ -112,9 +112,6 @@ let onEventStage = function(event) {progressMsg.innerHTML = event.data;};
 let onEventStats = function(event) {
     let msgJSON = JSON.parse(event.data);
     let msgString = "";
-    if (msgJSON.hasOwnProperty("inserted")) {
-        msgString += "Inserted: " + msgJSON["inserted"] + "<br>";
-    }
     if (msgJSON["updated"] !== 0) {
         msgString += "Updated: " + msgJSON["updated"] + "<br>";
     }
@@ -122,7 +119,7 @@ let onEventStats = function(event) {
         msgString += ("Failed API requests: " + msgJSON["failed_api_requests"] +
             " (run this again to attempt these 1-2 more times.)" + "<br>");
     }
-    if (msgJSON["newly_inactive"] !== 0) {
+    if (msgJSON.hasOwnProperty("newly_inactive") && msgJSON["newly_inactive"] !== 0) {
         msgString += "Videos no longer available through API (likely taken down): " +
             msgJSON["newly_inactive"] + "<br>";
     }
