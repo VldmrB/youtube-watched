@@ -122,7 +122,7 @@ let onEventStats = function(event) {
         msgString += ("Failed API requests: " + msgJSON["failed_api_requests"] +
             " (run this again to attempt these 1-2 more times.)" + "<br>");
     }
-    if (msgJSON["newly_inactive"] === 0) {
+    if (msgJSON["newly_inactive"] !== 0) {
         msgString += "Videos no longer available through API (likely taken down): " +
             msgJSON["newly_inactive"] + "<br>";
     }

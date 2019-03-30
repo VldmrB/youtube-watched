@@ -249,7 +249,7 @@ def update_db(project_path: str):
         add_sse_event(DBProcessState.stage, 'stage')
         if DBProcessState.exit_thread_check():
             return
-        for record in write_to_sql.update_videos(conn, api_auth, 86400):
+        for record in write_to_sql.update_videos(conn, api_auth, 604800):
             if DBProcessState.exit_thread_check():
                 add_sse_event(json.dumps(results), 'stats')
                 return
