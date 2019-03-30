@@ -6,7 +6,7 @@ from logging import handlers
 
 from config import MAX_TIME_DIFFERENCE
 
-loggers_to_remove = ['werkzeug', 'flask', 'matplotlib']
+loggers_to_remove = ['werkzeug', 'flask']
 
 
 def logging_config(log_file_path: str,
