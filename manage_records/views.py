@@ -237,6 +237,7 @@ def update_db(project_path: str):
     conn = sqlite_connection(db_path)
     results = {'updated': 0,
                'failed_api_requests': 0,
+               'newly_inactive': 0,
                'records_in_db': execute_query(
                    conn,
                    'SELECT count(*) from videos')[0][0]}
@@ -256,6 +257,7 @@ def update_db(project_path: str):
             add_sse_event(DBProcessState.percent)
             results['updated'] = record[1]
             results['failed_api_requests'] = record[2]
+            results['newly_inactive'] = record[3]
         print(time.time() - tm_start, 'seconds!')
         add_sse_event(event='stop')
         add_sse_event(json.dumps(results), 'stats')

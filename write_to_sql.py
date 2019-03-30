@@ -270,7 +270,8 @@ def wrangle_video_record(json_obj: dict):
             elif key == 'published_at':
                 value = value.replace('T', ' ')
             elif key == 'actual_start_time':
-                entry_dict['stream'] = 'true'
+                key = 'stream'
+                value = 'true'
             elif key in ['view_count', 'dislike_count', 'like_count',
                          'comment_count']:
                 value = int(value)
@@ -719,12 +720,12 @@ def insert_videos(conn, records: dict, api_auth, verbosity=1):
 
 
 def update_videos(conn: sqlite3.Connection, api_auth,
-                  update_age_cutoff=24, verbosity=3):
+                  update_age_cutoff=86400, verbosity=1):
     verbosity_level_1 = verbosity >= 1
     verbosity_level_2 = verbosity >= 2
     verbosity_level_3 = verbosity >= 3
     skipped = 0
-    records_passed, updated, failed_api_requests = 0, 0, 0
+    records_passed, updated, failed_api_requests, newly_inactive = 0, 0, 0, 0
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
     cur.execute("""SELECT * FROM videos WHERE status != ? and id != ?
@@ -759,7 +760,7 @@ def update_videos(conn: sqlite3.Connection, api_auth,
             if verbosity >= 1:
                 print(f'Processing entry # {records_passed}')
             yield ((records_passed // sub_percent)/10, updated,
-                   failed_api_requests)
+                   failed_api_requests, newly_inactive)
         last_updated_dtm = datetime.strptime(record['last_updated'],
                                              '%Y-%m-%d %H:%M:%S')
         if (now - last_updated_dtm).total_seconds() < update_age_cutoff:
@@ -794,6 +795,8 @@ def update_videos(conn: sqlite3.Connection, api_auth,
                     record.update(filtered_api_video_data)
                 else:
                     record['status'] = 'inactive'
+                    newly_inactive += 1
+                    logger.info(f'{record["id"]} is now inactive')
                 record['last_updated'] = datetime.utcnow().replace(
                     microsecond=0)
                 break
@@ -802,6 +805,8 @@ def update_videos(conn: sqlite3.Connection, api_auth,
             attempts = failed_requests_ids[video_id]
             if attempts + 1 > 2:
                 record['status'] = 'inactive'
+                newly_inactive += 1
+                logger.info(f'{record["id"]} is now inactive')
                 delete_failed_request(conn, video_id)
             else:
                 if add_failed_request(
@@ -822,8 +827,6 @@ def update_videos(conn: sqlite3.Connection, api_auth,
             channel_title = record.pop('channel_title')
             channel_id = record['channel_id']
             try:
-                    # from pprint import pprint
-                    # pprint(record)
                     if channel_title != channels[channel_id]:
                         update_channel(
                             conn, channel_id, channel_title, verbosity_level_1)
@@ -856,9 +859,10 @@ def update_videos(conn: sqlite3.Connection, api_auth,
     execute_query(conn, 'VACUUM')
     conn.row_factory = None
 
-    results = {"records_processed": records_passed,
-               "records_updated": updated,
-               "failed_api_requests": failed_api_requests}
+    results = {'records_processed': records_passed,
+               'records_updated': updated,
+               'failed_api_requests': failed_api_requests,
+               'newly_inactive': newly_inactive}
 
     logger.info(json.dumps(results, indent=4))
     logger.info('\n' + '-'*100 + f'\nUpdating finished')
