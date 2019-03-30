@@ -126,6 +126,15 @@ def retrieve_data_for_a_date_period(conn: sqlite3.Connection, date: str):
              in range(len(table_rows)) if i not in channel_rows_indexes])
     else:
         channels = pd.read_sql(summary_channels_query, conn, params=params)
+
+        min_views = 5 if len(date) == 4 else 2  # channels with views below
+        # this amount are combined into one entry for yearly/monthly groupbys
+
+        truncated_views = channels[channels['Views'] < min_views]
+        channels = channels[channels['Views'] >= min_views]
+        one_views_sum = truncated_views['Views'].sum()
+        channels.iloc[-1] = [f'Channels with under {min_views} views',
+                             one_views_sum]
         column_names = ['Channel', 'Views']
         main_table_cols = [{'name': [n], 'id': n}
                            for n in column_names]
