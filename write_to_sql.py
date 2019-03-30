@@ -56,6 +56,7 @@ TABLE_SCHEMAS = {
     like_count integer,
     dislike_count integer,
     comment_count integer,
+    stream text,
     foreign key (channel_id) references channels (id)
     on update cascade on delete cascade
     );''',
@@ -268,6 +269,8 @@ def wrangle_video_record(json_obj: dict):
                 value = convert_duration(value)
             elif key == 'published_at':
                 value = value.replace('T', ' ')
+            elif key == 'actual_start_time':
+                entry_dict['stream'] = 'true'
             elif key in ['view_count', 'dislike_count', 'like_count',
                          'comment_count']:
                 value = int(value)
