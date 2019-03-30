@@ -112,6 +112,9 @@ let onEventStage = function(event) {progressMsg.innerHTML = event.data;};
 let onEventStats = function(event) {
     let msgJSON = JSON.parse(event.data);
     let msgString = "";
+    if (msgJSON.hasOwnProperty("inserted") && msgJSON["inserted"] !== 0) {
+        msgString += "Inserted video records: " + msgJSON["inserted"] + "<br>";
+    }
     if (msgJSON["updated"] !== 0) {
         msgString += "Updated: " + msgJSON["updated"] + "<br>";
     }
@@ -123,7 +126,11 @@ let onEventStats = function(event) {
         msgString += "Videos no longer available through API (likely taken down): " +
             msgJSON["newly_inactive"] + "<br>";
     }
-    msgString += "Total in the database: " + msgJSON["records_in_db"];
+    if (msgJSON.hasOwnProperty("timestamps") && msgJSON["timestamps"] !== 0) {
+        msgString += "Total timestamps: " +
+            msgJSON["timestamps"] + "<br>";
+    }
+    msgString += "Total video records: " + msgJSON["records_in_db"];
 
     processResults.innerHTML = msgString;
     // enable the Visualize button since the DB now has some records

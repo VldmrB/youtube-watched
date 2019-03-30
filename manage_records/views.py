@@ -140,6 +140,18 @@ def start_db_process():
     return ''
 
 
+def _show_end_front_end_data(fe_data: dict, conn):
+    fe_data['records_in_db'] = execute_query(
+        conn, 'SELECT count(*) from videos')[0][0]
+    fe_data['timestamps'] = execute_query(
+        conn, 'SELECT count(*) from videos_timestamps')[0][0]
+    if fe_data.get('at_start', None):
+        fe_data['inserted'] = fe_data['records_in_db'] - fe_data['at_start']
+    if DBProcessState.stage:
+        add_sse_event(event='stop')
+    add_sse_event(json.dumps(fe_data), 'stats')
+
+
 def populate_db(takeout_path: str, project_path: str):
     from convert_takeout import get_all_records
 
@@ -177,12 +189,12 @@ def populate_db(takeout_path: str, project_path: str):
         raise ValueError('No watch-history files found')
     db_path = join(project_path, 'yt.sqlite')
     conn = sqlite_connection(db_path, types=True)
-    results = {'updated': 0, 'failed_api_requests': 0}
+    front_end_data = {'updated': 0, 'failed_api_requests': 0}
     try:
         api_auth = youtube.get_api_auth(
             load_file(join(project_path, 'api_key')).strip())
         write_to_sql.setup_tables(conn, api_auth)
-        records_at_start = results['records_in_db'] = execute_query(
+        front_end_data['at_start'] = execute_query(
             conn, 'SELECT count(*) from videos')[0][0]
 
         DBProcessState.percent = '0.0'
@@ -193,20 +205,19 @@ def populate_db(takeout_path: str, project_path: str):
         tm_start = time.time()
         for record in write_to_sql.insert_videos(
                 conn, records, api_auth):
-            DBProcessState.percent = str(record[0])
-            add_sse_event(DBProcessState.percent)
-            results['updated'] = record[1]
-            results['failed_api_requests'] = record[2]
 
             if DBProcessState.exit_thread_check():
-                add_sse_event(json.dumps(results), 'stats')
-                return
+                break
 
-        results['records_in_db'] = execute_query(
-            conn, 'SELECT count(*) from videos')[0][0]
-        results['inserted'] = results['records_in_db'] - records_at_start
-        add_sse_event(event='stop')
-        add_sse_event(json.dumps(results), 'stats')
+            DBProcessState.percent = str(record[0])
+            add_sse_event(DBProcessState.percent)
+            front_end_data['updated'] = record[1]
+            front_end_data['failed_api_requests'] = record[2]
+
+        _show_end_front_end_data(front_end_data, conn)
+        if DBProcessState.stage:
+            add_sse_event(event='stop')
+        add_sse_event(json.dumps(front_end_data), 'stats')
         print(time.time() - tm_start, 'seconds!')
         conn.close()
     except youtube.ApiKeyError:
@@ -235,7 +246,7 @@ def update_db(project_path: str):
     add_sse_event(DBProcessState.stage, 'stage')
     db_path = join(project_path, 'yt.sqlite')
     conn = sqlite_connection(db_path)
-    results = {'updated': 0,
+    front_end_data = {'updated': 0,
                'failed_api_requests': 0,
                'newly_inactive': 0,
                'records_in_db': execute_query(
@@ -251,16 +262,15 @@ def update_db(project_path: str):
             return
         for record in write_to_sql.update_videos(conn, api_auth, 604800):
             if DBProcessState.exit_thread_check():
-                add_sse_event(json.dumps(results), 'stats')
-                return
+                break
             DBProcessState.percent = str(record[0])
             add_sse_event(DBProcessState.percent)
-            results['updated'] = record[1]
-            results['failed_api_requests'] = record[2]
-            results['newly_inactive'] = record[3]
+            front_end_data['updated'] = record[1]
+            front_end_data['failed_api_requests'] = record[2]
+            front_end_data['newly_inactive'] = record[3]
+
+        _show_end_front_end_data(front_end_data, conn)
         print(time.time() - tm_start, 'seconds!')
-        add_sse_event(event='stop')
-        add_sse_event(json.dumps(results), 'stats')
     except youtube.ApiKeyError:
         add_sse_event(f'{flash_err} Missing or invalid API key', 'errors')
         raise
