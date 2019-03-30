@@ -623,7 +623,7 @@ def insert_videos(conn, records: dict, api_auth, verbosity=1):
                     record.update(api_video_data)
                     record['status'] = 'active'
                 else:
-                    record['status'] = 'inactive'
+                    record['status'] = 'unclear'
 
                 record['last_updated'] = str(datetime.utcnow().replace(
                     microsecond=0))
@@ -772,34 +772,33 @@ def update_videos(conn: sqlite3.Connection, api_auth,
         for attempt in range(1, 6):
             api_response = youtube.get_video_info(video_id, api_auth)
             time.sleep(0.01*attempt**attempt)
-            if api_response:
+            if api_response['items']:
                 if video_id in failed_requests_ids.keys():
                     delete_failed_request(conn, video_id)
-                if api_response['items']:
-                    api_video_data = wrangle_video_record(api_response['items'])
-                    filtered_api_video_data = {}
-                    api_video_data.pop('published_at', None)
-                    # always the same, but will compare as different due to
-                    # the same value from the record being of datetime type
-                    for key in api_video_data:
-                        # in case the response is messed up and has empty/zero
-                        # values. Not sure if possible, but being safe.
-                        # As well, if a value is the same as the current one,
-                        # it's removed, hopefully that's faster than rewriting
-                        # the fields with the same values
-                        val = api_video_data[key]
-                        if not val or val == record.get(key):
-                            pass
-                        else:
-                            filtered_api_video_data[key] = val
-                    record.update(filtered_api_video_data)
-                else:
-                    record['status'] = 'inactive'
-                    newly_inactive += 1
-                    logger.info(f'{record["id"]} is now inactive')
-                record['last_updated'] = datetime.utcnow().replace(
-                    microsecond=0)
-                break
+                api_video_data = wrangle_video_record(api_response['items'])
+                filtered_api_video_data = {}
+                api_video_data.pop('published_at', None)
+                # always the same, but will compare as different due to
+                # the same value from the record being of datetime type
+                for key in api_video_data:
+                    # in case the response is messed up and has empty/zero
+                    # values. Not sure if possible, but being safe.
+                    # As well, if a value is the same as the current one,
+                    # it's removed, hopefully that's faster than rewriting
+                    # the fields with the same values
+                    val = api_video_data[key]
+                    if not val or val == record.get(key):
+                        pass
+                    else:
+                        filtered_api_video_data[key] = val
+                record.update(filtered_api_video_data)
+            else:
+                record['status'] = 'inactive'
+                newly_inactive += 1
+                logger.info(f'{record["id"]} is now inactive')
+            record['last_updated'] = datetime.utcnow().replace(
+                microsecond=0)
+            break
         else:
             failed_requests_ids.setdefault(video_id, 0)
             attempts = failed_requests_ids[video_id]
