@@ -516,6 +516,7 @@ def insert_videos(conn, records: dict, api_auth, verbosity=1):
         unknown_record['channel_id'] = 'unknown'
         unknown_record['status'] = 'inactive'
         unknown_timestamps = unknown_record.pop('timestamps')
+        # clean possible new unknowns of known ones already in the database
         all_known_timestamps_ids = list(db_timestamps.keys())
         all_known_timestamps_ids.remove('unknown')
         all_known_timestamps_lists = [i for i in
