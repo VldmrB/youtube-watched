@@ -829,15 +829,14 @@ def update_videos(conn: sqlite3.Connection, api_auth,
                     if channel_title != channels[channel_id]:
                         update_channel(
                             conn, channel_id, channel_title, verbosity_level_1)
+                        channels[channel_id] = channel_title
             except KeyError:
                 """The channel now has a different ID... it's a thing.
                 One possible reason for this is large channels, belonging to 
                 large media companies, getting split off into smaller
                 channels. That's what it looked like when I came across it.
                 
-                Only encountered this once in ~19k of my own records.
-                The old channel is kept for potential usage as part of 
-                statistics"""
+                Only encountered this once in ~19k of my own records."""
                 add_channel(conn, channel_id, channel_title, verbosity_level_2)
 
             pass
