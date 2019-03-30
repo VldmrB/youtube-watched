@@ -623,7 +623,7 @@ def insert_videos(conn, records: dict, api_auth, verbosity=1):
                     record.update(api_video_data)
                     record['status'] = 'active'
                 else:
-                    record['status'] = 'unclear'
+                    record['status'] = 'inactive'
 
                 record['last_updated'] = str(datetime.utcnow().replace(
                     microsecond=0))
