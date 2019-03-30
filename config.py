@@ -22,16 +22,16 @@ video_keys_and_columns = ('id', 'publishedAt',
                           'likeCount',
                           'dislikeCount',
                           'commentCount',
-                          'relevantTopicIds')
+                          'relevantTopicIds',
+                          'actualStartTime')
 
 video_parts_to_get = ','.join([
     "contentDetails",  # 2
     "id",  # 0
-    "player",  # 0
     "snippet",  # 2
     "statistics",  # 2
-    "status",  # 2
-    "topicDetails"  # 2
+    "topicDetails",  # 2
+    "liveStreamingDetails"  # 2
 ])
 
 # YouTube Takeout seems to return timestamps in local time,
