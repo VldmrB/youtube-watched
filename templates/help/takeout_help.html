@@ -4,23 +4,21 @@
     <div class="help-item">
         <h2>The goal of the app</h2>
         <p>is to gather some data about your YouTube watch history and do some light visualization of it.
-            There's a few interactive graphs and tables on the Visualize page, and the data itself
-            could be used for more directed analysis.
+            There's a few interactive graphs and tables on the Visualize page, and then there's the data itself that
+            could be used for more.
+            An SQLite browser
+            (ex. <a class="link-btn link-btn:visited" href="https://sqlitebrowser.org/" target="_blank"
+            >DB Browser for SQLite</a>) could be used for exploring the data and making simple graphs as well.
         </p>
         <p>
-            An SQLite browser, such as
-            <a class="link-btn link-btn:visited" href="https://sqlitebrowser.org/" target="_blank"
-            >DB Browser for SQLite</a>, could be used for exploring the data and making simple graphs as well.
-        </p>
-        <p>
-            This wasn't designed as a tool for exhaustive data gathering and record keeping. Even if it were,
+            This is not a tool for exhaustive data gathering and record keeping. Even if it tried to be,
             inaccuracies of Takeout data would not allow for that (read below to see why).
         </p>
     </div>
     <div class="help-item">
         <h2>Data retrieval and insertion</h2>
         <p>
-            The Takeout watch-history.html file(s) gets parsed for the available info. Some records will only contain a
+            Takeout's watch-history.html file(s) gets parsed for the available info. Some records will only contain a
             timestamp of when the video was opened/watched, presumably when the video itself is no longer available.
             Most will also contain the video ID, title and the channel title.
         </p>
@@ -52,8 +50,6 @@
             returned each time. The second time returned fewer than the first and the last returned more than the
             first two, including records older than the ones in the first two as well as additional records
             throughout the whole watch history. The next few I paid attention to also varied in the amount returned.
-            The oldest records were from April of 2014, with the Youtube account having been created and first
-            used sometime in 2011.
         </p>
         <p>
             The oldest records were from April of 2014, with the Youtube account having been created and first
@@ -61,8 +57,8 @@
         </p>
         <p>
             In addition to that, all the archives were missing some amount of records for each year they did cover,
-            when compared to the History page on Youtube, though the difference is not drastic. Curiously, the
-            History page is also missing some videos that are present in Takeout.
+            when compared to the History page on Youtube, though the difference wasn't drastic. Curiously, the
+            History page was also missing some videos that were present in Takeout.
         </p>
         <h4>Timestamps</h4>
         <p>
@@ -71,8 +67,8 @@
             a given period of time, etc.
         </p>
         <p>
-            There is no timezone information beyond abbreviations like EDT/PST/CET and so on.
-            They seem to be returned in local time of the computer the Takeout archive creation
+            There is no timezone information beyond coming from Takeout beyond abbreviations like EDT/PST/CET and so on.
+            The timestamps seem to be returned in local time of the computer the Takeout archive creation
             was initiated on (including those for videos that may have been watched in a different timezone).
             However, changing the timezone on my machine never triggered a change in the timestamps, so it's probably
             more complicated than that.
