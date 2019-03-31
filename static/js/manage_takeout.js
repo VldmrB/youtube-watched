@@ -118,13 +118,13 @@ let onEventStats = function(event) {
     if (msgJSON["updated"] !== 0) {
         msgString += "Updated: " + msgJSON["updated"] + "<br>";
     }
-    if (msgJSON["failed_api_requests"] !== 0) {
-        msgString += ("Failed API requests: " + msgJSON["failed_api_requests"] +
-            " (run this again to attempt these 1-2 more times.)" + "<br>");
-    }
     if (msgJSON.hasOwnProperty("newly_inactive") && msgJSON["newly_inactive"] !== 0) {
         msgString += "Videos no longer available through API (likely taken down): " +
             msgJSON["newly_inactive"] + "<br>";
+    }
+    if (msgJSON.hasOwnProperty("newly_active") && msgJSON["newly_active"] !== 0) {
+        msgString += "Videos now available through API (weren't previously): " +
+            msgJSON["newly_active"] + "<br>";
     }
     if (msgJSON.hasOwnProperty("timestamps") && msgJSON["timestamps"] !== 0) {
         msgString += "Total timestamps: " +

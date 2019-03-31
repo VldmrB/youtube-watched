@@ -87,11 +87,6 @@ TABLE_SCHEMAS = {
     on update cascade on delete cascade
     );''',
 
-    'failed_requests_ids': '''failed_requests_ids (
-    id text primary key,
-    attempts integer
-    );''',
-
     # videos that have IDs in takeout, but aren't available via API and have no
     # minimal identifying data, such as title
     'dead_videos_ids': '''dead_videos_ids (
@@ -107,7 +102,6 @@ TAGS_COLUMNS = ['tag']  # id column value is added implicitly by SQLite
 VIDEOS_TAGS_COLUMNS = ['video_id', 'tag_id']
 VIDEOS_TOPICS_COLUMNS = ['video_id', 'topic_id']
 VIDEOS_TIMESTAMPS_COLUMNS = ['video_id', 'watched_at']
-FAILED_REQUESTS_IDS_COLUMNS = ['id', 'attempts']
 DEAD_VIDEOS_IDS_COLUMNS = ['id']
 
 # below are rigid insert queries, ones whose amount of columns will not change
@@ -123,9 +117,6 @@ add_time_to_video_query = generate_insert_query(
     columns=VIDEOS_TIMESTAMPS_COLUMNS)
 delete_time_query = '''DELETE FROM videos_timestamps
                        WHERE video_id = ? AND watched_at = ?'''
-add_failed_request_query = generate_insert_query(
-    'failed_requests_ids',
-    columns=FAILED_REQUESTS_IDS_COLUMNS)
 add_dead_video_query = generate_insert_query('dead_videos_ids',
                                              columns=DEAD_VIDEOS_IDS_COLUMNS,
                                              on_conflict_ignore=True)
@@ -409,32 +400,6 @@ def delete_time(conn: sqlite3.Connection, watched_at: str, video_id: str,
         return True
 
 
-def add_failed_request(conn: sqlite3.Connection, video_id: str, attempts: int,
-                       verbose=False):
-    if attempts == 1:
-        if execute_query(conn, add_failed_request_query, (video_id, 1)):
-            if verbose:
-                logger.info(f'Failed {attempts} cycle of attempts to request '
-                            f'{video_id!r} info from the API')
-            return True
-    else:
-        if execute_query(
-                conn,
-                '''UPDATE failed_requests_ids SET attempts = ? WHERE id = ?''',
-                (attempts, video_id)):
-            if verbose:
-                logger.info(f'Failed {attempts} cycles of attempts to request '
-                            f'{video_id!r} info from the API')
-            return True
-
-
-def delete_failed_request(conn: sqlite3.Connection, video_id):
-    return execute_query(conn,
-                         '''DELETE FROM failed_requests_ids
-                         WHERE id = ?''',
-                         (video_id,))
-
-
 def add_dead_video(conn: sqlite3.Connection, video_id):
     return execute_query(conn, add_dead_video_query, (video_id,))
 
@@ -492,7 +457,7 @@ def insert_videos(conn, records: dict, api_auth, verbosity=1):
     verbosity_level_1 = verbosity >= 1
     verbosity_level_2 = verbosity >= 2
     verbosity_level_3 = verbosity >= 3
-    records_passed, inserted, updated, failed_api_requests, dead = 0, 0, 0, 0, 0
+    records_passed, inserted, updated, dead = 0, 0, 0, 0
     cur = conn.cursor()
     cur.execute("""SELECT id FROM videos;""")
     video_ids = [row[0] for row in cur.fetchall()]
@@ -507,8 +472,6 @@ def insert_videos(conn, records: dict, api_auth, verbosity=1):
         db_timestamps[timestamp_record[0]].append(timestamp_record[1])
     cur.execute("""SELECT id FROM dead_videos_ids;""")
     dead_videos_ids = [dead_video[0] for dead_video in cur.fetchall()]
-    cur.execute("""SELECT * FROM failed_requests_ids;""")
-    failed_requests_ids = {k: v for k, v in cur.fetchall()}
     cur.close()
     logger.info(f'\nStarting records\' insertion...\n' + '-'*100)
 
@@ -571,11 +534,10 @@ def insert_videos(conn, records: dict, api_auth, verbosity=1):
         if records_passed % sub_percent_int == 0:
             if verbosity_level_1:
                 print(f'Processing entry # {records_passed}')
-            yield ((records_passed // sub_percent) / 10,
-                   updated, failed_api_requests)
+            yield ((records_passed // sub_percent) / 10, updated)
         record['id'] = video_id
 
-        if video_id not in video_ids or video_id in failed_requests_ids:
+        if video_id not in video_ids:
             pass  # API attempt will be made further below
         else:
             '''
@@ -595,9 +557,9 @@ def insert_videos(conn, records: dict, api_auth, verbosity=1):
 
             if video_id in dead_videos_ids and 'title' in record:
                 # Older Takeout file which for some reason was added out of
-                # order and which has info on a video that has been
-                # deleted by the time newer Takeout containing entries for that
-                # video has been generated
+                # order and which has info on a video that has become
+                # unavailable via API by the time newer Takeout containing
+                # entries for that video has been generated
                 if 'channel_id' in record:
                     channel_title = record.pop('channel_title', None)
                     add_channel(conn, record['channel_id'], channel_title,
@@ -615,10 +577,6 @@ def insert_videos(conn, records: dict, api_auth, verbosity=1):
             api_response = youtube.get_video_info(video_id, api_auth)
             time.sleep(0.01*attempt**attempt)
             if api_response:
-                delete_failed_request(conn, video_id)  # there may not be a
-                # record for this yet due to one only being created after 5
-                # failed attempts, while this checks regardless of the number
-                # of those, but that's fine
                 if api_response['items']:
                     api_video_data = wrangle_video_record(api_response['items'])
                     record.update(api_video_data)
@@ -630,19 +588,9 @@ def insert_videos(conn, records: dict, api_auth, verbosity=1):
                     microsecond=0))
                 break
         else:
-            failed_requests_ids.setdefault(video_id, 0)
-            attempts = failed_requests_ids[video_id]
-            if attempts + 1 > 2:
-                record['status'] = 'inactive'
-                record['last_updated'] = str(datetime.utcnow().replace(
-                    microsecond=0))
-                delete_failed_request(conn, video_id)
-            else:
-                if add_failed_request(conn, video_id, attempts + 1,
-                                      verbosity_level_1):
-                    failed_api_requests += 1
-            # video is still inserted, but this will be run again a couple of
-            # times; it will attempt to retrieve the data from API and
+            record['status'] = 'inactive'
+            # video is still inserted, but this will be run again the next
+            # time; it will attempt to retrieve the data from API and
             # update the record accordingly, if any data is returned
 
         if 'title' not in record:
@@ -713,7 +661,6 @@ def insert_videos(conn, records: dict, api_auth, verbosity=1):
                "records_inserted": inserted,
                "records_updated": updated,
                "records_in_db": len(video_ids),
-               "failed_api_requests": failed_api_requests,
                "dead_records": dead}
 
     logger.info(json.dumps(results, indent=4))
@@ -726,13 +673,14 @@ def update_videos(conn: sqlite3.Connection, api_auth,
     verbosity_level_2 = verbosity >= 2
     verbosity_level_3 = verbosity >= 3
     skipped = 0
-    records_passed, updated, failed_api_requests, newly_inactive = 0, 0, 0, 0
+    records_passed, updated, newly_inactive, newly_active = 0, 0, 0, 0
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
-    cur.execute("""SELECT * FROM videos WHERE status != ? and id != ?
+    cur.execute("""SELECT * FROM videos WHERE title != ?
                    ORDER BY last_updated;""",
-                ('inactive', 'unknown'))
+                ('unknown',))
     records = list(cur.fetchall())
+    print(len(records), 'YEA!!!')
     cur.execute("""SELECT * FROM channels WHERE title is not NULL;""")
     channels = {k: v for k, v in cur.fetchall()}
     cur.execute("""SELECT * FROM tags;""")
@@ -747,8 +695,6 @@ def update_videos(conn: sqlite3.Connection, api_auth,
     for video_topic_entry in cur.fetchall():
         existing_topics_tags.setdefault(video_topic_entry[0], [])
         existing_topics_tags[video_topic_entry[0]].append(video_topic_entry[1])
-    cur.execute("""SELECT * FROM failed_requests_ids;""")
-    failed_requests_ids = {k: v for k, v in cur.fetchall()}
     cur.close()
     now = datetime.utcnow()
     sub_percent, sub_percent_int = calculate_subpercentage(len(records))
@@ -761,7 +707,7 @@ def update_videos(conn: sqlite3.Connection, api_auth,
             if verbosity >= 1:
                 print(f'Processing entry # {records_passed}')
             yield ((records_passed // sub_percent)/10, updated,
-                   failed_api_requests, newly_inactive)
+                   newly_inactive, newly_active)
         last_updated_dtm = datetime.strptime(record['last_updated'],
                                              '%Y-%m-%d %H:%M:%S')
         if (now - last_updated_dtm).total_seconds() < update_age_cutoff:
@@ -775,14 +721,13 @@ def update_videos(conn: sqlite3.Connection, api_auth,
             time.sleep(0.01*attempt**attempt)
             if api_response:  # if an exception is caught when getting this
                 # value via the above function, the result returned is False
-                if video_id in failed_requests_ids.keys():
-                    delete_failed_request(conn, video_id)
                 if api_response['items']:
                     api_video_data = wrangle_video_record(api_response['items'])
                     filtered_api_video_data = {}
                     api_video_data.pop('published_at', None)
-                    # always the same, but will compare as different due to
-                    # the same value from the record being of datetime type
+                    # likely always the same, but will compare as different
+                    # due to the same value from the record being of
+                    # the datetime type
                     for key in api_video_data:
                         # in case the response is messed up and has empty/zero
                         # values. Not sure if possible, but being safe.
@@ -794,26 +739,24 @@ def update_videos(conn: sqlite3.Connection, api_auth,
                             pass
                         else:
                             filtered_api_video_data[key] = val
+
+                    if record['status'] == 'inactive':
+                        record['status'] = 'active'
+                        newly_active += 1
+                        logger.info(f'{record["id"]}, '
+                                    f'{filtered_api_video_data["title"]} is '
+                                    f'now active')
+
                     record.update(filtered_api_video_data)
                 else:
-                    record['status'] = 'inactive'
-                    newly_inactive += 1
-                    logger.info(f'{record["id"]} is now inactive')
+                    if record['status'] == 'active':
+                        record['status'] = 'inactive'
+                        newly_inactive += 1
+                        logger.info(f'{record["id"]} is now inactive')
                 record['last_updated'] = datetime.utcnow().replace(
                     microsecond=0)
                 break
         else:
-            failed_requests_ids.setdefault(video_id, 0)
-            attempts = failed_requests_ids[video_id]
-            if attempts + 1 > 2:
-                record['status'] = 'inactive'
-                newly_inactive += 1
-                logger.info(f'{record["id"]} is now inactive')
-                delete_failed_request(conn, video_id)
-            else:
-                if add_failed_request(
-                        conn, video_id, attempts + 1, verbosity_level_1):
-                    failed_api_requests += 1
             continue
         record['last_updated'] = datetime.utcnow().replace(microsecond=0)
         if 'tags' in record:
@@ -863,8 +806,8 @@ def update_videos(conn: sqlite3.Connection, api_auth,
 
     results = {'records_processed': records_passed,
                'records_updated': updated,
-               'failed_api_requests': failed_api_requests,
-               'newly_inactive': newly_inactive}
+               'newly_inactive': newly_inactive,
+               'newly_active': newly_active}
 
     logger.info(json.dumps(results, indent=4))
     logger.info('\n' + '-'*100 + f'\nUpdating finished')

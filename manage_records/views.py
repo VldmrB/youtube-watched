@@ -189,7 +189,7 @@ def populate_db(takeout_path: str, project_path: str):
         raise ValueError('No watch-history files found')
     db_path = join(project_path, 'yt.sqlite')
     conn = sqlite_connection(db_path, types=True)
-    front_end_data = {'updated': 0, 'failed_api_requests': 0}
+    front_end_data = {'updated': 0}
     try:
         api_auth = youtube.get_api_auth(
             load_file(join(project_path, 'api_key')).strip())
@@ -212,7 +212,6 @@ def populate_db(takeout_path: str, project_path: str):
             DBProcessState.percent = str(record[0])
             add_sse_event(DBProcessState.percent)
             front_end_data['updated'] = record[1]
-            front_end_data['failed_api_requests'] = record[2]
 
         _show_end_front_end_data(front_end_data, conn)
         if DBProcessState.stage:
@@ -247,11 +246,11 @@ def update_db(project_path: str):
     db_path = join(project_path, 'yt.sqlite')
     conn = sqlite_connection(db_path)
     front_end_data = {'updated': 0,
-               'failed_api_requests': 0,
-               'newly_inactive': 0,
-               'records_in_db': execute_query(
-                   conn,
-                   'SELECT count(*) from videos')[0][0]}
+                      'failed_api_requests': 0,
+                      'newly_inactive': 0,
+                      'records_in_db': execute_query(
+                          conn,
+                          'SELECT count(*) from videos')[0][0]}
     try:
         api_auth = youtube.get_api_auth(
             load_file(join(project_path, 'api_key')).strip())
@@ -266,8 +265,8 @@ def update_db(project_path: str):
             DBProcessState.percent = str(record[0])
             add_sse_event(DBProcessState.percent)
             front_end_data['updated'] = record[1]
-            front_end_data['failed_api_requests'] = record[2]
-            front_end_data['newly_inactive'] = record[3]
+            front_end_data['newly_inactive'] = record[2]
+            front_end_data['newly_active'] = record[3]
 
         _show_end_front_end_data(front_end_data, conn)
         print(time.time() - tm_start, 'seconds!')
