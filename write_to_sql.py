@@ -676,7 +676,7 @@ def update_videos(conn: sqlite3.Connection, api_auth,
     records_passed, updated, newly_inactive, newly_active = 0, 0, 0, 0
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
-    cur.execute("""SELECT * FROM videos WHERE title != ?
+    cur.execute("""SELECT id, last_updated FROM videos WHERE title != ?
                    ORDER BY last_updated;""",
                 ('unknown',))
     records = list(cur.fetchall())
@@ -702,7 +702,6 @@ def update_videos(conn: sqlite3.Connection, api_auth,
         logger.info(f'\nStarting records\' updating...\n' + '-'*100)
     for record in records:
         records_passed += 1
-
         if records_passed % sub_percent_int == 0:
             if verbosity >= 1:
                 print(f'Processing entry # {records_passed}')
@@ -713,7 +712,10 @@ def update_videos(conn: sqlite3.Connection, api_auth,
         if (now - last_updated_dtm).total_seconds() < update_age_cutoff:
             skipped += 1
             continue
-        record = dict(record)
+        record = execute_query(conn, 'SELECT * FROM videos WHERE id = ?',
+                               (record['id'],))
+        record = dict(record[0])
+        print(record['last_updated'])
         video_id = record['id']
 
         for attempt in range(1, 6):
@@ -724,10 +726,7 @@ def update_videos(conn: sqlite3.Connection, api_auth,
                 if api_response['items']:
                     api_video_data = wrangle_video_record(api_response['items'])
                     filtered_api_video_data = {}
-                    api_video_data.pop('published_at', None)
-                    # likely always the same, but will compare as different
-                    # due to the same value from the record being of
-                    # the datetime type
+                    api_video_data.pop('published_at', None)  # likely the same
                     for key in api_video_data:
                         # in case the response is messed up and has empty/zero
                         # values. Not sure if possible, but being safe.
