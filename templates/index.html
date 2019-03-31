@@ -28,12 +28,24 @@
                 <input class="button" type="submit" value="Start">
             </form>
             <div>
-                Extract each Takeout archive to a directory with the same name as the
-                archive and then point to the directory containing all of them, i.e.:
-                <pre>&lt;Containing directory&gt;
-<!--             -->        takeout-20181120T163352Z-001
-<!--             -->        takeout-20190311T162142Z-001
-<!--             -->        ...</pre>
+                <p>
+                    Enter the path to the watch-history.html files.
+                    Will only locate any in the provided path if it points to any of the following:
+                </p>
+                <ul>
+                <li>a single file itself, ex. &lt;root dir&gt;/Takeout/YouTube/history/watch-history.html</li>
+                <li>a directory with watch-history file(s). Something may be appended at the
+                end of each file name to differentiate between them, e.g. watch-history001.html</li>
+                <li>a directory with directories of the download archives, extracted with their archive names, e.g.
+                    takeout-20181120T163352Z-001</li>
+                </ul>
+                <p>
+                    The search will become confined to one of these types after the first
+                    match, i.e. if a watch-history file is found in the directory that was
+                    passed, it'll continue looking for those within the same directory, but not
+                    in Takeout directories.
+                    Processing will be slightly faster if the files are ordered chronologically.
+                </p>
             </div>
         </div>
         <div id="db-progress">

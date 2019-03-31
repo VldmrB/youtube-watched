@@ -16,6 +16,22 @@
         </p>
     </div>
     <div class="help-item">
+        <h2>Restrictions</h2>
+        <p>
+            Only Takeout files in English can be parsed. Adjusting code in src/convert_takeout.py
+            (functions get_watch_history_files and get_all_records) could get it to work with another language.
+            Alternatively, switching your language to English
+            <a class="link-btn link-btn:visited"
+               href="https://myaccount.google.com/language?utm_source=google-account&utm_medium=web"
+               target="_blank">here</a> should make the Takeout archives created afterwards be in English.
+        </p>
+        <p>
+            It's possible the format of watch-history.html files used to be different in the past, in which case those
+            would likely not be parsable either. If that happens, open an issue on GitHub and I'll see about making
+            it work.
+        </p>
+    </div>
+    <div class="help-item">
         <h2>Data retrieval and insertion</h2>
         <p>
             Takeout's watch-history.html file(s) gets parsed for the available info. Some records will only contain a
