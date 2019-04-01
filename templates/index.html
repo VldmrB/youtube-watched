@@ -22,31 +22,31 @@
             <button id="new-project-button" class="button">New project</button>
         </div>
         <div id="takeout-setup" class="{{ 'hidden' if db else '' }}">
-            <form id="takeout-form" class="single-field-form-inputs"
-                  action="{{ url_for('records.start_db_process') }}" method="POST">
-                <input id="takeout-input" name="takeout-dir" placeholder="Takeout path" required>
-                <input class="button" type="submit" value="Start">
-            </form>
+            <h2>Add Takeout</h2>
             <div>
                 <p>
-                    Enter the path to the watch-history.html files.
-                    Will only locate any in the provided path if it points to any of the following:
+                    Enter the path to one of the following (searching will become confined to one of these types after
+                    the first match):
                 </p>
                 <ul>
-                <li>a single file itself, ex. &lt;root dir&gt;/Takeout/YouTube/history/watch-history.html</li>
-                <li>a directory with watch-history file(s). Something may be appended at the
-                end of each file name to differentiate between them, e.g. watch-history001.html</li>
-                <li>a directory with directories of the download archives, extracted with their archive names, e.g.
-                    takeout-20181120T163352Z-001</li>
+                    <li>a single watch-history.html, ex. &lt;root dir&gt;/Takeout/YouTube/history/watch-history.html</li>
+                    <li>a directory with watch-history file(s). Something may be appended at the
+                        end of each file name to differentiate between them, e.g. watch-history001.html</li>
+                    <li>a directory with directories of the Takeout archives, extracted with their archive names, e.g.
+                        takeout-20181120T163352Z-001</li>
                 </ul>
                 <p>
-                    The search will become confined to one of these types after the first
-                    match, i.e. if a watch-history file is found in the directory that was
-                    passed, it'll continue looking for those within the same directory, but not
-                    in Takeout directories.
                     Processing will be slightly faster if the files are ordered chronologically.
                 </p>
             </div>
+
+            <form id="takeout-form" class="single-field-form-inputs"
+                  action="{{ url_for('records.start_db_process') }}" method="POST">
+                <span><span>Path </span><input id="takeout-input" name="takeout-dir" required></span>
+                <span><span>Max timezone difference (0-25) </span><input name="tmdt" value="25"
+                                                                         pattern="\d{1,2}" required></span>
+                <input class="button" type="submit" value="Start">
+            </form>
         </div>
         <div id="db-progress">
             <div id="progress-bar-container">
