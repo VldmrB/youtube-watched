@@ -66,53 +66,19 @@ form {
     padding: 20px 0;
 }
 
-#switch-project-form {
+#takeout-form, #switch-project-form {
     display: flex;
     align-items: center;
     justify-content: center;
     height: 70px;
 }
 
-#takeout-form {
-    padding: 0 10% 0 10%;
-    display: flex;
-    flex-direction: column;
-    height: 125px;
-}
-
-#takeout-input {
-    width: 100%;
-}
-
-#takeout-form > span {
-    justify-content: flex-start;
-    align-items: baseline;
-    margin: 2px 0 2px 0;
-}
-
-#takeout-form span span{
-    margin-right: 5px;
-}
-
-input[name="tmdt"] {
-    max-width: 40px;
-}
-
-#takeout-form input[class="button"] {
-    width: 100px;
-    max-width: 200px;
-    margin: 10px auto 0 auto;
-}
-
 form>span {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 2px 0;
-}
-
-#setup-project-form > span {
     width: 80%;
+    padding: 2px 0;
 }
 
 #new-project-submit-button {
@@ -130,7 +96,7 @@ form>span {
 p { margin: 8px 0;}
 
 h1, h2, h3, h4{
-    color: darkgrey;
+    color: darkslategray;
 }
 
 .link-btn, .link-btn:visited {

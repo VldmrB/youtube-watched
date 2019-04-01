@@ -13,7 +13,6 @@
     <div id="takeout-section" data-full="{{ 'True' if db else '' }}">
         <div id="all-buttons">
             <div id="takeout-buttons">
-                    <button id="takeout-setup-button" class="button">Add Takeout</button>
                     <button id="update-records-button" class="button" {{ 'disabled' if not db else '' }}>
                         Update existing records</button>
                     <button id="takeout-cancel-button" class="button-cancel" disabled>Stop</button>
@@ -21,9 +20,11 @@
             <button id="visualize-button" class="button" {{ 'disabled' if not db else '' }}>Visualize</button>
             <button id="new-project-button" class="button">New project</button>
         </div>
-        <div id="takeout-setup" class="{{ 'hidden' if db else '' }}">
+        <div id="takeout-setup">
             <h2>Add Takeout</h2>
-            <div>
+            <a href="#" id="takeout-instructions" class="link-btn"
+            >Instructions{{ ':' if description or not db else '' }}</a>
+            <div id="takeout-help" class="{{ '' if description or not db else 'hidden' }}">
                 <p>
                     Enter the path to one of the following (searching will become confined to one of these types after
                     the first match):
@@ -31,20 +32,32 @@
                 <ul>
                     <li>a single watch-history.html, ex. &lt;root dir&gt;/Takeout/YouTube/history/watch-history.html</li>
                     <li>a directory with watch-history file(s). Something may be appended at the
-                        end of each file name to differentiate between them, e.g. watch-history001.html</li>
+                        end of each file name for them to be unique, e.g. watch-history001.html</li>
                     <li>a directory with directories of the Takeout archives, extracted with their archive names, e.g.
                         takeout-20181120T163352Z-001</li>
                 </ul>
                 <p>
                     Processing will be slightly faster if the files are ordered chronologically.
                 </p>
+                <h4>Restrictions</h4>
+                <p>
+                    Only Takeout files in English can be parsed. Adjusting code in src/convert_takeout.py
+                    (functions get_watch_history_files and get_all_records) could get it to work with another language.
+                    Alternatively, switching your language to English
+                    <a class="link-btn link-btn:visited"
+                       href="https://myaccount.google.com/language?utm_source=google-account&utm_medium=web"
+                       target="_blank">here</a> should make the Takeout archives created afterwards be in English.
+                </p>
+                <p>
+                    It's possible the format of watch-history.html files used to be different in the past, in which case
+                    those would likely not be parsable either. If that happens, open an issue on GitHub and I'll see
+                    about making it work.
+                </p>
             </div>
 
-            <form id="takeout-form" class="single-field-form-inputs"
+            <form id="takeout-form"
                   action="{{ url_for('records.start_db_process') }}" method="POST">
-                <span><span>Path </span><input id="takeout-input" name="takeout-dir" required></span>
-                <span><span>Max timezone difference (0-25) </span><input name="tmdt" value="25"
-                                                                         pattern="\d{1,2}" required></span>
+                <input id="takeout-input" name="takeout-dir" placeholder="Takeout directory path" required>
                 <input class="button" type="submit" value="Start">
             </form>
         </div>
@@ -62,4 +75,8 @@
     </div>
     {% include "help/takeout_help.html" %}
     <script src="{{ url_for('static', filename='js/manage_takeout.js') }}"></script>
+    <script>
+        toggleElementVisibility("takeout-instructions", "takeout-help",
+            "Instructions{{ '' if description or not db else ':' }}");
+    </script>
 {% endblock %}
