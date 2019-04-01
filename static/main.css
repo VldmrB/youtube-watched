@@ -66,11 +66,19 @@ form {
     padding: 20px 0;
 }
 
-#takeout-form, #switch-project-form {
+#takeout-form, #switch-project-form, #update-form {
     display: flex;
     align-items: center;
     justify-content: center;
     height: 70px;
+}
+
+#update-form * {
+    margin: 0 4px;
+}
+
+#update-form input[type='submit'] {
+    margin-left: 145px;
 }
 
 form>span {
@@ -79,6 +87,10 @@ form>span {
     justify-content: space-between;
     width: 80%;
     padding: 2px 0;
+}
+
+#update-cutoff-input {
+    width: 50px;
 }
 
 #new-project-submit-button {
@@ -144,7 +156,7 @@ h1, h2, h3, h4{
     opacity: 0.3;
 }
 
-input, .button, .button-cancel {
+input, .button, .button-cancel, #update-cutoff-periods {
     height: 30px;
     border: 1px solid lightgray;
 }

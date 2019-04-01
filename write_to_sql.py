@@ -680,7 +680,6 @@ def update_videos(conn: sqlite3.Connection, api_auth,
                    ORDER BY last_updated;""",
                 ('unknown',))
     records = list(cur.fetchall())
-    print(len(records), 'YEA!!!')
     cur.execute("""SELECT * FROM channels WHERE title is not NULL;""")
     channels = {k: v for k, v in cur.fetchall()}
     cur.execute("""SELECT * FROM tags;""")
@@ -705,6 +704,7 @@ def update_videos(conn: sqlite3.Connection, api_auth,
         if records_passed % sub_percent_int == 0:
             if verbosity >= 1:
                 print(f'Processing entry # {records_passed}')
+            conn.commit()
             yield ((records_passed // sub_percent)/10, updated,
                    newly_inactive, newly_active)
         last_updated_dtm = datetime.strptime(record['last_updated'],
@@ -715,7 +715,6 @@ def update_videos(conn: sqlite3.Connection, api_auth,
         record = execute_query(conn, 'SELECT * FROM videos WHERE id = ?',
                                (record['id'],))
         record = dict(record[0])
-        print(record['last_updated'])
         video_id = record['id']
 
         for attempt in range(1, 6):
@@ -797,7 +796,7 @@ def update_videos(conn: sqlite3.Connection, api_auth,
         if update_video(conn, record):
             updated += 1
 
-        conn.commit()
+        # conn.commit()
 
     conn.commit()
     execute_query(conn, 'VACUUM')
