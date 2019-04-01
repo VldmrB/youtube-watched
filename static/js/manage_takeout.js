@@ -23,8 +23,8 @@ let progressBar = document.querySelector("#progress-bar");
 let progressBarPercentage = document.querySelector("#progress-bar-text span");
 let progressUnfinishedDBProcessWarning = document.querySelector("#wait-for-db");
 let takeoutSubmit = document.querySelector("#takeout-form");
-let takeoutSubmitButton = takeoutSubmit.querySelector("input[type='submit']");
-let updateRecordsButton = document.querySelector("#update-records-button");
+let takeoutSubmitButton = takeoutSubmit.querySelector("#takeout-form input[type='submit']");
+let updateRecordsButton = document.querySelector("#update-form input[type='submit']");
 let takeoutCancelButton = document.querySelector("#takeout-cancel-button");
 let newProjectButton = document.querySelector("#new-project-button");
 let buttonsToDisableWhenWorkingDB = [takeoutSubmitButton, updateRecordsButton, newProjectButton, takeoutCancelButton];
@@ -192,16 +192,19 @@ function processTakeout(event) {
     event.preventDefault();
 
     let idOfElementActedOn = this.id;
-    let takeoutDirectoryVal = document.querySelector("#takeout-input").value;
 
     let anAJAX = new XMLHttpRequest();
     anAJAX.addEventListener("readystatechange", showProgress);
     anAJAX.open("POST", "/start_db_process");
     anAJAX.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
     if (idOfElementActedOn === "takeout-form") {
+        let takeoutDirectoryVal = document.querySelector("#takeout-input").value;
         anAJAX.send("takeout-dir=" + takeoutDirectoryVal);
     } else {
-        anAJAX.send();
+        // let updateCutoff = document.querySelector("#update-cutoff-input").value;
+        let updateCutoff = document.querySelector("#update-form input[name='update-cutoff']").value;
+        let updateCutoffDenomination = document.querySelector("#update-cutoff-periods").value;
+        anAJAX.send("update-cutoff=" + updateCutoff + "&update-cutoff-denomination=" + updateCutoffDenomination);
     }
 
 }
