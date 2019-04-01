@@ -10,21 +10,19 @@
             Project directory: <span class="path">{{ path }}</span>
         </div>
     </div>
-    <div id="takeout-section" data-full="{{ 'True' if db else '' }}">
-        <div id="all-buttons">
-            <div id="takeout-buttons">
-                    <button id="update-records-button" class="button" {{ 'disabled' if not db else '' }}>
-                        Update existing records</button>
-                    <button id="takeout-cancel-button" class="button-cancel" disabled>Stop</button>
-            </div>
-            <button id="visualize-button" class="button" {{ 'disabled' if not db else '' }}>Visualize</button>
-            <button id="new-project-button" class="button">New project</button>
+    <div id="all-buttons">
+        <div id="takeout-buttons">
+            <button id="takeout-cancel-button" class="button-cancel" disabled>Stop</button>
         </div>
+        <button id="visualize-button" class="button" {{ 'disabled' if not db else '' }}>Visualize</button>
+        <button id="new-project-button" class="button">New project</button>
+    </div>
+    <div id="takeout-section" data-full="{{ 'True' if db else '' }}">
         <div id="takeout-setup">
             <h2>Add Takeout</h2>
-            <a href="#" id="takeout-instructions" class="link-btn"
+            <a href="#" id="takeout-instructions-toggle" class="link-btn"
             >Instructions{{ ':' if description or not db else '' }}</a>
-            <div id="takeout-help" class="{{ '' if description or not db else 'hidden' }}">
+            <div id="takeout-instructions" class="{{ '' if description or not db else 'hidden' }}">
                 <p>
                     Enter the path to one of the following (searching will become confined to one of these types after
                     the first match):
@@ -57,26 +55,48 @@
 
             <form id="takeout-form"
                   action="{{ url_for('records.start_db_process') }}" method="POST">
-                <input id="takeout-input" name="takeout-dir" placeholder="Takeout directory path" required>
+                <input id="takeout-input" name="takeout-dir" placeholder="Takeout directory path"
+                       value="{{ takeout_dir if takeout_dir else '' }}" required>
                 <input class="button" type="submit" value="Start">
             </form>
         </div>
-        <div id="db-progress">
-            <div id="progress-bar-container">
-                <div id="progress-bar-rectangle">
-                    <div id="progress-bar"></div>
-                    <div id="progress-bar-text"><span></span></div>
-                </div>
-            </div>
-            <div id="progress-msg"></div>
-            <div id="wait-for-db"></div>
-            <div id="process-results"></div>
-        </div>
     </div>
+    <div id="update-records">
+        <h2>Update video records in the database</h2>
+
+        <form id="update-form"
+              action="{{ url_for('records.start_db_process') }}" method="POST">
+
+            Entries that were last updated more than
+            <input id="update-cutoff-input" name="update-cutoff" type="text"
+                   value="{{ cutoff_time if cutoff_time else '2'}}"
+                   pattern="\d+" required>
+            <select id="update-cutoff-periods" form="update-form" name="update-cutoff-denomination">
+                <option value="3600" {{ "selected" if cutoff_denomination == "3600" }}>hours</option>
+                <option value="84600" {{ "selected" if cutoff_denomination == "84600" }}>days</option>
+                <option value="592200" {{ "selected" if cutoff_denomination == "592200" }}>weeks</option>
+                <option value="2592000" {{ "selected" if cutoff_denomination == "2592000" }}>months</option>
+            </select>
+            ago
+            <input class="button" type="submit" value="Start">
+        </form>
+    <div id="db-progress">
+        <div id="progress-bar-container">
+            <div id="progress-bar-rectangle">
+                <div id="progress-bar"></div>
+                <div id="progress-bar-text"><span></span></div>
+            </div>
+        </div>
+        <div id="progress-msg"></div>
+        <div id="wait-for-db"></div>
+        <div id="process-results"></div>
+    </div>
+    </div>
+    <hr>
     {% include "help/takeout_help.html" %}
     <script src="{{ url_for('static', filename='js/manage_takeout.js') }}"></script>
     <script>
-        toggleElementVisibility("takeout-instructions", "takeout-help",
+        toggleElementVisibility("takeout-instructions-toggle", "takeout-instructions",
             "Instructions{{ '' if description or not db else ':' }}");
     </script>
 {% endblock %}
