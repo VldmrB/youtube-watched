@@ -190,8 +190,8 @@ def populate_db(takeout_path: str, project_path: str):
             if DBProcessState.exit_thread_check():
                 return
             if isinstance(f, tuple):
-                DBProcessState.percent = f'{round(f[0]/f[1], 1)*100}'
-                add_sse_event(DBProcessState.percent)
+                DBProcessState.percent = f'{f[0]} {f[1]}'
+                add_sse_event(DBProcessState.percent, 'takeout_progress')
 
             else:
                 records = f
