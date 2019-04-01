@@ -17,6 +17,10 @@ from utils.gen import load_file
 
 record_management = Blueprint('records', __name__)
 
+cutoff_value_cookie = 'cutoff-value'
+cutoff_denomination_cookie = 'cutoff-denomination'
+takeout_dir_cookie = 'takeout-dir'
+
 
 class ThreadControl:
     thread = None
@@ -65,13 +69,20 @@ def index():
         # event_stream() will set this back to True after disengaging
         DBProcessState.active_event_stream = False
 
+    takeout_dir = request.cookies.get(takeout_dir_cookie)
+    cutoff_time = request.cookies.get(cutoff_value_cookie)
+    cutoff_denomination = request.cookies.get(cutoff_denomination_cookie)
+
     db = db_has_records()
     if not request.cookies.get('description-seen'):
         resp = make_response(render_template('index.html', path=project_path,
                                              description=True, db=db))
         resp.set_cookie('description-seen', 'True', max_age=31_536_000)
         return resp
-    return render_template('index.html', path=project_path, db=db)
+    return render_template('index.html', path=project_path, db=db,
+                           takeout_dir=takeout_dir,
+                           cutoff_time=cutoff_time,
+                           cutoff_denomination=cutoff_denomination)
 
 
 @record_management.route('/process_status')
@@ -120,7 +131,7 @@ def db_progress_stream():
 
 @record_management.route('/start_db_process', methods=['POST'])
 def start_db_process():
-    
+    resp = make_response('')
     if DBProcessState.is_thread_alive():
         return DBProcessState.live_thread_warning
 
@@ -128,19 +139,30 @@ def start_db_process():
 
     project_path = get_project_dir_path_from_cookie()
     if takeout_path:
-        args = (takeout_path.strip(), project_path)
+        takeout_dir = takeout_path.strip()
+        if os.path.exists(takeout_dir):
+            resp.set_cookie(takeout_dir_cookie, takeout_dir, max_age=31_536_000)
+        args = (takeout_dir, project_path)
         target = populate_db
     else:
-        args = (project_path,)
+        cutoff_time = request.form.get('update-cutoff')
+        cutoff_denomination = request.form.get('update-cutoff-denomination')
+        resp.set_cookie(cutoff_value_cookie, cutoff_time, max_age=31_536_000)
+        resp.set_cookie(cutoff_denomination_cookie, cutoff_denomination,
+                        max_age=31_536_000)
+        cutoff = int(cutoff_time) * int(cutoff_denomination)
+        print(cutoff)
+
+        args = (project_path, cutoff)
         target = update_db
 
     DBProcessState.thread = Thread(target=target, args=args)
     DBProcessState.thread.start()
 
-    return ''
+    return resp
 
 
-def _show_end_front_end_data(fe_data: dict, conn):
+def _show_front_end_data(fe_data: dict, conn):
     fe_data['records_in_db'] = execute_query(
         conn, 'SELECT count(*) from videos')[0][0]
     fe_data['timestamps'] = execute_query(
@@ -213,7 +235,7 @@ def populate_db(takeout_path: str, project_path: str):
             add_sse_event(DBProcessState.percent)
             front_end_data['updated'] = record[1]
 
-        _show_end_front_end_data(front_end_data, conn)
+        _show_front_end_data(front_end_data, conn)
         if DBProcessState.stage:
             add_sse_event(event='stop')
         add_sse_event(json.dumps(front_end_data), 'stats')
@@ -232,7 +254,7 @@ def populate_db(takeout_path: str, project_path: str):
     conn.close()
 
 
-def update_db(project_path: str):
+def update_db(project_path: str, cutoff: int):
     import sqlite3
     import write_to_sql
     import youtube
@@ -259,7 +281,7 @@ def update_db(project_path: str):
         add_sse_event(DBProcessState.stage, 'stage')
         if DBProcessState.exit_thread_check():
             return
-        for record in write_to_sql.update_videos(conn, api_auth, 604800):
+        for record in write_to_sql.update_videos(conn, api_auth, cutoff, 3):
             if DBProcessState.exit_thread_check():
                 break
             DBProcessState.percent = str(record[0])
@@ -268,7 +290,7 @@ def update_db(project_path: str):
             front_end_data['newly_inactive'] = record[2]
             front_end_data['newly_active'] = record[3]
 
-        _show_end_front_end_data(front_end_data, conn)
+        _show_front_end_data(front_end_data, conn)
         print(time.time() - tm_start, 'seconds!')
     except youtube.ApiKeyError:
         add_sse_event(f'{flash_err} Missing or invalid API key', 'errors')
