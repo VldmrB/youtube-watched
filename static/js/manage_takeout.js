@@ -137,6 +137,14 @@ let onEventError = function(event) {
     }
 };
 
+let onEventTakeoutProgress = function (event) {
+    let progressVal = event.data.split(" ");
+    let currentFile = Number(progressVal[0]);
+    let fileAmount =  Number(progressVal[1]);
+    progressBar.style.width = (Number(currentFile / fileAmount).toFixed(2) * 100) + "%";
+    progressBarPercentage.innerHTML = (currentFile+1) + " of " + fileAmount;
+};
+
 let onEventMsg = function (event) {
     let progressVal = event.data + "%";
     progressBar.style.width = progressVal;
@@ -151,6 +159,7 @@ progress.addEventListener("stage", onEventStage);
 progress.addEventListener("stats", onEventStats);
 progress.addEventListener("stop", onEventStop);
 progress.addEventListener("errors", onEventError);
+progress.addEventListener("takeout_progress", onEventTakeoutProgress);
 progress.addEventListener("message", onEventMsg);
 
 function showProgress() {
