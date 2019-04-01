@@ -1,18 +1,3 @@
-// this block is responsible for when the project has just been created and there's no Takeout yet
-// toggleElementVisibility("takeout-setup-button", "takeout-setup", "Cancel", "takeout-input");
-// let addMoreTakeoutButton = document.querySelector("#takeout-setup-button");
-// if (!document.querySelector("#takeout-setup").classList.contains("hidden")
-//     && addMoreTakeoutButton.innerHTML !== "Cancel"
-// ) {
-//     let curButtonWidth = addMoreTakeoutButton.offsetWidth;
-//     addMoreTakeoutButton.innerHTML = "Cancel";
-//     addMoreTakeoutButton.style.width = curButtonWidth + "px";
-// }
-
-if (!document.querySelector("#takeout-section").dataset.full) {
-document.querySelector("#takeout-setup").classList.remove("hidden");
-}
-
 document.querySelector("#new-project-button").onclick = function() {
     window.location = "/setup_project";
 };
@@ -201,7 +186,6 @@ function processTakeout(event) {
         let takeoutDirectoryVal = document.querySelector("#takeout-input").value;
         anAJAX.send("takeout-dir=" + takeoutDirectoryVal);
     } else {
-        // let updateCutoff = document.querySelector("#update-cutoff-input").value;
         let updateCutoff = document.querySelector("#update-form input[name='update-cutoff']").value;
         let updateCutoffDenomination = document.querySelector("#update-cutoff-periods").value;
         anAJAX.send("update-cutoff=" + updateCutoff + "&update-cutoff-denomination=" + updateCutoffDenomination);

@@ -151,7 +151,6 @@ def start_db_process():
         resp.set_cookie(cutoff_denomination_cookie, cutoff_denomination,
                         max_age=31_536_000)
         cutoff = int(cutoff_time) * int(cutoff_denomination)
-        print(cutoff)
 
         args = (project_path, cutoff)
         target = update_db
