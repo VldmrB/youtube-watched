@@ -18,7 +18,7 @@ def setup_project():
 
 @setup_new_project.route('/setup_project_form', methods=['POST'])
 def setup_project_form():
-    resp = make_response(redirect(url_for('index')))
+    resp = make_response(redirect(url_for('records.index')))
 
     project_path = request.form['project-dir'].strip()
     api_key = request.form.get('api-key')
