@@ -1,13 +1,13 @@
 // this block is responsible for when the project has just been created and there's no Takeout yet
-toggleElementVisibility("takeout-setup-button", "takeout-setup", "Cancel", "takeout-input");
-let addMoreTakeoutButton = document.querySelector("#takeout-setup-button");
-if (!document.querySelector("#takeout-setup").classList.contains("hidden")
-    && addMoreTakeoutButton.innerHTML !== "Cancel"
-) {
-    let curButtonWidth = addMoreTakeoutButton.offsetWidth;
-    addMoreTakeoutButton.innerHTML = "Cancel";
-    addMoreTakeoutButton.style.width = curButtonWidth + "px";
-}
+// toggleElementVisibility("takeout-setup-button", "takeout-setup", "Cancel", "takeout-input");
+// let addMoreTakeoutButton = document.querySelector("#takeout-setup-button");
+// if (!document.querySelector("#takeout-setup").classList.contains("hidden")
+//     && addMoreTakeoutButton.innerHTML !== "Cancel"
+// ) {
+//     let curButtonWidth = addMoreTakeoutButton.offsetWidth;
+//     addMoreTakeoutButton.innerHTML = "Cancel";
+//     addMoreTakeoutButton.style.width = curButtonWidth + "px";
+// }
 
 if (!document.querySelector("#takeout-section").dataset.full) {
 document.querySelector("#takeout-setup").classList.remove("hidden");
