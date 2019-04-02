@@ -128,16 +128,19 @@ def get_final_key_paths(
         paths: list = None, black_list: list = None,
         final_keys_only: bool = False):
     """
-    Returns Python ready, full key paths as strings
+    Returns paths to terminating keys as strings
 
     :param obj:
     :param cur_path: name of the variable that's being passed as the obj can be
-    passed here to create eval ready key paths
+    passed here to create eval ready key paths, for whatever reason
     :param append_values: return corresponding key values along with the keys
     :param paths: the list that will contain all the found key paths, no need
     to pass anything
-    :param black_list: dictionary keys which will be ignored
-    :param final_keys_only: return only the final key from each path
+    :param black_list: keys to ignore (single keys anywhere in the path); if a
+    blacklisted key is encountered, it's considered a dead end even if its value
+    is another dictionary
+    :param final_keys_only: return only the terminating keys instead of full
+    paths
     :return:
     """
     if paths is None:
@@ -168,7 +171,7 @@ def get_final_key_paths(
                         to_append = new_path
                     paths.append(to_append)
         else:
-            key_added = False  # same as in get_final_keys function
+            key_added = False
             for i in range(len(obj)):
                 if isinstance(obj[i], (dict, tuple, list)):
                     get_final_key_paths(
@@ -255,7 +258,7 @@ def wrangle_video_record(json_obj: dict):
                     new_key.append(letter)
             key = ''.join(new_key)
             if key == 'relevant_topic_ids':
-                value = list(set(value))  # due to duplicate topic ids
+                value = list(set(value))  # due to duplicate parent topic ids
             elif key == 'duration':
                 value = convert_duration(value)
             elif key == 'published_at':
@@ -269,14 +272,6 @@ def wrangle_video_record(json_obj: dict):
             entry_dict[key] = value
 
     return entry_dict
-
-
-def drop_dynamic_tables(conn: sqlite3.Connection):
-    for table in TABLE_SCHEMAS:
-        if table not in ['categories', 'topics', 'parent_topics',
-                         'dead_videos_ids']:
-            execute_query(conn, '''DROP TABLE IF EXISTS ''' + table)
-    conn.commit()
 
 
 def add_channel(conn: sqlite3.Connection, channel_id: str,
@@ -343,10 +338,10 @@ def add_tag_to_video(conn: sqlite3.Connection, tag_id: int, video_id: str,
         return True
 
 
-def add_tags_to_table_and_video(conn: sqlite3.Connection, tags: list,
-                                video_id: str, existing_tags: dict,
-                                existing_videos_tags_records: dict = None,
-                                verbose=False):
+def add_tags_to_table_and_videos(conn: sqlite3.Connection, tags: list,
+                                 video_id: str, existing_tags: dict,
+                                 existing_videos_tags_records: dict = None,
+                                 verbose=False):
 
     id_query_string = 'SELECT id FROM tags WHERE tag = ?'
     for tag in tags:
@@ -414,6 +409,7 @@ def delete_dead_video(conn: sqlite3.Connection, video_id, verbose=False):
 
 def insert_or_refresh_categories(conn: sqlite3.Connection, api_auth,
                                  refresh: bool = True):
+    """Gets the video categories info from YT API."""
     categories = youtube.get_categories(api_auth)
     query_string = generate_insert_query('categories',
                                          columns=CATEGORIES_COLUMNS,
@@ -446,7 +442,7 @@ def setup_tables(conn: sqlite3.Connection, api_auth):
         create_schema_ = 'CREATE TABLE IF NOT EXISTS ' + TABLE_SCHEMAS[schema]
         execute_query(conn, create_schema_)
 
-    insert_or_refresh_categories(conn, api_auth, False)
+    insert_or_refresh_categories(conn, api_auth, True)
     insert_topics(conn)
 
     conn.commit()
@@ -531,6 +527,8 @@ def insert_videos(conn, records: dict, api_auth, verbosity=1):
     for video_id, record in records.items():
         records_passed += 1
         if records_passed % sub_percent_int == 0:
+            conn.commit()  # commits take a lot of time - doing them once every
+            # N records significantly speeds up the process
             if verbosity_level_1:
                 print(f'Processing entry # {records_passed}')
             yield ((records_passed // sub_percent) / 10, updated)
@@ -588,9 +586,6 @@ def insert_videos(conn, records: dict, api_auth, verbosity=1):
                 break
         else:
             record['status'] = 'inactive'
-            # video is still inserted, but this will be run again the next
-            # time; it will attempt to retrieve the data from API and
-            # update the record accordingly, if any data is returned
 
         if 'title' not in record:
             record['title'] = 'unknown'
@@ -604,10 +599,7 @@ def insert_videos(conn, records: dict, api_auth, verbosity=1):
         # automatically with the remaining items, since their amount
         # will vary from entry to entry
 
-        if 'channel_title' in record:
-            channel_title = record.pop('channel_title')
-        else:
-            channel_title = None
+        channel_title = record.pop('channel_title', None)
         channel_id = record['channel_id']
 
         if add_channel(conn, channel_id, channel_title, verbosity_level_2):
@@ -618,41 +610,24 @@ def insert_videos(conn, records: dict, api_auth, verbosity=1):
             # key for video records the video id field from which is in turn a
             # foreign key for most other tables
 
-        if 'relevant_topic_ids' in record:
-            topics_list = record.pop('relevant_topic_ids')
-        else:
-            topics_list = None
-        if 'tags' in record:
-            tags = record.pop('tags')
-        else:
-            tags = None
+        topics_list = record.pop('relevant_topic_ids', None)
+        tags = record.pop('tags', None)
 
         candidate_timestamps = record.pop('timestamps')
 
-        if video_id in video_ids:
-            # passing this check means the API request has been successfully
-            # made during this run, whereas previous attempts have failed
-            if update_video(conn, record, verbosity_level_1):
-                updated += 1
-
-        else:
-            if add_video(conn, record, verbosity_level_2):
-                video_ids.append(video_id)
-                inserted += 1
+        if add_video(conn, record, verbosity_level_2):
+            video_ids.append(video_id)
+            inserted += 1
 
         add_known_timestamps_and_remove_from_unknown(candidate_timestamps)
 
         if tags:
-            add_tags_to_table_and_video(conn, tags, video_id, existing_tags,
-                                        verbose=verbosity_level_3)
+            add_tags_to_table_and_videos(conn, tags, video_id, existing_tags,
+                                         verbose=verbosity_level_3)
 
         if topics_list:
             for topic in topics_list:
                 add_topic_to_video(conn, topic, video_id, verbosity_level_3)
-
-        conn.commit()  # committing after every record ensures each record's
-        # info is inserted fully, or not at all, in case of an unforeseen
-        # failure during some loop. An atomic insertion, of sorts
 
     conn.commit()
 
@@ -694,9 +669,11 @@ def update_videos(conn: sqlite3.Connection, api_auth,
         existing_topics_tags.setdefault(video_topic_entry[0], [])
         existing_topics_tags[video_topic_entry[0]].append(video_topic_entry[1])
     cur.close()
-    now = datetime.utcnow()
+
+    now = datetime.utcnow()  # for determining if the record is old enough
     sub_percent, sub_percent_int = calculate_subpercentage(len(records))
-    if verbosity >= 1:
+
+    if verbosity_level_1:
         logger.info(f'\nStarting records\' updating...\n' + '-'*100)
     for record in records:
         records_passed += 1
@@ -719,32 +696,17 @@ def update_videos(conn: sqlite3.Connection, api_auth,
         for attempt in range(1, 6):
             api_response = youtube.get_video_info(video_id, api_auth)
             time.sleep(0.01*attempt**attempt)
-            if api_response:  # if an exception is caught when getting this
-                # value via the above function, the result returned is False
+            if api_response:
                 if api_response['items']:
                     api_video_data = wrangle_video_record(api_response['items'])
-                    filtered_api_video_data = {}
                     api_video_data.pop('published_at', None)  # likely the same
-                    for key in api_video_data:
-                        # in case the response is messed up and has empty/zero
-                        # values. Not sure if possible, but being safe.
-                        # As well, if a value is the same as the current one,
-                        # it's removed; hopefully that's faster than rewriting
-                        # the fields with the same values
-                        val = api_video_data[key]
-                        if not val or val == record.get(key):
-                            pass
-                        else:
-                            filtered_api_video_data[key] = val
-
                     if record['status'] == 'inactive':
                         record['status'] = 'active'
                         newly_active += 1
                         logger.info(f'{record["id"]}, '
-                                    f'{filtered_api_video_data["title"]} is '
-                                    f'now active')
+                                    f'{api_video_data["title"]} is now active')
 
-                    record.update(filtered_api_video_data)
+                    record.update(api_video_data)
                 else:
                     if record['status'] == 'active':
                         record['status'] = 'inactive'
@@ -755,11 +717,12 @@ def update_videos(conn: sqlite3.Connection, api_auth,
                 break
         else:
             continue
-        record['last_updated'] = datetime.utcnow().replace(microsecond=0)
+
         if 'tags' in record:
             tags = record.pop('tags')
-            add_tags_to_table_and_video(conn, tags, video_id, existing_tags,
-                                        existing_videos_tags, verbosity_level_3)
+            add_tags_to_table_and_videos(conn, tags, video_id, existing_tags,
+                                         existing_videos_tags,
+                                         verbosity_level_3)
             # perhaps, the record should also be checked for tags that have
             # been removed from the updated version and have them removed from
             # the DB as well. However, keeping a fuller record, despite what
@@ -786,16 +749,14 @@ def update_videos(conn: sqlite3.Connection, api_auth,
             pass
         if 'relevant_topic_ids' in record:
             topics_list = record.pop('relevant_topic_ids')
-            for topic in topics_list:
-                if existing_topics_tags.get(video_id):
+            if existing_topics_tags.get(video_id):
+                for topic in topics_list:
                     if topic not in existing_topics_tags[video_id]:
                         add_topic_to_video(conn, topic,
                                            video_id, verbosity_level_2)
 
         if update_video(conn, record):
             updated += 1
-
-        # conn.commit()
 
     conn.commit()
     execute_query(conn, 'VACUUM')
