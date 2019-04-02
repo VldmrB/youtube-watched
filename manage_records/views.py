@@ -11,9 +11,10 @@ from flask import (Response, Blueprint, request, redirect, make_response,
 
 import write_to_sql
 import youtube
+from config import DB_NAME
 from utils.app import get_project_dir_path_from_cookie, flash_err, strong
-from utils.sql import sqlite_connection, db_has_records, execute_query
 from utils.gen import load_file
+from utils.sql import sqlite_connection, db_has_records, execute_query
 
 record_management = Blueprint('records', __name__)
 
@@ -23,7 +24,16 @@ takeout_dir_cookie = 'takeout-dir'
 
 
 class ThreadControl:
+    """
+    Used as a single point of reference on anything related to processes started
+    by the user on index.html for starting/stopping said processes, getting
+    status, current point of progress, etc.
+
+    """
     thread = None
+    # either of the two functions that run processes started from
+    # index.html have checks placed throughout them for the state of this flag
+    # and will exit if it's set to True
     exit_thread_flag = False
     live_thread_warning = 'Wait for the current operation to finish'
 
@@ -68,7 +78,7 @@ def index():
     else:
         # event_stream() will set this back to True after disengaging
         DBProcessState.active_event_stream = False
-
+    # default values for forms, set when the user first submits a form
     takeout_dir = request.cookies.get(takeout_dir_cookie)
     cutoff_time = request.cookies.get(cutoff_value_cookie)
     cutoff_denomination = request.cookies.get(cutoff_denomination_cookie)
@@ -162,6 +172,10 @@ def start_db_process():
 
 
 def _show_front_end_data(fe_data: dict, conn):
+    """
+    Composes a basic summary shown at the end of adding Takeout or updating
+    records
+    """
     fe_data['records_in_db'] = execute_query(
         conn, 'SELECT count(*) from videos')[0][0]
     fe_data['timestamps'] = execute_query(
@@ -205,10 +219,10 @@ def populate_db(takeout_path: str, project_path: str):
         return
 
     if not records:
-        add_sse_event(f'No Takeout directories found in "{takeout_path}"',
+        add_sse_event(f'No watch-history.html files found in "{takeout_path}"',
                       'errors')
         raise ValueError('No watch-history files found')
-    db_path = join(project_path, 'yt.sqlite')
+    db_path = join(project_path, DB_NAME)
     conn = sqlite_connection(db_path, types=True)
     front_end_data = {'updated': 0}
     try:
@@ -264,7 +278,7 @@ def update_db(project_path: str, cutoff: int):
     DBProcessState.percent = '0.0'
     DBProcessState.stage = 'Starting updating...'
     add_sse_event(DBProcessState.stage, 'stage')
-    db_path = join(project_path, 'yt.sqlite')
+    db_path = join(project_path, DB_NAME)
     conn = sqlite_connection(db_path)
     front_end_data = {'updated': 0,
                       'failed_api_requests': 0,
