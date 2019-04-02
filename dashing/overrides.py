@@ -7,10 +7,11 @@ from dash_html_components import Div, A
 from utils.sql import db_has_records
 
 
-# Makes the layout database-presence aware. Done this way since an active
-# request is needed for db_has_records to work (relies on a cookie)
 class Dashing(Dash):
-
+    """
+    Makes the layout database-presence aware. Done this way since an active
+    request is needed for db_has_records to work (relies on a cookie)
+    """
     def serve_layout(self):
         if db_has_records():
             layout = self.layout
@@ -23,9 +24,10 @@ class Dashing(Dash):
                         mimetype='application/json')
 
 
-# remove lines 294-306 (in plotly.utils.py) to stop Plotly from implicitly
-# converting datetime objects to the UTC timezone in most cases, even those
-# without a timezone
+# remove lines 294-306 in the below function (in plotly.utils.py) to stop
+# Plotly from implicitly converting datetime objects to the UTC timezone in most
+# cases, even those without a timezone
+# https://github.com/plotly/plotly.py/issues/209
 def encode_as_datetime(obj):
     """Attempt to convert to iso time string using datetime methods."""
 
