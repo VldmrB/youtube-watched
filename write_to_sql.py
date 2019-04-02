@@ -319,8 +319,7 @@ def add_video(conn: sqlite3.Connection, cols_vals: dict, verbose=False):
 def update_video(conn: sqlite3.Connection, cols_vals: dict, verbose=False):
     """Updates all the fields that are passed"""
     video_id = cols_vals.pop('id')
-    query_string = generate_unconditional_update_query(
-        'videos', list(cols_vals.keys()))
+    query_string = generate_unconditional_update_query(list(cols_vals.keys()))
     values = list(cols_vals.values())
     values.append(video_id)
     if execute_query(conn, query_string, tuple(values)):

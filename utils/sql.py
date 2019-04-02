@@ -60,12 +60,9 @@ def db_has_records():
             conn.close()
 
 
-def generate_unconditional_update_query(table: str,
-                                        columns: Union[list, tuple]):
+def generate_unconditional_update_query(columns: Union[list, tuple]):
     columns = ' = ?, '.join(columns).strip(',') + ' = ?'
-    id_ = 'id'  # PyCharm complains if id is literally set in the string itself
-    # - unresolved column name...
-    return f'''UPDATE {table} SET {columns} WHERE {id_}= ?'''
+    return f'''UPDATE videos SET {columns} WHERE id = ?'''
 
 
 def log_query_error(error, query_string: str, values=None):
@@ -86,7 +83,7 @@ def execute_query(conn: sqlite3.Connection,
     returns the results.
     Passes potential errors to a logger. Logging for integrity errors,
     such as a foreign key constraint fail, can be disabled
-    via log_integrity_fail param.
+    via the log_integrity_fail param.
     """
     cur = conn.cursor()
     try:
