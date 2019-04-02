@@ -53,24 +53,19 @@ def extract_video_id_from_url(url):
 
 def get_watch_history_files(takeout_path: str = '.'):
     """
-    Only locates watch-history.html files if the provided path points to any of
-    the following:
+    Locates watch-history.html files in a given path.
+
+    Only works if the provided path points to any of the following:
      - a single file itself, ex.
      <root dir>/Takeout/YouTube/history/watch-history.html
-     - a directory with watch-history file(s). Something may be appended at the
-     end of each file name to differentiate between them,
-     e.g. watch-history001.html
-     - a directory with directories of the download archives, extracted with
-     their archive names, e.g. takeout-20190320T163352Z-001
+     - a directory with watch-history file(s)
+     - a directory with directories of extracted Takeout archives
 
     The search will become confined to one of these types after the first
     match, i.e. if a watch-history file is found in the directory that was
     passed, it'll continue looking for those within the same directory, but not
     in Takeout directories.
     Processing will be slightly faster if the files are ordered chronologically.
-
-    :param takeout_path:
-    :return:
     """
     if os.path.isfile(takeout_path):
         if 'watch-history' in takeout_path:
@@ -154,7 +149,7 @@ def get_all_records(takeout_path: str = '.',
             content = watch_file.read()
             original_content = content
         if not content.startswith(done_):  # cleans out all the junk for faster
-            # BSoup processing, in addition to fixing an out-of-place-tag which
+            # BSoup parsing, in addition to fixing an out-of-place-tag which
             # stops BSoup from parsing more than a couple dozen records
             content = content[content.find('<body>')+6:
                               content.find('</body>')-6]
@@ -240,7 +235,7 @@ def get_all_records(takeout_path: str = '.',
         import json
         with open(dump_json_to, 'w') as all_records_file:
             json.dump(occ_dict['videos'], all_records_file, indent=4,
-                      default=lambda o: str(o))
+                      default=lambda o: str(o))  # for dt objects
             print('Dumped JSON to', dump_json_to)
 
     yield occ_dict['videos']
