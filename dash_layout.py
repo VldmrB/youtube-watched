@@ -305,7 +305,7 @@ def basic_stats(fake_input_content):
     (and some with no identifying info available), opened/watched 
     **{total_opened}** times    
     **{total_tags}** tags across all videos (**{unique_tags}** unique), 
-    an average of **{round(total_tags /unique_vids)}** per video    
+    an average of **{round(total_tags / unique_vids)}** per video    
     **{total_channels}** channels
     '''))
 
@@ -355,7 +355,7 @@ def history_chart_date_summary(data, date_period):
 
         db_path = join(get_project_dir_path_from_cookie(), DB_NAME)
         conn = sqlite_connection(db_path)
-        summary_tables = history_chart.retrieve_data_for_a_date_period(
+        summary_tables = history_chart.make_summary_tables_for_time_period(
             conn, date)
         conn.close()
         return [*summary_tables]

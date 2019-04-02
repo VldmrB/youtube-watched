@@ -5,12 +5,15 @@ import numpy as np
 import pandas as pd
 
 from get_data.misc import generic_table_settings
+
 pd.set_option('display.max_columns', 400)
 pd.set_option('display.width', 400)
 
 
 def retrieve_watch_data(conn: sqlite3.Connection,
                         date_period: str) -> pd.DataFrame:
+    """Retrieves timestamps for all videos opened from the database, groups
+    them by a specified Pandas offset alias for a time series frequency"""
     query = 'SELECT watched_at FROM videos_timestamps'
     df = pd.read_sql(query, conn, index_col='watched_at')
     if date_period in ('Y', 'M'):
@@ -78,7 +81,11 @@ style_cell_cond_aux = [
      }]
 
 
-def retrieve_data_for_a_date_period(conn: sqlite3.Connection, date: str):
+def make_summary_tables_for_time_period(conn: sqlite3.Connection, date: str):
+    """
+    Called when a user clicks on a point on the history chart. Constructs
+    a few tables with basic stats for that point in time.
+    """
     params = (date + '%',)
 
     tags = pd.read_sql(tags_query, conn, params=params)
@@ -128,7 +135,7 @@ def retrieve_data_for_a_date_period(conn: sqlite3.Connection, date: str):
         channels = pd.read_sql(summary_channels_query, conn, params=params)
 
         min_views = 5 if len(date) == 4 else 2  # channels with views below
-        # this amount are combined into one entry for yearly/monthly groupbys
+        # this amount are combined into one entry for yearly/monthly summaries
 
         truncated_views = channels[channels['Views'] < min_views]
         channels = channels[channels['Views'] >= min_views]

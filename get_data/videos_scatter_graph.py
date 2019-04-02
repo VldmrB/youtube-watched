@@ -1,5 +1,6 @@
-from textwrap import dedent
 import sqlite3
+from textwrap import dedent
+
 import pandas as pd
 
 y_axis_query_pieces = {
@@ -147,26 +148,6 @@ def make_query(x_axis_type, y_axis_type: str = None):
             {y_group_by}
             ORDER BY CommentCount DESC
             LIMIT ?;''',
-
-        # 'TitleLength': f'''
-        #     SELECT
-        #     v.id as VideoID,
-        #     length(v.title) as TitleLength,
-        #     v.view_count as Views,
-        #     c.title as Channel
-        #     {y_select}
-        #     FROM
-        #     videos v
-        #     JOIN channels c on v.channel_id = c.id
-        #     {y_join}
-        #
-        #     WHERE NOT v.title = 'unknown'
-        #     AND Views >= ? AND Views <= ?
-        #     {y_qualifier}
-        #
-        #     {y_group_by}
-        #     ORDER BY TitleLength DESC
-        #     LIMIT ?;''',
     }
     return x_axis_queries[x_axis_type]
 
@@ -175,6 +156,10 @@ def get_data(conn: sqlite3.Connection,
              x_axis_type: str, y_axis_type: str = None,
              min_views: int = 1, max_views: int = 100_000_000_000,
              number_of_records: int = 100):
+    """
+    Retrieve top 100 video records in accordance with x and y axes selected by
+    the user
+    """
     if (x_axis_type == y_axis_type or
             (y_axis_type == 'Ratio' and 'Ratio' in x_axis_type)):
         query = make_query(x_axis_type)
@@ -190,48 +175,3 @@ def get_data(conn: sqlite3.Connection,
             break
 
     return df
-
-
-def compose_query(cols: dict = None,
-                  joins: list = None,
-                  qualifiers: list = None,
-                  group_by: str = None):
-    cols_str = ''
-    if not cols:
-        cols = dict()
-
-    cols['v.view_count'] = 'Views'
-    cols['v.id'] = 'VideoID'
-    for col, col_alias in cols.items():
-        cols_str += f'    {col} AS {col_alias},\n    '
-    cols_str = cols_str[:-6]
-
-    joins_str = ''
-    if joins:
-        for table, on_condition in joins:
-            joins_str += dedent(f'''\n        JOIN 
-            {table}
-                ON {on_condition}''')
-        joins_str = joins_str
-
-    qualifiers_str = ''
-    if qualifiers:
-        for qualifier in qualifiers:
-            qualifiers_str += f'    AND {qualifier}\n    '
-
-    group_by = f'GROUP BY {group_by}' if group_by else 'GROUP BY Views DESC'
-
-    query_str = dedent(f'''
-    SELECT 
-    {cols_str}
-    FROM    
-        videos v
-    {joins_str}
-    WHERE
-        NOT v.title = 'unknown'
-        AND v.view_count >= ?
-        AND v.view_count <= ?
-    {qualifiers_str}
-    {group_by}
-    LIMIT ?''')
-    return query_str
