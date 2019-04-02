@@ -8,6 +8,10 @@ body {
     width: 60%;
 }
 
+body > * {
+    font-family: "Open Sans", verdana, arial, sans-serif ;
+}
+
 input, select, textarea, button {
     font-family: inherit;
     font-size: inherit;
