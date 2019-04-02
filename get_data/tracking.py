@@ -74,6 +74,11 @@ top_watched_queries = {
 
 
 class DataKeeper:
+    """
+    Keeps some of the data that's likely to be accessed multiple times
+    cached for faster access
+    """
+
     pass
 
 
@@ -83,7 +88,11 @@ data_keeper = DataKeeper()
 def get_top_results(conn: sqlite3.Connection,
                     query_type: str,
                     number_of_records: int = 200):
-    conn.create_function('py_lower', 1, str.lower)
+    """
+    Retrieves the top videos/topics/tags/categories/channels and
+    constructs a table the selection from which is then used to graph
+    occurrences of those selections over time
+    """
     if getattr(data_keeper, query_type.lower(), None) is None:
         if query_type == 'Tags':
             params = tuple()
@@ -95,7 +104,7 @@ def get_top_results(conn: sqlite3.Connection,
             df.Timestamp = pd.to_datetime(df.Timestamp)
             df.Tag = df.Tag.str.lower()
             df.drop_duplicates(inplace=True)
-            # important the below setattrs is exactly here
+            # important the below setattr is exactly here
             all_df: pd.DataFrame = df.copy(deep=True)
             all_df.set_index(all_df.Timestamp, inplace=True)
             all_df.drop('Timestamp', axis=1, inplace=True)
@@ -159,6 +168,10 @@ WHERE v.id IN ?; ''',
 def selected_history_charts_mass(conn: sqlite3.Connection,
                                  entries: list,
                                  query_type: str) -> pd.DataFrame:
+    """
+    Retrieves timestamp data for entries selected from the table constructed by
+    get_top_results, used to make a graph
+    """
     in_part = '(' + ('?, ' * len(entries)).strip(' ,') + ')'
     if query_type == 'Tags':
         df = getattr(data_keeper, 'all_tags_ungrouped')
