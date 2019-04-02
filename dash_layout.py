@@ -18,6 +18,7 @@ from utils.app import get_project_dir_path_from_cookie, get_db_path
 from utils.sql import sqlite_connection, execute_query
 
 """
+Plotly graph toolbar refs:
 zoom2d
 pan2d
 select2d
@@ -35,6 +36,7 @@ toggleSpikelines
 
 
 def get_colors_from_colorscale(color_candidates: dict):
+    """Assign a color to each dict entry"""
     color_scale = PLOTLY_SCALES['Rainbow']
     color_scale_floats = [i[0] for i in color_scale]
     color_scale_rgbs = [i[1] for i in color_scale]
@@ -56,6 +58,7 @@ def get_colors_from_colorscale(color_candidates: dict):
 
 
 def add_commas_to_num(num: int):
+    """Make numbers more readable"""
     new_num = ''
     num = str(num)[::-1]
     last_index = len(num) - 1
@@ -66,7 +69,8 @@ def add_commas_to_num(num: int):
     return new_num[::-1]
 
 
-css = ['/static/dash_graph.css']
+css = ['/static/dash_graph.css']  # only css that's difficult to implement
+# through code is set in the css file, the rest is set through Dash
 app = Flask(__name__)
 dash_app = Dashing(__name__, server=app,
                    routes_pathname_prefix='/dash/', external_stylesheets=css)
@@ -79,7 +83,8 @@ graph_tools_to_remove = [
     'hoverClosestCartesian', 'zoomIn2d', 'zoomOut2d', 'toggleSpikelines']
 
 # ------ Small summary
-fake_input_id = 'fake-input'
+fake_input_id = 'fake-input'  # Used as input for a callback since the database
+# path is in a cookie and requires an active request
 fake_input = Div('Yes', style={'display': 'none'}, id=fake_input_id)
 basic_summary_text_id = 'basic-summary'
 basic_summary_text = Div(id=basic_summary_text_id)
@@ -102,12 +107,13 @@ group_by_slider = Div(
 history_graph_id = 'watch-history'
 history_graph = Div(
     children=[
-        html.H3('Videos opened/watched'),
+        html.H3('Videos opened/watched (loading the graphs below...)',
+                id='warning-header'),
         dcc.Graph(
             id=history_graph_id,
             config=dict(displaylogo=False,
                         modeBarButtonsToRemove=graph_tools_to_remove),
-            style={'height': 400}
+            style={'height': 400, 'border': '1px solid lightgray'}
             )], style={'margin': '5px 15px'})
 
 history_date_period_summary_msg = dcc.Markdown(
@@ -128,7 +134,7 @@ v_scatter_recs_slider_marks = {50: '50', 100: '100', 1_000: '1K',
 v_scatter_slider_recs_nums = list(v_scatter_recs_slider_marks.keys())
 v_scatter_slider_recs_container_id = 'v-scatter-graph-recs-slider-container'
 v_scatter_recs_id = 'v-scatter-graph-recs-slider'
-
+# ---
 v_scatter_x_dropdown_id = 'v-scatter-graph-x-dropdown'
 v_scatter_y_dropdown_id = 'v-scatter-graph-y-dropdown'
 v_scatter_summary_id = 'v-scatter-graph-hover-summary'
@@ -160,9 +166,8 @@ v_scatter_x_axis_list = {
     'Likes/dislikes ratio (lowest)': 'LikeRatioAsc',
     'Views': 'Views',
     'Tag count': 'TagCount',
-    'Duration': 'Duration',  # streams are excluded due to extreme values
+    'Duration': 'Duration',
     'Comment count': 'CommentCount',
-    # 'Title length': 'TitleLength',
 }
 
 v_scatter_y_axis_list = {
@@ -193,7 +198,7 @@ v_scatter_y_dropdown = Div(
     style=v_scatter_dropdown_style)
 
 v_scatter = Div(
-    style=dict(display='inline-block'),
+    style=dict(display='inline-block', border='1px solid lightgray'),
     id=v_scatter_container_id)
 
 v_scatter_section = Div(
@@ -221,8 +226,8 @@ v_scatter_section = Div(
             ),
             Div('Min - Max views per video', style={'margin': '10px 0 5px 0'}),
             v_scatter_views_slider,
-            Div('Number of records (note: 10K+ takes a while to render, '
-                'is not interactive and will slow down the page while shown)',
+            Div('Number of records (note: 1K+ is uniformly colored due to '
+                'performance)',
                 style={'margin': '25px 0 5px 0'}),
             v_scatter_recs_slider
         ],
@@ -245,11 +250,12 @@ tracking_choice = dcc.RadioItems(
     labelStyle={'display': 'inline-block'}
 )
 tracking_table_container = Div(id=tracking_table_container_id)
-tracking_graph_container = Div(id=tracking_graph_container_id,
-                               )
+# tracking_graph_container = Div(id=tracking_graph_container_id,
+#                                )
 tracking_graph = dcc.Graph(
     id=tracking_graph_id,
-    style={'height': 377, 'width': 700, 'margin': 5},
+    style={'height': 377, 'width': 700, 'margin': 5,
+           'border': '1px solid lightgray'},
     config=dict(displaylogo=False,
                 modeBarButtonsToRemove=graph_tools_to_remove),
                            )
@@ -277,9 +283,9 @@ dash_app.layout = Div(
             style={'display': 'flex',
                    'margin': '0 15px'}
             ),
-        # exploratory scatter graph for videos with changeable axis
+        # exploratory scatter graph for videos with changeable axes
         v_scatter_section,
-        # top tags/ tag tracking graph section
+        # top tags/ tag tracking graph
         tracking_section
     ])
 # -------------------- Layout {End}
@@ -305,7 +311,7 @@ def basic_stats(fake_input_content):
     (and some with no identifying info available), opened/watched 
     **{total_opened}** times    
     **{total_tags}** tags across all videos (**{unique_tags}** unique), 
-    an average of **{round(total_tags / unique_vids)}** per video    
+    an average of **{round(total_tags / unique_vids, 1)}** per video    
     **{total_channels}** channels
     '''))
 
@@ -323,7 +329,8 @@ def construct_history_chart(data: pd.DataFrame):
     return {'data': data, 'layout': layout}
 
 
-@dash_app.callback(Output(history_graph_id, 'figure'),
+@dash_app.callback([Output(history_graph_id, 'figure'),
+                    Output('warning-header', 'children')],
                    [Input(history_date_period_slider_id, 'value')])
 def update_history_chart(value):
     db_path = join(get_project_dir_path_from_cookie(), DB_NAME)
@@ -333,7 +340,7 @@ def update_history_chart(value):
                              detect_types=decl_types | decl_colnames)
     data = history_chart.retrieve_watch_data(conn, date_periods_vals[value])
     conn.close()
-    return construct_history_chart(data)
+    return construct_history_chart(data), 'Videos opened/watched'
 
 
 @dash_app.callback(Output(history_date_period_summary_id, 'children'),
@@ -378,11 +385,11 @@ def construct_v_scatter(df: pd.DataFrame,
         tick_text = []
         for v in tick_vals:
             if v >= 86400:
-                tick_text.append(f'{v//86400}d')
+                tick_text.append(f'{round(v/86400)}d')
             elif v >= 3600:
-                tick_text.append(f'{v//3600}h')
+                tick_text.append(f'{round(v/3600)}h')
             elif v >= 60:
-                tick_text.append(f'{v//60}m')
+                tick_text.append(f'{round(v/60)}m')
             else:
                 tick_text.append(f'{v}s')
         if x_axis_col == 'Duration':
@@ -392,16 +399,12 @@ def construct_v_scatter(df: pd.DataFrame,
     # so the legend entries for channels with only one video are ordered in
     # descending order by views, for relevancy
     if len(df) >= 1000:
-        buttons_to_remove = graph_tools_to_remove + ['zoom2d', 'pan2d',
-                                                     'select2d', 'autoScale2d']
-        layout.yaxis.update(fixedrange=True)
-        layout.xaxis.update(fixedrange=True)
-        data = [go.Scatter(x=df[x_axis_col], y=df[y_axis_col],
-                           mode='markers',
-                           hoverinfo='none',
-                           marker={'opacity': 0.8, 'size': 6})]
+        data = [go.Scattergl(x=df[x_axis_col], y=df[y_axis_col],
+                             mode='markers',
+                             marker={'opacity': 0.8, 'size': 6},
+                             customdata=df.VideoID)]
+
     else:
-        buttons_to_remove = graph_tools_to_remove
         channels = df.Channel.unique()
 
         channels_dict = {k: v for k, v
@@ -439,7 +442,7 @@ def construct_v_scatter(df: pd.DataFrame,
         id=v_scatter_id,
         figure=figure,
         config=dict(displaylogo=False,
-                    modeBarButtonsToRemove=buttons_to_remove),
+                    modeBarButtonsToRemove=graph_tools_to_remove),
         style=dict(height=500, width=800)),
     return graph
 
