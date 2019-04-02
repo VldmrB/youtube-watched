@@ -30,8 +30,7 @@ def setup_project_form():
             resp.set_cookie('project-dir', project_path, max_age=31_536_000)
             return resp
         else:
-            flash(f'{flash_err} No valid project found at '
-                  f'{strong(project_path)}')
+            flash(f'{flash_err} No API key found in {strong(project_path)}')
             return redirect('setup_project')
 
     try:
@@ -39,9 +38,6 @@ def setup_project_form():
             os.makedirs(project_path)
             flash(f'{flash_note} '
                   f'Created directory {os.path.abspath(project_path)}')
-        dirs_to_make = ['logs', 'graphs']
-        for dir_ in dirs_to_make:
-            os.mkdir(join(project_path, dir_))
 
         with open(join(project_path, 'api_key'), 'w') as api_file:
             api_file.write(api_key)
