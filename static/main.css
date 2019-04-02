@@ -1,3 +1,4 @@
+/*General styles*/
 * {
     box-sizing: border-box;
 }
@@ -12,38 +13,43 @@ input, select, textarea, button {
     font-size: inherit;
 }
 
-.project-dir-path, form, #new-project-submit-button, #progress-bar-rectangle, #takeout-help {
-    margin: 10px 0;
+form {
+    outline: 1px solid lightgray;
 }
 
-#project-buttons {
-    display: flex;
-    margin: auto;
-}
-
-#project-buttons>button {
-    margin-bottom: 10px;
-    width: 50%;
-}
-
-div>#project-buttons {
+form > span {
     display: flex;
     align-items: center;
-}
-
-#all-buttons>button {
-    /*margin-left: auto;*/
-}
-
-#all-buttons {
-    display: flex;
     justify-content: space-between;
+    width: 80%;
+    padding: 2px 0;
 }
 
-.path {
-    font-weight: bold;
+h1, h2, h3, h4{
+    color: darkslategray;
 }
 
+h3, h4 {
+    margin: 8px 0;
+}
+
+p {
+    margin: 6px 0;
+}
+
+hr {
+    border: none;
+    height: 1px;
+    background-color: gray;
+}
+
+:focus::-webkit-input-placeholder,
+:focus::-moz-placeholder ,
+:focus::-ms-input-placeholder {
+    opacity: 0.3;
+}
+
+/*Utility classes */
 .hidden {
     display: none;
 }
@@ -52,8 +58,28 @@ div>#project-buttons {
     visibility: hidden;
 }
 
-form {
-    outline: 1px solid lightgray;
+.project-dir-path, form, #new-project-submit-button, #progress-bar-rectangle, #takeout-help {
+    margin: 10px 0;
+}
+
+/*Specific styles*/
+
+.project-path {
+    font-weight: bold;
+}
+
+#new-project-buttons {
+    display: flex;
+}
+
+#new-project-buttons > button {
+    margin-bottom: 10px;
+    width: 50%;
+}
+
+#index-top-buttons {
+    display: flex;
+    justify-content: space-between;
 }
 
 #setup-project-form {
@@ -81,14 +107,6 @@ form {
     margin-left: 145px;
 }
 
-form>span {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    width: 80%;
-    padding: 2px 0;
-}
-
 #update-cutoff-input {
     width: 50px;
 }
@@ -97,18 +115,8 @@ form>span {
     width: 70%;
 }
 
-#help-container {
+#new-project-help-container {
     margin: 5% auto 1.5% auto;
-}
-
- h3, h4 {
-    margin: 8px 0;
-}
-
-p { margin: 8px 0;}
-
-h1, h2, h3, h4{
-    color: darkslategray;
 }
 
 .link-btn, .link-btn:visited {
@@ -150,12 +158,6 @@ h1, h2, h3, h4{
     color: red;
 }
 
-:focus::-webkit-input-placeholder,
-:focus::-moz-placeholder ,
-:focus::-ms-input-placeholder {
-    opacity: 0.3;
-}
-
 input, .button, .button-cancel, #update-cutoff-periods {
     height: 30px;
     border: 1px solid lightgray;
@@ -163,11 +165,6 @@ input, .button, .button-cancel, #update-cutoff-periods {
 
 input:not([type=submit]) {
     width: 50%;
-}
-
-.button-cancel {
-    background-color: white;
-    border: 1px solid tomato;
 }
 
 .button {
@@ -186,6 +183,11 @@ input:not([type=submit]) {
     transition: 0.05s;
 }
 
+.button-cancel {
+    background-color: white;
+    border: 1px solid tomato;
+}
+
 .button-cancel:hover:enabled {
     background-color: tomato;
     color: white;
@@ -202,7 +204,6 @@ input:not([type=submit]) {
     background-color: white;
     color: limegreen;
     transition: 0.05s;
-    /*margin-right: 200px;*/
 }
 
 #visualize-button:hover:enabled {
@@ -213,10 +214,4 @@ input:not([type=submit]) {
 #visualize-button:disabled {
     background-color: lightgray;
     color: darkslategrey;
-}
-
-hr {
-    border: none;
-    height: 1px;
-    background-color: gray;
 }
