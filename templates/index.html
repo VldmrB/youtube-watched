@@ -78,7 +78,7 @@
                 <option value="2592000" {{ "selected" if cutoff_denomination == "2592000" }}>months</option>
             </select>
             ago
-            <input class="button" type="submit" value="Start">
+            <input class="button" type="submit" value="Start" {{ "disabled" if not db }}>
         </form>
     <div id="db-progress">
         <div id="progress-bar-container">
