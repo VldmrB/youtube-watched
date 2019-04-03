@@ -58,16 +58,11 @@ hr {
     display: none;
 }
 
-.invisible {
-    visibility: hidden;
-}
+/*Specific styles*/
 
 .project-dir-path, form, #new-project-submit-button, #progress-bar-rectangle, #takeout-help {
     margin: 10px 0;
 }
-
-/*Specific styles*/
-
 .project-path {
     font-weight: bold;
 }
