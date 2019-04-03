@@ -1,11 +1,11 @@
 from os.path import join
 
-from dash_layout import app, dash_app
-from utils.app import get_project_dir_path_from_cookie
-from utils.gen import logging_config
+from youtubewatched.dash_layout import app, dash_app
+from youtubewatched.utils.app import get_project_dir_path_from_cookie
+from youtubewatched.utils.gen import logging_config
 
-from manage_records.views import record_management
-from new_project.views import setup_new_project
+from youtubewatched.manage_records.views import record_management
+from youtubewatched.new_project.views import setup_new_project
 
 app.secret_key = '23lkjhv9z8y$!gffflsa1g4[p[p]'
 app.register_blueprint(record_management)

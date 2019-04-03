@@ -3,8 +3,8 @@ import os
 import sqlite3
 from os.path import join
 
-from utils.app import get_project_dir_path_from_cookie
-from config import DB_NAME
+from youtubewatched.utils.app import get_project_dir_path_from_cookie
+from youtubewatched.config import DB_NAME
 from typing import Union
 
 logger = logging.getLogger(__name__)
@@ -26,7 +26,7 @@ def sqlite_connection(db_path: str, types=False,
 
 def generate_insert_query(table: str,
                           columns: Union[list, tuple],
-                          on_conflict_ignore=False)-> str:
+                          on_conflict_ignore=False) -> str:
     """
     Constructs a basic insert query.
     """

@@ -4,7 +4,7 @@ import dash_table
 import numpy as np
 import pandas as pd
 
-from get_data.misc import generic_table_settings
+from youtubewatched.get_data.misc import generic_table_settings
 
 pd.set_option('display.max_columns', 400)
 pd.set_option('display.width', 400)
