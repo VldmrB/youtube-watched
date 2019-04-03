@@ -7,11 +7,17 @@ from flask import request, redirect, make_response, flash
 from utils.app import flash_note, flash_err, strong
 from utils.app import get_project_dir_path_from_cookie
 
+from manage_records.views import DBProcessState
+
 setup_new_project = Blueprint('project', __name__)
 
 
 @setup_new_project.route('/setup_project')
 def setup_project():
+    if DBProcessState.is_thread_alive():
+        flash(f'{flash_err} Stop the current action before making a new '
+              f'project')
+        return redirect(url_for('records.index'))
     path = get_project_dir_path_from_cookie()
     return render_template('new_project.html', path=path)
 
