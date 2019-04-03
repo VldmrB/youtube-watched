@@ -1,5 +1,4 @@
 import sqlite3
-from textwrap import dedent
 
 import pandas as pd
 

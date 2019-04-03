@@ -4,7 +4,7 @@ import sys
 from datetime import datetime
 from logging import handlers
 
-from config import MAX_TIME_DIFFERENCE
+from youtubewatched.config import MAX_TIME_DIFFERENCE
 
 loggers_to_remove = ['werkzeug', 'flask']
 

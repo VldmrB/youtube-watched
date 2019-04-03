@@ -198,10 +198,6 @@ input:not([type=submit]) {
     transition: 0.05s;
 }
 
-#visualize-button-container {
-    display: flex;
-}
-
 #visualize-button {
     width: 200px;
     border: 1px solid limegreen;

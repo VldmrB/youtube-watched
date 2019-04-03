@@ -11,11 +11,13 @@ from dash_html_components import Div
 from flask import Flask
 from plotly.colors import PLOTLY_SCALES, find_intermediate_color
 
-from config import DB_NAME
-from dashing.overrides import Dashing
-from get_data import history_chart, videos_scatter_graph, tracking
-from utils.app import get_project_dir_path_from_cookie, get_db_path
-from utils.sql import sqlite_connection, execute_query
+from youtubewatched.config import DB_NAME
+from youtubewatched.dashing.overrides import Dashing
+from youtubewatched.get_data import (history_chart, videos_scatter_graph,
+                                     tracking)
+from youtubewatched.utils.app import (get_project_dir_path_from_cookie,
+                                      get_db_path)
+from youtubewatched.utils.sql import sqlite_connection, execute_query
 
 """
 Plotly graph toolbar refs:

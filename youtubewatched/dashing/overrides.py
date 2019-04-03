@@ -4,7 +4,7 @@ from flask import Response, url_for
 from plotly.utils import iso_to_plotly_time_string, NotEncodable
 from dash import Dash
 from dash_html_components import Div, A
-from utils.sql import db_has_records
+from youtubewatched.utils.sql import db_has_records
 
 
 class Dashing(Dash):

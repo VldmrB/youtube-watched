@@ -7,13 +7,16 @@ import time
 from datetime import datetime
 from typing import Union
 
-import youtube
-from config import video_keys_and_columns, MAX_TIME_DIFFERENCE
-from topics import topics
-from utils.sql import execute_query
-from utils.sql import generate_insert_query, generate_unconditional_update_query
-from utils.gen import (are_different_timestamps, timestamp_is_unique_in_list,
-                       remove_timestamps_from_one_list_from_another)
+from youtubewatched import youtube
+from youtubewatched.config import video_keys_and_columns, MAX_TIME_DIFFERENCE
+from youtubewatched.topics import topics
+from youtubewatched.utils.sql import execute_query
+from youtubewatched.utils.sql import (generate_insert_query,
+                                      generate_unconditional_update_query)
+from youtubewatched.utils.gen import (
+    are_different_timestamps,
+    timestamp_is_unique_in_list,
+    remove_timestamps_from_one_list_from_another)
 
 logger = logging.getLogger(__name__)
 

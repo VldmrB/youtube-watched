@@ -2,7 +2,7 @@ import json
 import logging
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
-from config import video_parts_to_get
+from youtubewatched.config import video_parts_to_get
 
 logger = logging.getLogger(__name__)
 logger.addFilter(logging.Filter(__name__))

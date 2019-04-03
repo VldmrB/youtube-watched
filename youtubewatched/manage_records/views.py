@@ -9,12 +9,15 @@ from time import sleep
 from flask import (Response, Blueprint, request, redirect, make_response,
                    render_template, url_for, flash)
 
-import write_to_sql
-import youtube
-from config import DB_NAME
-from utils.app import get_project_dir_path_from_cookie, flash_err, strong
-from utils.gen import load_file
-from utils.sql import sqlite_connection, db_has_records, execute_query
+from youtubewatched import write_to_sql
+from youtubewatched import youtube
+from youtubewatched.config import DB_NAME
+from youtubewatched.convert_takeout import get_all_records
+from youtubewatched.utils.app import (get_project_dir_path_from_cookie,
+                                      flash_err, strong)
+from youtubewatched.utils.gen import load_file
+from youtubewatched.utils.sql import (sqlite_connection, db_has_records,
+                                      execute_query)
 
 record_management = Blueprint('records', __name__)
 
@@ -188,7 +191,6 @@ def _show_front_end_data(fe_data: dict, conn):
 
 
 def populate_db(takeout_path: str, project_path: str):
-    from convert_takeout import get_all_records
 
     if DBProcessState.exit_thread_check():
         return
@@ -269,10 +271,7 @@ def populate_db(takeout_path: str, project_path: str):
 
 def update_db(project_path: str, cutoff: int):
     import sqlite3
-    import write_to_sql
-    import youtube
     import time
-    from utils.gen import load_file
 
     progress.clear()
     DBProcessState.percent = '0.0'

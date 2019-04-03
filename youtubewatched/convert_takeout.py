@@ -6,8 +6,8 @@ from typing import Union
 
 from bs4 import BeautifulSoup as BSoup
 
-from utils.gen import (timestamp_is_unique_in_list,
-                       remove_timestamps_from_one_list_from_another)
+from youtubewatched.utils.gen import (
+    timestamp_is_unique_in_list, remove_timestamps_from_one_list_from_another)
 
 """
 In addition to seemingly only returning an oddly even number of records 

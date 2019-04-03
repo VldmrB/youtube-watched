@@ -4,10 +4,10 @@ from os.path import join
 from flask import render_template, url_for, Blueprint
 from flask import request, redirect, make_response, flash
 
-from utils.app import flash_note, flash_err, strong
-from utils.app import get_project_dir_path_from_cookie
+from youtubewatched.utils.app import flash_note, flash_err, strong
+from youtubewatched.utils.app import get_project_dir_path_from_cookie
 
-from manage_records.views import DBProcessState
+from youtubewatched.manage_records.views import DBProcessState
 
 setup_new_project = Blueprint('project', __name__)
 

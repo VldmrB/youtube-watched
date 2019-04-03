@@ -1,7 +1,7 @@
 from os.path import join
 from flask import request
 
-from config import DB_NAME
+from youtubewatched.config import DB_NAME
 
 flash_err = '<span style="color:Red;font-weight:bold;">Error:</span>'
 flash_note = '<span style="color:Blue;font-weight:bold">Note:</span>'
