@@ -11,7 +11,7 @@ requires = [
     'numpy==1.16.2',
     'pandas==0.24.1',
     'plotly==3.7.1',
-    'lxml=4.3.3'
+    'lxml==4.3.3'
 ]
 
 with open(path.join(path.dirname(__file__), 'README.md'), 'r') as readme:
@@ -26,9 +26,10 @@ setup(
                 'Takeout',
     long_description=long_description,
     long_description_content_type='text/markdown',
+    url='https://github.com/VldmrB/youtube-watched',
     packages=find_packages(),
     license='MIT',
-    python_requires='>=3.6.0,<=3.7.0',
+    python_requires='>=3.6.0,<3.8',
     install_requires=requires,
     package_data={NAME: ['static/*', 'templates/*']},
     include_package_data=True,
