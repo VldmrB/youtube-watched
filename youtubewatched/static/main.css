@@ -60,7 +60,7 @@ hr {
 
 /*Specific styles*/
 
-.project-dir-path, form, #new-project-submit-button, #progress-bar-rectangle, #takeout-help {
+.project-dir-path, form, #new-project-submit-button, #progress-bar-rectangle {
     margin: 10px 0;
 }
 .project-path {
@@ -118,7 +118,7 @@ hr {
     margin: 5% auto 1.5% auto;
 }
 
-.link-btn, .link-btn:visited {
+a, a:visited {
     color: dodgerblue;
     text-decoration: none;
 }
