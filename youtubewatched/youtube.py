@@ -24,11 +24,24 @@ class ApiKeyError(ValueError):
     pass
 
 
+def _handle_api_key_error(e):
+    err_inf = json.loads(e.content)['error']
+    reason = err_inf['errors'][0]['reason']
+    if reason == 'keyInvalid':
+        raise ApiKeyError(f'Invalid API key')
+    return err_inf, reason
+
+
 def get_api_auth(developer_key):
     if not developer_key:
-        raise ApiKeyError('Please provide an API key.')
-    return build(YOUTUBE_API_SERVICE_NAME, YOUTUBE_API_VERSION,
-                 developerKey=developer_key)
+        raise ApiKeyError('Please provide an API key.\n'
+                          'Create an api_key file in the project directory '
+                          'and paste the key there.')
+    try:
+        return build(YOUTUBE_API_SERVICE_NAME, YOUTUBE_API_VERSION,
+                     developerKey=developer_key)
+    except HttpError as e:
+        _handle_api_key_error(e)
 
 
 def get_video_info(video_id, api_auth):
@@ -37,10 +50,7 @@ def get_video_info(video_id, api_auth):
                                          part=video_parts_to_get).execute()
         return results
     except HttpError as e:
-        err_inf = json.loads(e.content)['error']
-        reason = err_inf['errors'][0]['reason']
-        if reason == 'keyInvalid':
-            raise ApiKeyError('Invalid API key')
+        err_inf, reason = _handle_api_key_error(e)
         logger.error(f'API error: ID# {video_id} retrieval failed\n'
                      f'error code: ' + str(err_inf['code']) +
                      '\ndescription: ' + err_inf['message'] +
@@ -53,10 +63,7 @@ def get_categories(api_auth):
         return api_auth.videoCategories().list(part='snippet',
                                                regionCode='US').execute()
     except HttpError as e:
-        err_inf = json.loads(e.content)['error']
-        reason = err_inf['errors'][0]['reason']
-        if reason == 'keyInvalid':
-            raise ApiKeyError('Invalid API key')
+        err_inf, reason = _handle_api_key_error(e)
         logger.error(f'Categories\' retrieval failed,\n'
                      f'error code: ' + str(err_inf['code']) +
                      '\ndescription: ' + err_inf['message'] +
