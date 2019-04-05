@@ -20,8 +20,7 @@
     <div id="takeout-section" data-full="{{ 'True' if db else '' }}">
         <div id="takeout-setup">
             <h2>Add Takeout</h2>
-            <a href="#" id="takeout-instructions-toggle" class="link-btn"
-            >Instructions{{ ':' if description or not db else '' }}</a>
+            <a href="#" id="takeout-instructions-toggle" >Instructions{{ ':' if description or not db else '' }}</a>
             <div id="takeout-instructions" class="{{ '' if description or not db else 'hidden' }}">
                 <p>
                     Enter the path to one of the following (searching will become confined to one of these types after
@@ -42,8 +41,7 @@
                     Only Takeout files in English can be parsed. Adjusting code in src/convert_takeout.py
                     (functions get_watch_history_files and get_all_records) could get it to work with another language.
                     Alternatively, switching your language to English
-                    <a class="link-btn link-btn:visited"
-                       href="https://myaccount.google.com/language?utm_source=google-account&utm_medium=web"
+                    <a href="https://myaccount.google.com/language?utm_source=google-account&utm_medium=web"
                        target="_blank">here</a> should make the Takeout archives created afterwards be in English.
                 </p>
                 <p>
