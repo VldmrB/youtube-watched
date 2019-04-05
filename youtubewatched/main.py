@@ -13,8 +13,8 @@ app.register_blueprint(record_management)
 app.register_blueprint(setup_new_project)
 
 
-def launch():
-    dash_app.run_server(PORT, debug=DEBUG)
+def launch(port=PORT, debug=DEBUG):
+    dash_app.run_server(port=port, debug=debug)
 
 
 @app.before_first_request
