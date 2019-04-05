@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import sqlite3
 import time
@@ -6,6 +7,7 @@ from os.path import join
 from threading import Thread
 from time import sleep
 
+from logging import handlers
 from flask import (Response, Blueprint, request, redirect, make_response,
                    render_template, url_for, flash)
 
@@ -15,7 +17,7 @@ from youtubewatched.config import DB_NAME
 from youtubewatched.convert_takeout import get_all_records
 from youtubewatched.utils.app import (get_project_dir_path_from_cookie,
                                       flash_err, strong)
-from youtubewatched.utils.gen import load_file
+from youtubewatched.utils.gen import load_file, logging_config
 from youtubewatched.utils.sql import (sqlite_connection, db_has_records,
                                       execute_query)
 
@@ -26,12 +28,21 @@ cutoff_denomination_cookie = 'cutoff-denomination'
 takeout_dir_cookie = 'takeout-dir'
 
 
+class ProjectControl:
+    """
+    Used for changing log files when changing projects (directories), enabling
+    logging
+    """
+    
+    logger = None
+    cur_dir = None
+    
+
 class ThreadControl:
     """
     Used as a single point of reference on anything related to processes started
     by the user on index.html for starting/stopping said processes, getting
     status, current point of progress, etc.
-
     """
     thread = None
     # either of the two functions that run processes started from
@@ -55,6 +66,7 @@ class ThreadControl:
             return True
 
 
+ProjectState = ProjectControl()
 DBProcessState = ThreadControl()
 progress = []
 
@@ -71,10 +83,21 @@ def add_sse_event(data: str = '', event: str = '', id_: str = ''):
 def index():
     project_path = get_project_dir_path_from_cookie()
     if not project_path:
-        return redirect(url_for('setup_project'))
+        return redirect(url_for('project.setup_project'))
     elif not os.path.exists(project_path):
         flash(f'{flash_err} could not find directory {strong(project_path)}')
-        return redirect(url_for('setup_project'))
+        return redirect(url_for('project.setup_project'))
+    if not ProjectState.logger:
+        logging_config(join(project_path, 'events.log'))
+        ProjectState.logger = logging.getLogger()  # the root logger is
+        # assigned the above config
+
+    if project_path != ProjectState.cur_dir:
+        for i in ProjectState.logger.handlers:
+            if isinstance(i, handlers.RotatingFileHandler):
+                i.stream.close()
+                i.stream = open(join(project_path, 'events.log'), 'a')
+    ProjectState.cur_dir = project_path
 
     if DBProcessState.active_event_stream is None:
         DBProcessState.active_event_stream = True
