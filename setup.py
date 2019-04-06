@@ -34,6 +34,8 @@ setup(
     package_data={NAME: ['static/*', 'templates/*']},
     include_package_data=True,
     keywords='visualization youtube takeout',
+    entry_points='''[console_scripts]
+                    youtubewatched=youtubewatched.main:launch''',
     classifiers=[
         'License :: OSI Approved :: MIT License',
         'Programming Language :: Python',
