@@ -11,6 +11,9 @@ from dash_html_components import Div
 from flask import Flask
 from plotly.colors import PLOTLY_SCALES, find_intermediate_color
 
+from youtubewatched.manage_records.views import record_management
+from youtubewatched.new_project.views import setup_new_project
+
 from youtubewatched.config import DB_NAME
 from youtubewatched.dashing.overrides import Dashing
 from youtubewatched.get_data import (history_chart, videos_scatter_graph,
@@ -74,6 +77,10 @@ def add_commas_to_num(num: int):
 css = ['/static/dash_graph.css']  # only css that's difficult to implement
 # through code is set in the css file, the rest is set through Dash
 app = Flask(__name__)
+app.secret_key = '23lkjhv9z8y$!gffflsa1g4[p[p]'
+app.register_blueprint(record_management)
+app.register_blueprint(setup_new_project)
+
 dash_app = Dashing(__name__, server=app,
                    routes_pathname_prefix='/dash/', external_stylesheets=css)
 dash_app.config['suppress_callback_exceptions'] = True
