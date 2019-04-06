@@ -1,7 +1,6 @@
 from datetime import timedelta
 
 PORT = 5000
-DEBUG = True
 
 DB_NAME = 'yt.sqlite'
 
