@@ -8,7 +8,7 @@ the data like a spreadsheet, as well as making simple graphs.
 Outside of requests to YouTube Data API, the whole thing is run locally.
 
 This is *not* a tool for exhaustive data gathering/archiving and records keeping. Even if it tried to be, inaccuracies
-in Takeout would not allow for that (read below to see why).
+in Takeout would not allow for [that](#takeout-quirks-and-data-accuracy).
 
 ## What you'll need
 
