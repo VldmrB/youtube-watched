@@ -22,7 +22,7 @@ setup(
     version='0.1.0',
     author='Vladimir Belitskiy',
     author_email='belitskiy@gmail.com',
-    description='Simple visualization of Youtube watch history from Google '
+    description='Visualization of Youtube watch history from Google '
                 'Takeout',
     long_description=long_description,
     long_description_content_type='text/markdown',
@@ -42,7 +42,8 @@ setup(
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
-        'Programming Language :: Python :: Implementation :: CPython'
+        'Programming Language :: Python :: Implementation :: CPython',
+        'Framework :: Flask'
     ],
 )
 
