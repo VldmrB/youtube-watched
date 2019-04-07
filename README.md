@@ -56,7 +56,7 @@ From your terminal, enter:
 youtubewatched
 ```
 That'll start up the app on `http://127.0.0.1:5000`.  
-`youtubewatched --help` for some limited server startup options.
+Enter `youtubewatched --help` for some limited server startup options.
 
 The rest (there isn't much) is explained on the web page itself.
 
