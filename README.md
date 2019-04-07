@@ -51,7 +51,7 @@ those would likely not be parsable either. If that happens, open an
 
 ## Running the app
 
-From your terminal, run:
+From your terminal, enter:
 ```
 youtubewatched
 ```
@@ -61,7 +61,7 @@ The rest (there isn't much) is explained on the web page itself.
 
 #### Browser compatibility
 
-Chrome, Firefox, Opera, Brave and hopefully Safari should all work fine as long as not terribly outdated, Edge and IE
+Chrome, Firefox, Opera, Brave and hopefully Safari should all work fine as long as not terribly outdated; Edge and IE
 will not.
 
 #### Possible issues

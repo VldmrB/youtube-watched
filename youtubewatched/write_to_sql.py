@@ -455,7 +455,7 @@ def insert_videos(conn, records: dict, api_auth, verbosity=1):
     verbosity_level_1 = verbosity >= 1
     verbosity_level_2 = verbosity >= 2
     verbosity_level_3 = verbosity >= 3
-    records_passed, inserted, updated, dead = 0, 0, 0, 0
+    records_passed, inserted, updated = 0, 0, 0
     cur = conn.cursor()
     cur.execute("""SELECT id FROM videos;""")
     video_ids = [row[0] for row in cur.fetchall()]
@@ -592,8 +592,7 @@ def insert_videos(conn, records: dict, api_auth, verbosity=1):
 
         if 'title' not in record:
             record['title'] = 'unknown'
-            if add_dead_video(conn, video_id):
-                dead += 1
+            add_dead_video(conn, video_id)
         if 'channel_id' not in record:
             record['channel_id'] = 'unknown'
 
@@ -637,8 +636,7 @@ def insert_videos(conn, records: dict, api_auth, verbosity=1):
     results = {"records_processed": records_passed,
                "records_inserted": inserted,
                "records_updated": updated,
-               "records_in_db": len(video_ids),
-               "dead_records": dead}
+               "records_in_db": len(video_ids)}
 
     logger.info(json.dumps(results, indent=4))
     logger.info('\n' + '-'*100 + f'\nPopulating finished')
@@ -735,11 +733,11 @@ def update_videos(conn: sqlite3.Connection, api_auth,
             channel_title = record.pop('channel_title')
             channel_id = record['channel_id']
             try:
-                    if channel_title != channels[channel_id]:
-                        update_channel(
-                            conn, channel_id, channel_title,
-                            channels[channel_id], verbosity_level_1)
-                        channels[channel_id] = channel_title
+                if channel_title != channels[channel_id]:
+                    update_channel(
+                        conn, channel_id, channel_title,
+                        channels[channel_id], verbosity_level_1)
+                    channels[channel_id] = channel_title
             except KeyError:
                 """The channel now has a different ID... it's a thing.
                 One possible reason for this is large channels, belonging to 
