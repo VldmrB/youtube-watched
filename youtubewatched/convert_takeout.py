@@ -76,7 +76,7 @@ def get_watch_history_files(takeout_path: str = '.'):
     dir_contents = os.listdir(takeout_path)
     watch_histories = []
     for path in dir_contents:
-        if path.startswith('watch-history'):
+        if path.startswith('watch-history') and path.endswith('.html'):
             watch_histories.append(os.path.join(takeout_path, path))
 
     if watch_histories:
