@@ -532,9 +532,8 @@ def insert_videos(conn, records: dict, api_auth, verbosity=1):
         if records_passed % sub_percent_int == 0:
             conn.commit()  # commits take a lot of time - doing them once every
             # N records significantly speeds up the process
-            if verbosity_level_1:
-                print(f'Processing entry # {records_passed}')
-            yield ((records_passed // sub_percent) / 10, updated)
+            yield ((records_passed // sub_percent) / 10, records_passed,
+                   updated)
         record['id'] = video_id
 
         if video_id not in video_ids:
@@ -647,7 +646,6 @@ def update_videos(conn: sqlite3.Connection, api_auth,
     verbosity_level_1 = verbosity >= 1
     verbosity_level_2 = verbosity >= 2
     verbosity_level_3 = verbosity >= 3
-    skipped = 0
     records_passed, updated, newly_inactive, newly_active = 0, 0, 0, 0
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
@@ -679,15 +677,12 @@ def update_videos(conn: sqlite3.Connection, api_auth,
     for record in records:
         records_passed += 1
         if records_passed % sub_percent_int == 0:
-            if verbosity >= 1:
-                print(f'Processing entry # {records_passed}')
             conn.commit()
-            yield ((records_passed // sub_percent)/10, updated,
+            yield ((records_passed // sub_percent)/10, records_passed, updated,
                    newly_inactive, newly_active)
         last_updated_dtm = datetime.strptime(record['last_updated'],
                                              '%Y-%m-%d %H:%M:%S')
         if (now - last_updated_dtm).total_seconds() < update_age_cutoff:
-            skipped += 1
             continue
         record = execute_query(conn, 'SELECT * FROM videos WHERE id = ?',
                                (record['id'],))
@@ -770,4 +765,3 @@ def update_videos(conn: sqlite3.Connection, api_auth,
 
     logger.info(json.dumps(results, indent=4))
     logger.info('\n' + '-'*100 + f'\nUpdating finished')
-    print('Skipped', skipped, 'records out of', len(records))

@@ -23,7 +23,6 @@ visualizeButton.onclick = function() {
 
 function disableOrEnableSomeButtons() {
     for (let i = 0; i < buttonsToDisableWhenWorkingDB.length; i++) {
-        // noinspection RedundantIfStatementJS
         if (buttonsToDisableWhenWorkingDB[i].disabled) {
             buttonsToDisableWhenWorkingDB[i].disabled = false;
         } else {
@@ -146,9 +145,12 @@ let onEventTakeoutProgress = function (event) {
 };
 
 let onEventMsg = function (event) {
-    let progressVal = event.data + "%";
+    let msgData = event.data.split(" ");
+    let progressVal = msgData[0] + "%";
     progressBar.style.width = progressVal;
     progressBarPercentage.innerHTML = progressVal;
+    processResults.innerHTML = 'Processing #' + msgData[1];
+
 };
 // ------------------------ Event Source listeners for various event types {End} ------------------------
 

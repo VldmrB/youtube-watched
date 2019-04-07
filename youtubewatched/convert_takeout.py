@@ -1,6 +1,8 @@
 import itertools
+import logging
 import os
 import re
+
 from datetime import datetime
 from typing import Union
 
@@ -8,6 +10,8 @@ from bs4 import BeautifulSoup as BSoup
 
 from youtubewatched.utils.gen import (
     timestamp_is_unique_in_list, remove_timestamps_from_one_list_from_another)
+
+logger = logging.getLogger(__name__)
 
 """
 In addition to seemingly only returning an oddly even number of records 
@@ -29,7 +33,7 @@ longer up on YouTube.
 
 Turns out the reason for BS not seeing all/any divs was an extra,
 out-of-place tag - <div class="mdl-grid"> (right after <body>) instead of 
-indentation and newlines. Thought BeautifulSoup was supposed to handle that 
+indentation and newlines. Thought Beautiful Soup was supposed to handle that 
 just fine, but maybe not or not in all cases. 
 
 Update:
@@ -90,7 +94,8 @@ def get_watch_history_files(takeout_path: str = '.'):
             if os.path.exists(full_path):
                 watch_histories.append(os.path.join(takeout_path, full_path))
             else:
-                print(f'Expected watch-history.html in {path}, found none')
+                logger.warning(f'Expected watch-history.html in {path}, '
+                               f'found none')
 
     return watch_histories
 
@@ -136,7 +141,7 @@ def get_all_records(takeout_path: str = '.',
 
     watch_files = get_watch_history_files(takeout_path)
     if not watch_files:
-        print('Found no watch-history files.')
+        logger.warning('Found no watch-history files.')
         return False
 
     occ_dict = {'videos': {'unknown': {'timestamps': []}}}
@@ -144,7 +149,6 @@ def get_all_records(takeout_path: str = '.',
     watch_files_amount = len(watch_files)
     for ind, watch_file_path in enumerate(watch_files):
         yield ind, watch_files_amount
-        print(watch_file_path)
         with open(watch_file_path, 'r') as watch_file:
             content = watch_file.read()
             original_content = content
@@ -159,7 +163,7 @@ def get_all_records(takeout_path: str = '.',
         if content != original_content and prune_html:
             with open(watch_file_path, 'w') as new_file:
                 new_file.write(content)
-            print('Rewrote', watch_file_path, '(trimmed junk HTML).')
+            logger.info('Rewrote', watch_file_path, '(trimmed junk HTML).')
         soup = BSoup(content, 'lxml')
         divs = soup.find_all('div', class_='awesome_class')
         if len(divs) == 0:
@@ -226,16 +230,18 @@ def get_all_records(takeout_path: str = '.',
                                                  unk_timestamps)
 
     if verbose:
-        print('Total videos watched/opened:',
-              len(all_known_timestamps) + len(unk_timestamps))
-        print('Total unknown videos:', len(unk_timestamps))
-        print('Unique videos with ids:', len(occ_dict['videos']) - 1)
+        timestamps_all = len(all_known_timestamps + unk_timestamps)
+        logger.info(f'''
+        Total videos watched/opened: {timestamps_all})
+        Total unknown videos: {len(unk_timestamps)})
+        Unique videos with ids: {len(occ_dict["videos"]) - 1}''')
         # ^ minus one for 'unknown' key
     if dump_json_to:
         import json
         with open(dump_json_to, 'w') as all_records_file:
             json.dump(occ_dict['videos'], all_records_file, indent=4,
                       default=lambda o: str(o))  # for dt objects
-            print('Dumped JSON to', dump_json_to)
+            if verbose:
+                logger.info('Dumped JSON to', dump_json_to)
 
     yield occ_dict['videos']

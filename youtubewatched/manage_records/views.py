@@ -1,7 +1,7 @@
 import json
+import logging
 import os
 import sqlite3
-import time
 from os.path import join
 from threading import Thread
 from time import sleep
@@ -25,6 +25,9 @@ record_management = Blueprint('records', __name__)
 cutoff_value_cookie = 'cutoff-value'
 cutoff_denomination_cookie = 'cutoff-denomination'
 takeout_dir_cookie = 'takeout-dir'
+
+
+logger = logging.getLogger(__name__)
 
 
 class ProjectControl:
@@ -61,7 +64,7 @@ class ThreadControl:
         if self.exit_thread_flag:
             DBProcessState.stage = None
             add_sse_event(event='stop')
-            print('Stopped the DB update thread')
+            logger.warning('Stopped the DB update thread')
             return True
 
 
@@ -256,11 +259,10 @@ def populate_db(takeout_path: str, project_path: str):
             conn, 'SELECT count(*) from videos')[0][0]
 
         DBProcessState.percent = '0.0'
-        add_sse_event(DBProcessState.percent)
-        DBProcessState.stage = 'Inserting records...'
+        add_sse_event(f'{DBProcessState.percent} 1')
+        DBProcessState.stage = 'Inserting...'
         add_sse_event(DBProcessState.stage, 'stage')
 
-        tm_start = time.time()
         for record in write_to_sql.insert_videos(
                 conn, records, api_auth, 1):
 
@@ -268,14 +270,13 @@ def populate_db(takeout_path: str, project_path: str):
                 break
 
             DBProcessState.percent = str(record[0])
-            add_sse_event(DBProcessState.percent)
-            front_end_data['updated'] = record[1]
+            add_sse_event(f'{DBProcessState.percent} {record[1]}')
+            front_end_data['updated'] = record[2]
 
         _show_front_end_data(front_end_data, conn)
         if DBProcessState.stage:
             add_sse_event(event='stop')
         add_sse_event(json.dumps(front_end_data), 'stats')
-        print(time.time() - tm_start, 'seconds!')
         conn.close()
     except youtube.ApiKeyError:
         add_sse_event(f'Missing or invalid API key', 'errors')
@@ -292,7 +293,6 @@ def populate_db(takeout_path: str, project_path: str):
 
 def update_db(project_path: str, cutoff: int):
     import sqlite3
-    import time
 
     progress.clear()
     DBProcessState.percent = '0.0'
@@ -309,7 +309,6 @@ def update_db(project_path: str, cutoff: int):
     try:
         api_auth = youtube.get_api_auth(
             load_file(join(project_path, 'api_key')).strip())
-        tm_start = time.time()
         DBProcessState.stage = 'Updating...'
         add_sse_event(DBProcessState.stage, 'stage')
         if DBProcessState.exit_thread_check():
@@ -318,13 +317,12 @@ def update_db(project_path: str, cutoff: int):
             if DBProcessState.exit_thread_check():
                 break
             DBProcessState.percent = str(record[0])
-            add_sse_event(DBProcessState.percent)
-            front_end_data['updated'] = record[1]
-            front_end_data['newly_inactive'] = record[2]
-            front_end_data['newly_active'] = record[3]
+            add_sse_event(f'{DBProcessState.percent} {record[1]}')
+            front_end_data['updated'] = record[2]
+            front_end_data['newly_inactive'] = record[3]
+            front_end_data['newly_active'] = record[4]
 
         _show_front_end_data(front_end_data, conn)
-        print(time.time() - tm_start, 'seconds!')
     except youtube.ApiKeyError:
         add_sse_event(f'{flash_err} Missing or invalid API key', 'errors')
         raise
