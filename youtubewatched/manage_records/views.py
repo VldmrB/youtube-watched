@@ -1,5 +1,4 @@
 import json
-import logging
 import os
 import sqlite3
 import time
@@ -87,15 +86,14 @@ def index():
     elif not os.path.exists(project_path):
         flash(f'{flash_err} could not find directory {strong(project_path)}')
         return redirect(url_for('project.setup_project'))
-    if not ProjectState.logger:
-        logging_config(join(project_path, 'events.log'))
-        ProjectState.logger = logging.getLogger()  # the root logger is
-        # assigned the above config
 
+    if not ProjectState.logger:
+        ProjectState.logger = logging_config(join(project_path, 'events.log'))
+    # projects (directories) were changed, changing the log file accordingly
     if project_path != ProjectState.cur_dir:
         for i in ProjectState.logger.handlers:
             if isinstance(i, handlers.RotatingFileHandler):
-                i.stream.close()
+                i.stream.close()  # closing currently open file
                 i.stream = open(join(project_path, 'events.log'), 'a')
     ProjectState.cur_dir = project_path
 
@@ -264,7 +262,7 @@ def populate_db(takeout_path: str, project_path: str):
 
         tm_start = time.time()
         for record in write_to_sql.insert_videos(
-                conn, records, api_auth):
+                conn, records, api_auth, 1):
 
             if DBProcessState.exit_thread_check():
                 break

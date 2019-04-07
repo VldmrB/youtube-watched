@@ -5,16 +5,6 @@ from googleapiclient.errors import HttpError
 from youtubewatched.config import video_parts_to_get
 
 logger = logging.getLogger(__name__)
-logger.addFilter(logging.Filter(__name__))
-loggers_to_disable = ['urllib', 'rsa', 'requests',
-                      'pyasnl', 'oauthlib', 'google']
-logging.Logger.manager: logging.Manager
-for lgr_record in logging.Logger.manager.loggerDict:
-    for lgr in loggers_to_disable:
-        if lgr_record.startswith(lgr):
-            logging.getLogger(lgr_record).setLevel(100)
-            break
-
 
 YOUTUBE_API_VERSION = 'v3'
 YOUTUBE_API_SERVICE_NAME = 'youtube'
