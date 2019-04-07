@@ -4,12 +4,14 @@ is to gather some data about your YouTube watch history (available via Google Ta
 of it. There's a few interactive graphs and tables on the Visualize page, and then there's the data itself. An 
 SQLite browser, such as [DB Browser for SQLite](https://sqlitebrowser.org/), could be used for viewing and filtering
 the data like a spreadsheet, as well as making simple graphs.  
+
 Outside of requests to YouTube Data API, the whole thing is run locally.
 
 This is *not* a tool for exhaustive data gathering/archiving and records keeping. Even if it tried to be, inaccuracies
 in Takeout would not allow for that (read below to see why).
 
 ## What you'll need
+
 In addition to **Python 3.6+** and installing the package (preferably in a 
 [virtual environment](https://docs.python.org/3/library/venv.html)):
 
@@ -19,7 +21,7 @@ pip install youtubewatched
 
 you'll need two things:
  - Your [Google Takeout](https://takeout.google.com/settings/takeout) YouTube data
- - have YouTube Data API enabled and an API key for the app to make requests for information on 
+ - have YouTube Data API enabled and an **API key** for the app to make requests for information on 
 each video. The first part from **Before you start** section from 
 [Google's guide](https://developers.google.com/youtube/v3/getting-started) on the matter explains how to do that (should
  only be a few minutes):
@@ -37,7 +39,7 @@ each video. The first part from **Before you start** section from
 \**the above block of text is a modification based on work created and shared by Google and used according to terms 
 described in the Creative Commons 3.0 Attribution License.*\*
 
-##Limitations
+## Limitations
 
 Only Takeout files in English can be parsed by the app, though adjusting code in convert_takeout.py (functions 
 get_watch_history_files and get_all_records) could get it to work with another language.  
@@ -49,19 +51,25 @@ those would likely not be parsable either. If that happens, open an
 
 
 ## Running the app
+
 From your terminal, run:
 ```
 youtubewatched
 ```
 That'll start up the app on `http://127.0.0.1:5000`. 
-You can choose another port:
-```
-youtubewatched -p <port-number>
-```
+To choose another port: `youtubewatched -p <port-number>`  
 The rest (there isn't much) is explained on the web page itself.
+
 ##### Browser compatibility
+
 Chrome, Firefox, Opera, Brave and hopefully Safari should all work fine as long as not terribly outdated, Edge and IE
 will not.
+
+##### Possible issues
+If videos' graphs for 1k+ records show up blank, **WebGL** in your browser is probably disabled or otherwise prevented 
+from working.  
+In Brave specifically, that could be fixed by clicking on the **Shields** icon in the address bar and 
+allowing device recognition.
 
 ## Notes on how the app works
 
@@ -121,9 +129,9 @@ been watched at the same year, month, minute and second as well as less than 26 
  attached to the 'unknown' record. Considering the records returned by Takeout are not complete as is, a few
  (7 unknown ones for me) extra lost timestamps seemed like a good trade-off.
 
-### Built with
+## Built with signficant use of the following packages
  - [Flask](http://flask.pocoo.org/) - the app itself
- - [Dash](https://plot.ly/products/dash/) - visualizing data and making interactive graphs
+ - [Dash](https://plot.ly/products/dash/) / Plotly - visualizing data and making interactive graphs, constructing the
+  visualization web page
  - [Pandas](https://pandas.pydata.org/) & [NumPy](https://www.numpy.org/) - data wrangling
  - [Beautiful Soup](https://www.crummy.com/software/BeautifulSoup/) - parsing Google Takeout
- - and many others
