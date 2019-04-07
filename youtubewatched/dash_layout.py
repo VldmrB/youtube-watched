@@ -76,12 +76,12 @@ def add_commas_to_num(num: int):
 
 css = ['/static/dash_graph.css']  # only css that's difficult to implement
 # through code is set in the css file, the rest is set through Dash
-app = Flask(__name__)
+app = Flask('youtubewatched')
 app.secret_key = '23lkjhv9z8y$!gffflsa1g4[p[p]'
 app.register_blueprint(record_management)
 app.register_blueprint(setup_new_project)
 
-dash_app = Dashing(__name__, server=app,
+dash_app = Dashing('youtubewatched', server=app,
                    routes_pathname_prefix='/dash/', external_stylesheets=css)
 dash_app.config['suppress_callback_exceptions'] = True
 dash_app.title = 'Graphs'
