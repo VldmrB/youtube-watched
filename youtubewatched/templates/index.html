@@ -36,19 +36,16 @@
                 <p>
                     Processing will be slightly faster if the files are ordered chronologically.
                 </p>
-                <h4>Restrictions</h4>
+                <h4 id="limitations">Limitations</h4>
                 <p>
-                    Only Takeout files in English can be parsed. Adjusting code in src/convert_takeout.py
-                    (functions get_watch_history_files and get_all_records) could get it to work with another language.
-                    Alternatively, switching your language to English
-                    <a href="https://myaccount.google.com/language?utm_source=google-account&utm_medium=web"
-                       target="_blank">here</a> should make the Takeout archives created afterwards be in English.
-                </p>
-                <p>
-                    It's possible the format of watch-history.html files used to be different in the past, in which case
-                    those would likely not be parsable either. If that happens, open an issue on GitHub and I'll see
-                    about making it work.
-                </p>
+                    Only Takeout files in English can be parsed by the app, though adjusting code in convert_takeout.py (functions
+                    get_watch_history_files and get_all_records) could get it to work with another language.<br>
+                    Alternatively, switching your <a href="https://myaccount.google.com/language?utm_source=google-account&amp;utm_medium=web">language</a>
+                to English should make the Takeout archives created afterwards be in English.<br>It&#39;s also possible
+                    the format of watch-history.html files used to be different in the past, in which case
+                those would likely not be parsable either. If that happens, open an
+                <a href="https://github.com/VldmrB/youtube-watched/issues">issue</a> and I&#39;ll see about making it work.</p>
+
             </div>
 
             <form id="takeout-form"

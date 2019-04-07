@@ -1,24 +1,26 @@
 <h2 id="the-goal-of-the-app">The goal of the app</h2>
-<p>is to gather some data about your YouTube watch history and do some light visualization of it. There&#39;s a few
-interactive graphs and tables on the Visualize page, and then there&#39;s the data itself. An SQLite browser, such as <a href="https://sqlitebrowser.org/">DB
- Browser for SQLite</a>, could be used for viewing and filtering the data like a
- spreadsheet, as well as making simple graphs.</p>
-<p>This is not a tool for exhaustive data gathering/archiving and records keeping. Even if it tried to be, inaccuracies in
-Takeout would not allow for that (read below to see why).</p>
-<h2 id="data-retrieval-and-insertion-process">Data retrieval and insertion process</h2>
+<p>is to gather some data about your YouTube watch history (available via Google Takeout) and do some light visualization
+of it. There&#39;s a few interactive graphs and tables on the Visualize page, and then there&#39;s the data itself. An
+SQLite browser, such as <a href="https://sqlitebrowser.org/">DB Browser for SQLite</a>, could be used for viewing and filtering
+the data like a spreadsheet, as well as making simple graphs.  </p>
+<p>Outside of requests to YouTube Data API, the whole thing is run locally.</p>
+<p>This is <em>not</em> a tool for exhaustive data gathering/archiving and records keeping. Even if it tried to be, inaccuracies
+in Takeout would not allow for that (read below to see why).</p>
+<h2 id="notes-on-how-the-app-works">Notes on how the app works</h2>
+<h3 id="data-retrieval-and-insertion-process">Data retrieval and insertion process</h3>
 <p>Takeout&#39;s watch-history.html file(s) gets parsed for the available info. Some records will only contain a timestamp of
 when the video was opened, presumably when the video itself is no longer available. Most will also contain the video ID,
- title and the channel title.</p>
+ title and the channel title.    </p>
 <p>All the video IDs are then queried against YouTube Data API for additional information such as likes, tags, number of
 comments, etc. Combined with the timestamps from Takeout, the records are then inserted into a database, located in the
 project directory under the default name of yt.sqlite. Those without any identifying info are collectively inserted as a
  single &#39;unknown&#39;.</p>
 <p>Each successful query to the API uses 11 points, with the standard daily quota being 1M.
-The <a href="https://console.developers.google.com/apis/api/youtube.googleapis.com/overview">Quotas</a> tab on Google&#39;s
-Console page will show how many have been used up.</p>
+The Quotas tab on Google&#39;s <a href="https://console.developers.google.com/apis/api/youtube.googleapis.com/overview">Console</a>
+page will show how many have been used up.</p>
 <p>Should the process get interrupted for any reason, it&#39;s safe to restart it using the same Takeout files; no duplicates
 will be created and no duplicate queries will be made (except 1 every time).</p>
-<h2 id="takeout-quirks-and-data-accuracy">Takeout quirks and data accuracy</h2>
+<h3 id="takeout-quirks-and-data-accuracy">Takeout quirks and data accuracy</h3>
 <p>Takeout works strangely (badly). The first three times I&#39;ve used it, varying numbers of records were returned each time.
 The second time returned fewer than the first and the last returned more than the first two, including records older
 than the ones in the first two as well as additional records throughout the whole watch history.
@@ -46,4 +48,3 @@ been watched at the same year, month, minute and second as well as less than 26 
  also block a limited amount of legitimate timestamps from being entered. Most if not all of them would be the ones
  attached to the &#39;unknown&#39; record. Considering the records returned by Takeout are not complete as is, a few
  (7 unknown ones for me) extra lost timestamps seemed like a good trade-off.</p>
-

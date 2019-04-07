@@ -49,7 +49,6 @@ It's also possible the format of watch-history.html files used to be different i
 those would likely not be parsable either. If that happens, open an
 [issue](https://github.com/VldmrB/youtube-watched/issues) and I'll see about making it work.
 
-
 ## Running the app
 
 From your terminal, run:
@@ -60,12 +59,12 @@ That'll start up the app on `http://127.0.0.1:5000`.
 To choose another port: `youtubewatched -p <port-number>`  
 The rest (there isn't much) is explained on the web page itself.
 
-##### Browser compatibility
+#### Browser compatibility
 
 Chrome, Firefox, Opera, Brave and hopefully Safari should all work fine as long as not terribly outdated, Edge and IE
 will not.
 
-##### Possible issues
+#### Possible issues
 If videos' graphs for 1k+ records show up blank, **WebGL** in your browser is probably disabled or otherwise prevented 
 from working.  
 In Brave specifically, that could be fixed by clicking on the **Shields** icon in the address bar and 
@@ -73,7 +72,7 @@ allowing device recognition.
 
 ## Notes on how the app works
 
-#### Data retrieval and insertion process
+### Data retrieval and insertion process
 
 Takeout's watch-history.html file(s) gets parsed for the available info. Some records will only contain a timestamp of 
 when the video was opened, presumably when the video itself is no longer available. Most will also contain the video ID,
@@ -91,7 +90,7 @@ page will show how many have been used up.
 Should the process get interrupted for any reason, it's safe to restart it using the same Takeout files; no duplicates 
 will be created and no duplicate queries will be made (except 1 every time).
 
-#### Takeout quirks and data accuracy
+### Takeout quirks and data accuracy
 
 Takeout works strangely (badly). The first three times I've used it, varying numbers of records were returned each time.
 The second time returned fewer than the first and the last returned more than the first two, including records older 
@@ -104,7 +103,7 @@ In addition to that, all the archives were missing some amount of records for ea
 to the History page on Youtube, though the difference wasn't drastic. Curiously, the History page was also missing some 
 videos that were present in Takeout.
 
-##### Timestamps
+#### Timestamps
 
 In short, the timestamps can be very inaccurate and the app doesn't fix that. They shouldn't be relied on for anything
 precise, but would work fine for a rough overview of activity over a given period of time, etc.
@@ -120,7 +119,7 @@ timestamps seem to be set to either the DST timezone or the non-DST one, dependi
 That is, if someone who lives on the East coast of US were to create an archive in May, all the timestamps, including
 ones that should be in EST (November - March) would be set to EDT, and vice versa if they were to create it in February.
 
-##### Avoiding duplicate timestamps because of potential different timezones for different Takeout archives
+#### Avoiding duplicate timestamps because of potential different timezones for different Takeout archives
 
 Since different Takeout archives may have different timezones, depending on when/where they were downloaded, there may 
 be duplicate timestamps in different timezones. To weed out them out, any timestamps for the same video ID that have
