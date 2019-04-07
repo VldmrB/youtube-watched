@@ -8,10 +8,10 @@ requires = [
     'dash==0.40.0',
     'Flask==1.0.2',
     'google-api-python-client==1.7.8',
+    'lxml==4.3.3',
     'numpy==1.16.2',
-    'pandas==0.24.1',
-    'plotly==3.7.1',
-    'lxml==4.3.3'
+    'pandas==0.24.2',
+    'plotly==3.7.1'
 ]
 
 with open(path.join(path.dirname(__file__), 'README.md'), 'r') as readme:
