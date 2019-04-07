@@ -1,7 +1,7 @@
 <h2 id="the-goal-of-the-app">The goal of the app</h2>
 <p>is to gather some data about your YouTube watch history (available via Google Takeout) and do some light visualization
 of it. There&#39;s a few interactive graphs and tables on the Visualize page, and then there&#39;s the data itself. An
-SQLite browser, such as <a href="https://sqlitebrowser.org/">DB Browser for SQLite</a>, could be used for viewing and filtering
+SQLite browser, such as <a href="https://sqlitebrowser.org/" target="_blank">DB Browser for SQLite</a>, could be used for viewing and filtering
 the data like a spreadsheet, as well as making simple graphs.  </p>
 <p>Outside of requests to YouTube Data API, the whole thing is run locally.</p>
 <p>This is <em>not</em> a tool for exhaustive data gathering/archiving and records keeping. Even if it tried to be, inaccuracies
@@ -16,7 +16,7 @@ comments, etc. Combined with the timestamps from Takeout, the records are then i
 project directory under the default name of yt.sqlite. Those without any identifying info are collectively inserted as a
  single &#39;unknown&#39;.</p>
 <p>Each successful query to the API uses 11 points, with the standard daily quota being 1M.
-The Quotas tab on Google&#39;s <a href="https://console.developers.google.com/apis/api/youtube.googleapis.com/overview">Console</a>
+The Quotas tab on Google&#39;s <a href="https://console.developers.google.com/apis/api/youtube.googleapis.com/overview" target="_blank">Console</a>
 page will show how many have been used up.</p>
 <p>Should the process get interrupted for any reason, it&#39;s safe to restart it using the same Takeout files; no duplicates
 will be created and no duplicate queries will be made (except 1 every time).</p>
