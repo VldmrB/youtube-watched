@@ -1,9 +1,8 @@
 ## The goal of the app
-
 is to gather some data about your YouTube watch history (available via Google Takeout) and do some light visualization
-of it. There's a few interactive graphs and tables on the Visualize page, and then there's the data itself. An 
-SQLite browser, such as [DB Browser for SQLite](https://sqlitebrowser.org/), could be used for viewing and filtering
-the data like a spreadsheet, as well as making simple graphs.  
+of it. There's a few built-in interactive graphs and tables, delivered via a web page, and then there's the 
+data itself that can be used for more. An SQLite browser, such as [DB Browser for SQLite](https://sqlitebrowser.org/),
+could be used for viewing and filtering it like a spreadsheet, as well as making simple graphs.  
 
 Outside of requests to YouTube Data API, the whole thing is run locally.
 
