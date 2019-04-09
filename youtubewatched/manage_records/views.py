@@ -184,7 +184,7 @@ def start_db_process():
 
     project_path = get_project_dir_path_from_cookie()
     if takeout_path:
-        takeout_dir = takeout_path.strip()
+        takeout_dir = os.path.expanduser(takeout_path.strip())
         if os.path.exists(takeout_dir):
             resp.set_cookie(takeout_dir_cookie, takeout_dir, max_age=31_536_000)
         args = (takeout_dir, project_path, logging_verbosity)

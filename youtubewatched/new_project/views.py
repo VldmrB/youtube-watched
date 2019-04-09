@@ -26,7 +26,7 @@ def setup_project():
 def setup_project_form():
     resp = make_response(redirect(url_for('records.index')))
 
-    project_path = request.form['project-dir'].strip()
+    project_path = os.path.expanduser(request.form['project-dir'].strip())
     api_key = request.form.get('api-key')
     if api_key:
         api_key = api_key.strip()
