@@ -56,8 +56,11 @@ def logging_config(log_file_path: str,
     console_err_handler.addFilter(ConsoleOutFilter(logging.CRITICAL))
 
     app_logger = logging.getLogger('youtubewatched')
+    app_logger.setLevel(file_level)
+    app_logger.handlers.pop()  # remove the default stream handler
     for handler in (file_handler, console_out_handler, console_err_handler):
         app_logger.addHandler(handler)
+
 
     if log_server_requests_info:
         logging.getLogger('werkzeug').addHandler(file_handler)
