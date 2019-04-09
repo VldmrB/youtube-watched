@@ -471,7 +471,8 @@ def insert_videos(conn, records: dict, api_auth, verbosity=1):
     cur.execute("""SELECT id FROM dead_videos_ids;""")
     dead_videos_ids = [dead_video[0] for dead_video in cur.fetchall()]
     cur.close()
-    logger.info(f'\nStarting records\' insertion...\n' + '-'*100)
+    if verbosity_level_1:
+        logger.info(f'\nStarting records\' insertion...\n' + '-'*100)
 
     # due to its made up ID, the unknown record is best handled outside the loop
     unknown_record = records.pop('unknown', None)
@@ -584,7 +585,9 @@ def insert_videos(conn, records: dict, api_auth, verbosity=1):
                         record['status'] = 'active'
                     else:
                         record['status'] = 'deleted'
-                        logger.info(f'{record["id"]} is now deleted from YT')
+                        if verbosity_level_1:
+                            logger.info(
+                                f'{record["id"]} is now deleted from YT')
                 else:
                     record['status'] = 'inactive'
 
@@ -641,9 +644,9 @@ def insert_videos(conn, records: dict, api_auth, verbosity=1):
                "records_inserted": inserted,
                "records_updated": updated,
                "records_in_db": len(video_ids)}
-
-    logger.info(json.dumps(results, indent=4))
-    logger.info('\n' + '-'*100 + f'\nPopulating finished')
+    if verbosity_level_1:
+        logger.info(json.dumps(results, indent=4))
+        logger.info('\n' + '-'*100 + f'\nPopulating finished')
 
 
 def update_videos(conn: sqlite3.Connection, api_auth,
@@ -792,6 +795,6 @@ def update_videos(conn: sqlite3.Connection, api_auth,
                'newly_inactive': newly_inactive,
                'newly_active': newly_active,
                'deleted_from_youtube': deleted}
-
-    logger.info(json.dumps(results, indent=4))
-    logger.info('\n' + '-'*100 + f'\nUpdating finished')
+    if verbosity_level_1:
+        logger.info(json.dumps(results, indent=4))
+        logger.info('\n' + '-'*100 + f'\nUpdating finished')
