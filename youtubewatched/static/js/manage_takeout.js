@@ -110,6 +110,10 @@ let onEventStats = function(event) {
         msgString += "Videos now available through API (weren't previously): " +
             msgJSON["newly_active"] + "<br>";
     }
+    if (msgJSON.hasOwnProperty("deleted") && msgJSON["deleted"] !== 0) {
+        msgString += "Videos removed from YouTube: " +
+            msgJSON["deleted"] + "<br>";
+    }
     if (msgJSON.hasOwnProperty("timestamps") && msgJSON["timestamps"] !== 0) {
         msgString += "Total timestamps: " +
             msgJSON["timestamps"] + "<br>";

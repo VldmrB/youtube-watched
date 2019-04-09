@@ -578,8 +578,12 @@ def insert_videos(conn, records: dict, api_auth, verbosity=1):
             if api_response:
                 if api_response['items']:
                     api_video_data = wrangle_video_record(api_response['items'])
-                    record.update(api_video_data)
-                    record['status'] = 'active'
+                    if len(api_video_data) >= 7:
+                        record.update(api_video_data)
+                        record['status'] = 'active'
+                    else:
+                        record['status'] = 'deleted'
+                        logger.info(f'{record["id"]} is now deleted from YT')
                 else:
                     record['status'] = 'inactive'
 
@@ -646,12 +650,13 @@ def update_videos(conn: sqlite3.Connection, api_auth,
     verbosity_level_1 = verbosity >= 1
     verbosity_level_2 = verbosity >= 2
     verbosity_level_3 = verbosity >= 3
-    records_passed, updated, newly_inactive, newly_active = 0, 0, 0, 0
+    records_passed, updated, newly_inactive, newly_active, deleted = [0] * 5
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
-    cur.execute("""SELECT id, last_updated FROM videos WHERE title != ?
+    cur.execute("""SELECT id, last_updated FROM videos
+                   WHERE title != ? AND NOT status = ?
                    ORDER BY last_updated;""",
-                ('unknown',))
+                ('unknown', 'deleted'))
     records = list(cur.fetchall())
     cur.execute("""SELECT * FROM channels WHERE title is not NULL;""")
     channels = {k: v for k, v in cur.fetchall()}
@@ -679,7 +684,7 @@ def update_videos(conn: sqlite3.Connection, api_auth,
         if records_passed % sub_percent_int == 0:
             conn.commit()
             yield ((records_passed // sub_percent)/10, records_passed, updated,
-                   newly_inactive, newly_active)
+                   newly_inactive, newly_active, deleted)
         last_updated_dtm = datetime.strptime(record['last_updated'],
                                              '%Y-%m-%d %H:%M:%S')
         if (now - last_updated_dtm).total_seconds() < update_age_cutoff:
@@ -695,19 +700,31 @@ def update_videos(conn: sqlite3.Connection, api_auth,
             if api_response:
                 if api_response['items']:
                     api_video_data = wrangle_video_record(api_response['items'])
-                    api_video_data.pop('published_at', None)  # likely the same
-                    if record['status'] == 'inactive':
-                        record['status'] = 'active'
-                        newly_active += 1
-                        logger.info(f'{record["id"]}, '
-                                    f'{api_video_data["title"]} is now active')
-
-                    record.update(api_video_data)
+                    if len(api_video_data) >= 7:
+                        # a record must have at least 7 fields after
+                        # going through wrangle_video_record, otherwise it's a
+                        # record of a deleted video with no valid data
+                        api_video_data.pop('published_at', None)
+                        if record['status'] == 'inactive':
+                            record['status'] = 'active'
+                            newly_active += 1
+                            if verbosity_level_1:
+                                logger.info(f'{record["id"]}, '
+                                            f'{api_video_data["title"]} '
+                                            f'is now active')
+                        record.update(api_video_data)
+                    else:
+                        record['status'] = 'deleted'
+                        deleted += 1
+                        if verbosity_level_1:
+                            logger.info(
+                                f'{record["id"]} is now deleted from YT')
                 else:
                     if record['status'] == 'active':
                         record['status'] = 'inactive'
                         newly_inactive += 1
-                        logger.info(f'{record["id"]} is now inactive')
+                        if verbosity_level_1:
+                            logger.info(f'{record["id"]} is now inactive')
                 record['last_updated'] = datetime.utcnow().replace(
                     microsecond=0)
                 break
@@ -761,7 +778,8 @@ def update_videos(conn: sqlite3.Connection, api_auth,
     results = {'records_processed': records_passed,
                'records_updated': updated,
                'newly_inactive': newly_inactive,
-               'newly_active': newly_active}
+               'newly_active': newly_active,
+               'deleted_from_youtube': deleted}
 
     logger.info(json.dumps(results, indent=4))
     logger.info('\n' + '-'*100 + f'\nUpdating finished')
