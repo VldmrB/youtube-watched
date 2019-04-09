@@ -31,12 +31,15 @@ def setup_project_form():
     if api_key:
         api_key = api_key.strip()
     else:
-        if os.path.exists(project_path) and os.path.exists(
-                join(project_path, 'api_key')):
-            resp.set_cookie('project-dir', project_path, max_age=31_536_000)
-            return resp
+        if os.path.exists(project_path):
+            if os.path.exists(join(project_path, 'api_key')):
+                resp.set_cookie('project-dir', project_path, max_age=31_536_000)
+                return resp
+            else:
+                flash(f'{flash_err} No API key found in {strong(project_path)}')
+                return redirect('setup_project')
         else:
-            flash(f'{flash_err} No API key found in {strong(project_path)}')
+            flash(f'{flash_err} {strong(project_path)} does not exist')
             return redirect('setup_project')
 
     try:
