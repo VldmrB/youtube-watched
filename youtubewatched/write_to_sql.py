@@ -670,7 +670,7 @@ def update_videos(conn: sqlite3.Connection, api_auth,
                    WHERE title != ? AND NOT status = ?
                    ORDER BY last_updated;""",
                 ('unknown', 'deleted'))
-    records = list(cur.fetchall())
+    records = {k: v for k, v in cur.fetchall()}
     cur.execute("""SELECT * FROM channels WHERE title is not NULL;""")
     channels = {k: v for k, v in cur.fetchall()}
     cur.execute("""SELECT * FROM tags;""")
@@ -688,23 +688,27 @@ def update_videos(conn: sqlite3.Connection, api_auth,
     cur.close()
 
     now = datetime.utcnow()  # for determining if the record is old enough
-    sub_percent, sub_percent_int = calculate_subpercentage(len(records))
+    dt_strp = datetime.strptime
+    dt_format = '%Y-%m-%d %H:%M:%S'
+    records_filtered_by_age = [
+        k for k, v in records.items() if
+        (now - dt_strp(v, dt_format)).total_seconds() > update_age_cutoff
+    ]
+    sub_percent, sub_percent_int = calculate_subpercentage(
+        len(records_filtered_by_age))
     commit_interval = calculate_commit_interval(sub_percent_int)
     commit_interval_counter = 0
+    del records
 
     if verbosity_level_1:
         logger.info(f'\nStarting records\' updating...\n' + '-'*100)
-    for record in records:
+    for record in records_filtered_by_age:
         records_passed += 1
         if records_passed % sub_percent_int == 0:
             yield ((records_passed // sub_percent)/10, records_passed, updated,
                    newly_inactive, newly_active, deleted)
-        last_updated_dtm = datetime.strptime(record['last_updated'],
-                                             '%Y-%m-%d %H:%M:%S')
-        if (now - last_updated_dtm).total_seconds() < update_age_cutoff:
-            continue
         record = execute_query(conn, 'SELECT * FROM videos WHERE id = ?',
-                               (record['id'],))
+                               (record,))
         record = dict(record[0])
         video_id = record['id']
 
