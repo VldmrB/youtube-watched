@@ -72,7 +72,7 @@ setup(
     include_package_data=True,
     keywords='visualization youtube takeout',
     entry_points='''[console_scripts]
-                    youtubewatched=youtubewatched.main:launch''',
+                    youtubewatched=youtubewatched.__main__:launch''',
     classifiers=[
         'License :: OSI Approved :: MIT License',
         'Programming Language :: Python',
