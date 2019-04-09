@@ -705,13 +705,18 @@ def update_videos(conn: sqlite3.Connection, api_auth,
                         # going through wrangle_video_record, otherwise it's a
                         # record of a deleted video with no valid data
                         api_video_data.pop('published_at', None)
-                        if record['status'] == 'inactive':
-                            record['status'] = 'active'
-                            newly_active += 1
-                            if verbosity_level_1:
-                                logger.info(f'{record["id"]}, '
-                                            f'{api_video_data["title"]} '
-                                            f'is now active')
+                        if 'channel_title' not in api_video_data:
+                            # the video is somehow available through API
+                            # (though some data is missing), but not on YouTube
+                            pass
+                        else:
+                            if record['status'] == 'inactive':
+                                record['status'] = 'active'
+                                newly_active += 1
+                                if verbosity_level_1:
+                                    logger.info(f'{record["id"]}, '
+                                                f'{api_video_data["title"]} '
+                                                f'is now active')
                         record.update(api_video_data)
                     else:
                         record['status'] = 'deleted'
@@ -741,9 +746,9 @@ def update_videos(conn: sqlite3.Connection, api_auth,
             # the DB as well. However, keeping a fuller record, despite what
             # the video's uploader/author might think about its accuracy,
             # seems like a better option
+        channel_id = record['channel_id']
         if 'channel_title' in record:
             channel_title = record.pop('channel_title')
-            channel_id = record['channel_id']
             try:
                 if channel_title != channels[channel_id]:
                     update_channel(
@@ -758,8 +763,14 @@ def update_videos(conn: sqlite3.Connection, api_auth,
                 
                 Only encountered this once in ~19k of my own records."""
                 add_channel(conn, channel_id, channel_title, verbosity_level_2)
+        else:
+            # Less than a handful of videos were not available on YouTube, but
+            # were available through API, with channel id, but no channel title.
+            # In Takeout, these had no channel title or id, but had regular
+            # title/id. Very strange.
+            if channel_id not in channels:
+                add_channel(conn, channel_id)
 
-            pass
         if 'relevant_topic_ids' in record:
             topics_list = record.pop('relevant_topic_ids')
             if existing_topics_tags.get(video_id):
