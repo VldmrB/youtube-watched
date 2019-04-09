@@ -264,7 +264,7 @@ def populate_db(takeout_path: str, project_path: str):
         add_sse_event(DBProcessState.stage, 'stage')
 
         for record in write_to_sql.insert_videos(
-                conn, records, api_auth, 1):
+                conn, records, api_auth):
 
             if DBProcessState.exit_thread_check():
                 break
@@ -321,6 +321,7 @@ def update_db(project_path: str, cutoff: int):
             front_end_data['updated'] = record[2]
             front_end_data['newly_inactive'] = record[3]
             front_end_data['newly_active'] = record[4]
+            front_end_data['deleted'] = record[5]
 
         _show_front_end_data(front_end_data, conn)
     except youtube.ApiKeyError:
