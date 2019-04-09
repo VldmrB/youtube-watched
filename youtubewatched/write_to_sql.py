@@ -554,7 +554,8 @@ def insert_videos(conn, records: dict, api_auth, verbosity=1):
             add_known_timestamps_and_remove_from_unknown(
                 record.pop('timestamps'))
 
-            if video_id in dead_videos_ids and 'title' in record:
+            if (video_id in dead_videos_ids and
+                    record.get('title', 'Deleted video') != 'Deleted video'):
                 # Older Takeout file which for some reason was added out of
                 # order and which has info on a video that has become
                 # unavailable via API by the time newer Takeout containing
