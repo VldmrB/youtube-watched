@@ -9,6 +9,14 @@
         <title>{% block title %}YT Data Analysis{% endblock %}</title>
     </head>
     <body>
-            {% block body %}{% endblock %}
+    {% if path %}
+        <div class="project-dir-path">
+            Current project: <a href="#" id="project-path" class="project-path">{{ path }}</a>
+        </div>
+    {% endif %}
+    {% block body %}{% endblock %}
+    <script>
+        document.querySelector("#project-path").addEventListener("click", openProjectDirectory);
+    </script>
     </body>
 </html>

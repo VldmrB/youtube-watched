@@ -1,4 +1,7 @@
+import os
 import sqlite3
+import subprocess
+import sys
 from os.path import join
 from textwrap import dedent
 
@@ -80,6 +83,28 @@ app = Flask('youtubewatched')
 app.secret_key = '23lkjhv9z8y$!gffflsa1g4[p[p]'
 app.register_blueprint(record_management)
 app.register_blueprint(setup_new_project)
+
+
+@app.route('/open_current_project_dir')
+def open_current_project_dir():
+    run_args = [get_project_dir_path_from_cookie()]
+    try:
+        if sys.platform == 'win32':
+            os.startfile(run_args[0])
+            return ''
+        elif sys.platform == 'linux':
+            run_args.insert(0, 'xdg-open')
+        elif sys.platform == 'darwin':
+            run_args.insert(0, 'open')
+        else:
+            return ''
+
+        subprocess.run(run_args)
+    except OSError:
+        pass
+
+    return ''
+
 
 dash_app = Dashing('youtubewatched', server=app,
                    routes_pathname_prefix='/dash/', external_stylesheets=css)
