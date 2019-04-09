@@ -193,17 +193,20 @@ function processTakeout(event) {
 
     let idOfElementActedOn = this.id;
 
+    let logging_verbosity= document.querySelector("#logging-verbosity-level").value;
+
     let anAJAX = new XMLHttpRequest();
     anAJAX.addEventListener("readystatechange", showProgress);
     anAJAX.open("POST", "/start_db_process");
     anAJAX.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
     if (idOfElementActedOn === "takeout-form") {
         let takeoutDirectoryVal = document.querySelector("#takeout-input").value;
-        anAJAX.send("takeout-dir=" + takeoutDirectoryVal);
+        anAJAX.send("takeout-dir=" + takeoutDirectoryVal + "&logging-verbosity-level=" + logging_verbosity);
     } else {
         let updateCutoff = document.querySelector("#update-form input[name='update-cutoff']").value;
         let updateCutoffDenomination = document.querySelector("#update-cutoff-periods").value;
-        anAJAX.send("update-cutoff=" + updateCutoff + "&update-cutoff-denomination=" + updateCutoffDenomination);
+        anAJAX.send("update-cutoff=" + updateCutoff + "&update-cutoff-denomination=" + updateCutoffDenomination +
+        "&logging-verbosity-level=" + logging_verbosity);
     }
 
 }

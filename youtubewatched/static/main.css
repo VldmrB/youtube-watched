@@ -79,6 +79,7 @@ hr {
 #index-top-buttons {
     display: flex;
     justify-content: space-between;
+    margin-bottom: 30px;
 }
 
 #setup-project-form {
@@ -124,7 +125,7 @@ a, a:visited {
 }
 
 #db-progress {
-    height: 120px;
+    height: 180px;
     margin: 20px 0;
 }
 
