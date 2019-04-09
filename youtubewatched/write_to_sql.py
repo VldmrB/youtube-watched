@@ -243,6 +243,11 @@ def calculate_subpercentage(records_amount: int):
     return sub_percent, int(sub_percent)
 
 
+def calculate_commit_interval(sub_percent: int):
+    commit_interval = sub_percent if sub_percent > 20 else 20
+    return commit_interval
+
+
 def wrangle_video_record(json_obj: dict):
     """
     Extracts the keys deemed necessary from a Youtube API response, converts
@@ -527,12 +532,12 @@ def insert_videos(conn, records: dict, api_auth, verbosity=1):
                         break
 
     sub_percent, sub_percent_int = calculate_subpercentage(len(records))
+    commit_interval = calculate_commit_interval(sub_percent_int)
+    commit_interval_counter = 0
 
     for video_id, record in records.items():
         records_passed += 1
         if records_passed % sub_percent_int == 0:
-            conn.commit()  # commits take a lot of time - doing them once every
-            # N records significantly speeds up the process
             yield ((records_passed // sub_percent) / 10, records_passed,
                    updated)
         record['id'] = video_id
@@ -571,7 +576,6 @@ def insert_videos(conn, records: dict, api_auth, verbosity=1):
                 if update_video(conn, record, verbosity_level_2):
                     delete_dead_video(conn, video_id, verbosity_level_1)
                     updated += 1
-            conn.commit()
             continue
 
         for attempt in range(1, 6):
@@ -638,6 +642,11 @@ def insert_videos(conn, records: dict, api_auth, verbosity=1):
             for topic in topics_list:
                 add_topic_to_video(conn, topic, video_id, verbosity_level_3)
 
+        commit_interval_counter += 1
+        if commit_interval_counter == commit_interval:
+            conn.commit()
+            commit_interval_counter = 0
+
     conn.commit()
 
     results = {"records_processed": records_passed,
@@ -680,13 +689,14 @@ def update_videos(conn: sqlite3.Connection, api_auth,
 
     now = datetime.utcnow()  # for determining if the record is old enough
     sub_percent, sub_percent_int = calculate_subpercentage(len(records))
+    commit_interval = calculate_commit_interval(sub_percent_int)
+    commit_interval_counter = 0
 
     if verbosity_level_1:
         logger.info(f'\nStarting records\' updating...\n' + '-'*100)
     for record in records:
         records_passed += 1
         if records_passed % sub_percent_int == 0:
-            conn.commit()
             yield ((records_passed // sub_percent)/10, records_passed, updated,
                    newly_inactive, newly_active, deleted)
         last_updated_dtm = datetime.strptime(record['last_updated'],
@@ -785,6 +795,11 @@ def update_videos(conn: sqlite3.Connection, api_auth,
 
         if update_video(conn, record):
             updated += 1
+
+        commit_interval_counter += 1
+        if commit_interval_counter == commit_interval:
+            conn.commit()
+            commit_interval_counter = 0
 
     conn.commit()
     execute_query(conn, 'VACUUM')
