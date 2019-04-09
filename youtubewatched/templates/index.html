@@ -17,6 +17,16 @@
         <button id="visualize-button" class="button" {{ 'disabled' if not db else '' }}>Visualize</button>
         <button id="new-project-button" class="button">New project</button>
     </div>
+    <div id="logging-setting">
+        Database operations logging verbosity:
+        <select id="logging-verbosity-level">
+            <option value="0" {{ "selected" if logging_verbosity == "0" }}>0</option>
+            <option value="1" {{ "selected" if logging_verbosity == "1" }}>1</option>
+            <option value="2" {{ "selected" if logging_verbosity == "2" }}>2</option>
+            <option value="3" {{ "selected" if logging_verbosity == "3" }}>3</option>
+        </select>
+        (output goes to the terminal and the events.log file in the project directory)
+    </div>
     <div id="takeout-section" data-full="{{ 'True' if db else '' }}">
         <div id="takeout-setup">
             <h2>Add Takeout</h2>

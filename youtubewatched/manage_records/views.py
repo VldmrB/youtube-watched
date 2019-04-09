@@ -22,6 +22,7 @@ from youtubewatched.utils.sql import (sqlite_connection, db_has_records,
 
 record_management = Blueprint('records', __name__)
 
+logging_verbosity_cookie = 'logging-verbosity-level'
 cutoff_value_cookie = 'cutoff-value'
 cutoff_denomination_cookie = 'cutoff-denomination'
 takeout_dir_cookie = 'takeout-dir'
@@ -106,6 +107,7 @@ def index():
         # event_stream() will set this back to True after disengaging
         DBProcessState.active_event_stream = False
     # default values for forms, set when the user first submits a form
+    logging_verbosity = request.cookies.get(logging_verbosity_cookie)
     takeout_dir = request.cookies.get(takeout_dir_cookie)
     cutoff_time = request.cookies.get(cutoff_value_cookie)
     cutoff_denomination = request.cookies.get(cutoff_denomination_cookie)
@@ -117,6 +119,7 @@ def index():
         resp.set_cookie('description-seen', 'True', max_age=31_536_000)
         return resp
     return render_template('index.html', path=project_path, db=db,
+                           logging_verbosity=logging_verbosity,
                            takeout_dir=takeout_dir,
                            cutoff_time=cutoff_time,
                            cutoff_denomination=cutoff_denomination)
@@ -156,7 +159,7 @@ def event_stream():
             else:
                 break
 
-    # allow SSE for potential subsequent Takeout processes
+    # allow SSE for potential subsequent DB processes
     DBProcessState.active_event_stream = True
     progress.clear()
 
@@ -172,14 +175,19 @@ def start_db_process():
     if DBProcessState.is_thread_alive():
         return DBProcessState.live_thread_warning
 
-    takeout_path = request.form.get('takeout-dir', None)
+    logging_verbosity = request.form.get('logging-verbosity-level')
+    resp.set_cookie(logging_verbosity_cookie, logging_verbosity,
+                    max_age=31_536_000)
+    logging_verbosity = int(logging_verbosity)
+
+    takeout_path = request.form.get('takeout-dir')
 
     project_path = get_project_dir_path_from_cookie()
     if takeout_path:
         takeout_dir = takeout_path.strip()
         if os.path.exists(takeout_dir):
             resp.set_cookie(takeout_dir_cookie, takeout_dir, max_age=31_536_000)
-        args = (takeout_dir, project_path)
+        args = (takeout_dir, project_path, logging_verbosity)
         target = populate_db
     else:
         cutoff_time = request.form.get('update-cutoff')
@@ -189,7 +197,7 @@ def start_db_process():
                         max_age=31_536_000)
         cutoff = int(cutoff_time) * int(cutoff_denomination)
 
-        args = (project_path, cutoff)
+        args = (project_path, cutoff, logging_verbosity)
         target = update_db
 
     DBProcessState.thread = Thread(target=target, args=args)
@@ -214,7 +222,7 @@ def _show_front_end_data(fe_data: dict, conn):
     add_sse_event(json.dumps(fe_data), 'stats')
 
 
-def populate_db(takeout_path: str, project_path: str):
+def populate_db(takeout_path: str, project_path: str, logging_verbosity: int):
 
     if DBProcessState.exit_thread_check():
         return
@@ -264,7 +272,7 @@ def populate_db(takeout_path: str, project_path: str):
         add_sse_event(DBProcessState.stage, 'stage')
 
         for record in write_to_sql.insert_videos(
-                conn, records, api_auth):
+                conn, records, api_auth, logging_verbosity):
 
             if DBProcessState.exit_thread_check():
                 break
@@ -291,7 +299,7 @@ def populate_db(takeout_path: str, project_path: str):
     conn.close()
 
 
-def update_db(project_path: str, cutoff: int):
+def update_db(project_path: str, cutoff: int, logging_verbosity: int):
     import sqlite3
 
     progress.clear()
@@ -313,7 +321,8 @@ def update_db(project_path: str, cutoff: int):
         add_sse_event(DBProcessState.stage, 'stage')
         if DBProcessState.exit_thread_check():
             return
-        for record in write_to_sql.update_videos(conn, api_auth, cutoff, 3):
+        for record in write_to_sql.update_videos(conn, api_auth, cutoff,
+                                                 logging_verbosity):
             if DBProcessState.exit_thread_check():
                 break
             DBProcessState.percent = str(record[0])
