@@ -1,4 +1,4 @@
-function toggleElementVisibility(toggleId, elementToToggle, togglingElementText = "Cancel", mainInputId = null) {
+function toggleElementVisibility (toggleId, elementToToggle, togglingElementText = "Cancel", mainInputId = null) {
     let button = document.querySelector("#" + toggleId);
     let buttonText = button.innerHTML;
     let buttonWidth = button.offsetWidth;
@@ -16,4 +16,11 @@ function toggleElementVisibility(toggleId, elementToToggle, togglingElementText 
             formElement.classList.toggle("hidden");
         }
     });
+}
+
+function openProjectDirectory (event) {
+    event.preventDefault();
+    let openDir = new XMLHttpRequest();
+    openDir.open("GET", '/open_current_project_dir');
+    openDir.send();
 }
