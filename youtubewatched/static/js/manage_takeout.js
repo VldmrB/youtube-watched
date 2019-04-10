@@ -82,8 +82,19 @@ function retrieveActiveProcess () {
                 if (progressMsg.innerHTML === "") {
                     progressMsg.innerHTML = response["stage"];
                     if (progressBarPercentage.innerHTML === ""){
-                        progressBar.style.width = response["percent"] + "%";
-                        progressBarPercentage.innerHTML = response["percent"] + "%";
+                        if (response["percent"].includes(' ')) {
+                            let progressVal = response["percent"].split(" ");
+                            let currentFile = Number(progressVal[0]);
+                            let fileAmount =  Number(progressVal[1]);
+
+                            progressBar.style.width = (Number(currentFile / fileAmount).toFixed(2) * 100) + "%";
+                            progressBarPercentage.innerHTML = (currentFile+1) + " of " + fileAmount;
+                        } else {
+                            progressBar.style.width = response["percent"] + "%";
+                            progressBarPercentage.innerHTML = response["percent"] + "%";
+
+                        }
+
                     }
                 }
 
