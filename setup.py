@@ -47,9 +47,9 @@ class UploadCommand(Command):
         else:
             subprocess.run(f'{sys.executable} setup.py sdist bdist_wheel')
 
-        print('Uploading to test PyPi...')
+        print('Uploading to PyPi...')
         if not self.dry_run:
-            subprocess.run(f'twine upload --repository testpypi dist/*')
+            subprocess.run(f'twine upload --repository pypi dist/*')
 
     def finalize_options(self):
         pass
@@ -57,7 +57,7 @@ class UploadCommand(Command):
 
 setup(
     name=NAME,
-    version='0.1.0rc1',
+    version='0.1.0',
     author='Vladimir Belitskiy',
     author_email='belitskiy@gmail.com',
     description='Visualization of Youtube watch history from Google Takeout',
