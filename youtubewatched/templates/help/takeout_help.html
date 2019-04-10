@@ -21,22 +21,19 @@ page will show how many have been used up.</p>
 <p>Should the process get interrupted for any reason, it&#39;s safe to restart it using the same Takeout files; no duplicates
 will be created and no duplicate queries will be made (except 1 every time).</p>
 <h3 id="takeout-quirks-and-data-accuracy">Takeout quirks and data accuracy</h3>
-<p>Takeout works strangely (badly). The first three times I&#39;ve used it, varying numbers of records were returned each time.
-The second time returned fewer than the first and the last returned more than the first two, including records older
-than the ones in the first two as well as additional records throughout the whole watch history.
-The next few I paid attention to also varied in the amount returned in a similar manner.</p>
-<p>The oldest records were from April of 2014, with the Youtube account having been created and first used sometime in 2011.</p>
-<p>In addition to that, all the archives were missing some amount of records for each year they did cover, when compared
-to the History page on Youtube, though the difference wasn&#39;t drastic. Curiously, the History page was also missing some
-videos that were present in Takeout.</p>
+<p>Takeout works strangely. Only the last few years of watch history seem to ever get returned.<br>In addition to that, varying numbers of entries get returned each time an archive is created, with more
+recent versions sometimes including older entries than the previous versions, as well as more entries throughout the
+whole watch history.  </p>
+<p>YouTube&#39;s History page keeps a more complete record, though, inversely, it also misses some entries that are present
+in Takeout. Most of those are for videos that are no longer available.</p>
 <h4 id="timestamps">Timestamps</h4>
 <p>In short, the timestamps can be very inaccurate and the app doesn&#39;t fix that. They shouldn&#39;t be relied on for anything
 precise, but would work fine for a rough overview of activity over a given period of time, etc.</p>
 <p>There is no timezone information coming from Takeout beyond abbreviations like EDT/PST/CET, some of which may refer to
 multiple different timezones. The timestamps seem to be returned in local time of what&#39;s used to browse YouTube
 (or perhaps use Google products in general), including those for videos that were watched in a different timezone.
-However, temporarily changing the timezone on my PC, or in Google Calendar, or the region in Google Search Settings
-never triggered a change in the timestamps.</p>
+Temporarily changing the timezone on the computer used to request the Takeout archive creation, or in Google
+Calendar, or the region in Google Search Settings, doesn&#39;t trigger a change in the timestamps.</p>
 <p>One of the worse things happens with DST zones. In the case of zones observing Daylight Saving Time (DST), all of the
 timestamps seem to be set to either the DST timezone or the non-DST one, depending on the date the archive was created.
 That is, if someone who lives on the East coast of US were to create an archive in May, all the timestamps, including
@@ -45,6 +42,5 @@ ones that should be in EST (November - March) would be set to EDT, and vice vers
 <p>Since different Takeout archives may have different timezones, depending on when/where they were downloaded, there may
 be duplicate timestamps in different timezones. To weed out them out, any timestamps for the same video ID that have
 been watched at the same year, month, minute and second as well as less than 26 hours apart are treated as one. This may
- also block a limited amount of legitimate timestamps from being entered. Most if not all of them would be the ones
- attached to the &#39;unknown&#39; record. Considering the records returned by Takeout are not complete as is, a few
- (7 unknown ones for me) extra lost timestamps seemed like a good trade-off.</p>
+ also block a very limited amount (likely less than a dozen for most) of legitimate timestamps from being entered.
+ Most if not all of them would be the ones attached to the &#39;unknown&#39; record.</p>

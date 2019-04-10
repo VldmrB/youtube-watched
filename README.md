@@ -44,9 +44,6 @@ Only Takeout files in English can be parsed by the app, though adjusting code in
 get_watch_history_files and get_all_records) could get it to work with another language.  
 Alternatively, switching your [language](https://myaccount.google.com/language?utm_source=google-account&utm_medium=web)
 to English should make the Takeout archives created afterwards be in English.  
-It's also possible the format of watch-history.html files used to be different in the past, in which case
-those would likely not be parsable either. If that happens, open an
-[issue](https://github.com/VldmrB/youtube-watched/issues) and I'll see about making it work.
 
 ## Running the app
 
@@ -92,16 +89,13 @@ will be created and no duplicate queries will be made (except 1 every time).
 
 ### Takeout quirks and data accuracy
 
-Takeout works strangely (badly). The first three times I've used it, varying numbers of records were returned each time.
-The second time returned fewer than the first and the last returned more than the first two, including records older 
-than the ones in the first two as well as additional records throughout the whole watch history.
-The next few I paid attention to also varied in the amount returned in a similar manner.
+Takeout works strangely. Only the last few years of watch history seem to ever get returned.  
+In addition to that, varying numbers of entries get returned each time an archive is created, with more 
+recent versions sometimes including older entries than the previous versions, as well as more entries throughout the 
+whole watch history.  
 
-The oldest records were from April of 2014, with the Youtube account having been created and first used sometime in 2011.
-
-In addition to that, all the archives were missing some amount of records for each year they did cover, when compared 
-to the History page on Youtube, though the difference wasn't drastic. Curiously, the History page was also missing some 
-videos that were present in Takeout.
+YouTube's History page keeps a more complete record, though, inversely, it also misses some entries that are present 
+in Takeout. Most of those are for videos that are no longer available.
 
 #### Timestamps
 
@@ -111,8 +105,8 @@ precise, but would work fine for a rough overview of activity over a given perio
 There is no timezone information coming from Takeout beyond abbreviations like EDT/PST/CET, some of which may refer to 
 multiple different timezones. The timestamps seem to be returned in local time of what's used to browse YouTube 
 (or perhaps use Google products in general), including those for videos that were watched in a different timezone.
-However, temporarily changing the timezone on my PC, or in Google Calendar, or the region in Google Search Settings
-never triggered a change in the timestamps.
+Temporarily changing the timezone on the computer used to request the Takeout archive creation, or in Google 
+Calendar, or the region in Google Search Settings, doesn't trigger a change in the timestamps.
 
 One of the worse things happens with DST zones. In the case of zones observing Daylight Saving Time (DST), all of the
 timestamps seem to be set to either the DST timezone or the non-DST one, depending on the date the archive was created.
@@ -124,11 +118,10 @@ ones that should be in EST (November - March) would be set to EDT, and vice vers
 Since different Takeout archives may have different timezones, depending on when/where they were downloaded, there may 
 be duplicate timestamps in different timezones. To weed out them out, any timestamps for the same video ID that have
 been watched at the same year, month, minute and second as well as less than 26 hours apart are treated as one. This may
- also block a limited amount of legitimate timestamps from being entered. Most if not all of them would be the ones
- attached to the 'unknown' record. Considering the records returned by Takeout are not complete as is, a few
- (7 unknown ones for me) extra lost timestamps seemed like a good trade-off.
+ also block a very limited amount (likely less than a dozen for most) of legitimate timestamps from being entered. 
+ Most if not all of them would be the ones attached to the 'unknown' record.
 
-## Built with signficant use of the following packages
+## Built with significant use of the following packages
  - [Flask](http://flask.pocoo.org/) - the app itself
  - [Dash](https://plot.ly/products/dash/) / Plotly - visualizing data and making interactive graphs, constructing the
   visualization web page
