@@ -215,8 +215,9 @@ def _show_front_end_data(fe_data: dict, conn):
         conn, 'SELECT count(*) from videos')[0][0]
     fe_data['timestamps'] = execute_query(
         conn, 'SELECT count(*) from videos_timestamps')[0][0]
-    if fe_data.get('at_start', None):
-        fe_data['inserted'] = fe_data['records_in_db'] - fe_data['at_start']
+    at_start = fe_data.get('at_start', None)
+    if at_start is not None:
+        fe_data['inserted'] = fe_data['records_in_db'] - at_start
     if DBProcessState.stage:
         add_sse_event(event='stop')
     add_sse_event(json.dumps(fe_data), 'stats')
@@ -263,8 +264,12 @@ def populate_db(takeout_path: str, project_path: str, logging_verbosity: int):
         api_auth = youtube.get_api_auth(
             load_file(join(project_path, 'api_key')).strip())
         write_to_sql.setup_tables(conn, api_auth)
-        front_end_data['at_start'] = execute_query(
+        records_at_start = execute_query(
             conn, 'SELECT count(*) from videos')[0][0]
+        if not records_at_start:
+            front_end_data['at_start'] = 0
+        else:
+            front_end_data['at_start'] = records_at_start
 
         DBProcessState.percent = '0.0'
         add_sse_event(f'{DBProcessState.percent} 1')
