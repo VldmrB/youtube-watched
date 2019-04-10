@@ -24,7 +24,7 @@
         </select>
         (output goes to the terminal and the events.log file in the project directory)
     </div>
-    <div id="takeout-section" data-full="{{ 'True' if db else '' }}">
+    <div id="takeout-section" data-full="{{ 'true' if db else 'false' }}">
         <div id="takeout-setup">
             <h2>Add Takeout</h2>
             <a href="#" id="takeout-instructions-toggle" >Instructions{{ ':' if description or not db else '' }}</a>

@@ -2,6 +2,8 @@ document.querySelector("#new-project-button").onclick = function() {
     window.location = "/setup_project";
 };
 
+let dbState = document.querySelector("#takeout-section").dataset.full === 'true';
+
 let progressMsg = document.querySelector("#progress-msg");
 let processResults = document.querySelector("#process-results");
 let progressBar = document.querySelector("#progress-bar");
@@ -12,7 +14,7 @@ let takeoutSubmitButton = takeoutSubmit.querySelector("#takeout-form input[type=
 let updateRecordsButton = document.querySelector("#update-form input[type='submit']");
 let takeoutCancelButton = document.querySelector("#takeout-cancel-button");
 let newProjectButton = document.querySelector("#new-project-button");
-let buttonsToDisableWhenWorkingDB = [takeoutSubmitButton, updateRecordsButton, newProjectButton, takeoutCancelButton];
+// let buttonsToDisableWhenWorkingDB = [takeoutSubmitButton, updateRecordsButton, newProjectButton];
 
 let visualizeButton = document.querySelector("#visualize-button");
 
@@ -21,12 +23,18 @@ visualizeButton.onclick = function() {
 };
 
 
-function disableOrEnableSomeButtons() {
-    for (let i = 0; i < buttonsToDisableWhenWorkingDB.length; i++) {
-        if (buttonsToDisableWhenWorkingDB[i].disabled) {
-            buttonsToDisableWhenWorkingDB[i].disabled = false;
-        } else {
-            buttonsToDisableWhenWorkingDB[i].disabled = true;
+function disableOrEnableButtons(disable = true) {
+    if (disable) {
+        takeoutSubmitButton.disabled = true;
+        updateRecordsButton.disabled =  true;
+        newProjectButton.disabled =  true;
+        takeoutCancelButton.disabled = false;
+    } else {
+        takeoutCancelButton.disabled = true;
+        takeoutSubmitButton.disabled = false;
+        newProjectButton.disabled =  false;
+        if (dbState) {
+            updateRecordsButton.disabled =  false;
         }
     }
 }
@@ -68,8 +76,7 @@ function retrieveActiveProcess () {
         if (this.readyState === 4 && this.status === 200) {
             let response = JSON.parse(this.responseText);
             if (response["stage"] !== "Quiet") {
-                disableOrEnableSomeButtons();
-                takeoutCancelButton.disabled = false;
+                disableOrEnableButtons(true);
                 document.querySelector("#progress-bar-container").style.visibility = "visible";
                 takeoutCancelButton.style.visibility = "visible";
                 if (progressMsg.innerHTML === "") {
@@ -119,23 +126,23 @@ let onEventStats = function(event) {
             msgJSON["timestamps"] + "<br>";
     }
     msgString += "Total video records: " + msgJSON["records_in_db"];
-
+    if (msgJSON["records_in_db"] > 0 && dbState === false) {
+        dbState = true;
+        visualizeButton.disabled = false;
+    }
     processResults.innerHTML = msgString;
-    // enable the Visualize button since the DB now has some records
-    if (visualizeButton.disabled) {visualizeButton.removeAttribute("disabled");}
 };
 
 let onEventStop = function() {
     wipeProgressIndicators();
-    disableOrEnableSomeButtons();
-    takeoutCancelButton.disabled = true;
+    disableOrEnableButtons(false);
 };
 
 let onEventError = function(event) {
     if (event.data !== undefined) {
         processResults.innerHTML = event.data;
         processResults.style.color = "red";
-        disableOrEnableSomeButtons();
+        disableOrEnableButtons(false);
         wipeProgressIndicators();
     }
 };
@@ -179,7 +186,7 @@ function showProgress() {
             wipeProgressIndicators(true); // reset the progress bar/messages for a fresh round
             document.querySelector("#progress-bar-container").style.visibility = "visible";
             takeoutCancelButton.style.visibility = "visible";
-            disableOrEnableSomeButtons();
+            disableOrEnableButtons(true);
         }
     }
 }
