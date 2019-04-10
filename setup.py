@@ -23,7 +23,7 @@ cur_dir = path.abspath(path.dirname(__file__))
 
 class UploadCommand(Command):
 
-    # base on https://github.com/kennethreitz/setup.py/blob/master/setup.py
+    # based on https://github.com/kennethreitz/setup.py/blob/master/setup.py
     description = 'Build and publish the package.'
     user_options = []
 
@@ -66,13 +66,12 @@ setup(
     url='https://github.com/VldmrB/youtube-watched',
     packages=find_packages(),
     license='MIT',
-    python_requires='>=3.6.0,<3.8',
+    python_requires='>=3.6.0',
     install_requires=requires,
-    package_data={NAME: ['static/*', 'templates/*']},
     include_package_data=True,
     keywords='visualization youtube takeout',
-    entry_points='''[console_scripts]
-                    youtubewatched=youtubewatched.__main__:launch''',
+    entry_points=f'''[console_scripts]
+                     {NAME}={NAME}.__main__:launch''',
     classifiers=[
         'License :: OSI Approved :: MIT License',
         'Programming Language :: Python',
@@ -80,6 +79,7 @@ setup(
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: Implementation :: CPython',
+        'Operating System :: OS Independent',
         'Framework :: Flask'
     ],
     cmdclass={'upload': UploadCommand}
