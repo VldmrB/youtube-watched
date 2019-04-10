@@ -88,7 +88,7 @@ The Quotas tab on Google's [Console](https://console.developers.google.com/apis/
 page will show how many have been used up.
 
 Should the process get interrupted for any reason, it's safe to restart it using the same Takeout files; no duplicates 
-will be created and no duplicate queries will be made (except 1 every time).
+will be created and no duplicate queries will be made (except one for updating the 'categories' table every time).
 
 ### Takeout quirks and data accuracy
 
