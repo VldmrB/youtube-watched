@@ -62,6 +62,9 @@ Chrome, Firefox, Opera, Brave and hopefully Safari should all work fine as long 
 will not.
 
 #### Possible issues
+Opening multiple instances of the front page will lead to wacky tracking of records' insertion or updating, though the 
+process itself won't be affected. Close all, but one and maybe refresh that one.
+
 If videos' graphs for 1k+ records show up blank, **WebGL** in your browser is probably disabled or otherwise prevented 
 from working.  
 In Brave specifically, that could be fixed by clicking on the **Shields** icon in the address bar and 
