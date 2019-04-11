@@ -196,6 +196,11 @@ def get_final_key_paths(
     return paths
 
 
+def get_record_id_and_title(record_dict: dict):
+    return (f'{record_dict["id"]}, '
+            f'title {record_dict.get("title", "unknown")!r}')
+
+
 def convert_duration(duration_iso8601: str):
     duration = duration_iso8601.split('T')
     duration = {'P': duration[0][1:], 'T': duration[1]}
@@ -590,8 +595,8 @@ def insert_videos(conn, records: dict, api_auth, verbosity=1):
                     else:
                         record['status'] = 'deleted'
                         if verbosity_level_1:
-                            logger.info(
-                                f'{record["id"]} is now deleted from YT')
+                            logger.info(f'{get_record_id_and_title(record)}, '
+                                        f'is now deleted from YT')
                 else:
                     record['status'] = 'inactive'
 
@@ -732,22 +737,23 @@ def update_videos(conn: sqlite3.Connection, api_auth,
                                 record['status'] = 'active'
                                 newly_active += 1
                                 if verbosity_level_1:
-                                    logger.info(f'{record["id"]}, '
-                                                f'{api_video_data["title"]} '
-                                                f'is now active')
+                                    logger.info(
+                                        f'{get_record_id_and_title(record)}, '
+                                        f'is now active')
                         record.update(api_video_data)
                     else:
                         record['status'] = 'deleted'
                         deleted += 1
                         if verbosity_level_1:
-                            logger.info(
-                                f'{record["id"]} is now deleted from YT')
+                            logger.info(f'{get_record_id_and_title(record)}, '
+                                        f'is now deleted from YT')
                 else:
                     if record['status'] == 'active':
                         record['status'] = 'inactive'
                         newly_inactive += 1
                         if verbosity_level_1:
-                            logger.info(f'{record["id"]} is now inactive')
+                            logger.info(f'{get_record_id_and_title(record)}, '
+                                        f'is now inactive')
                 record['last_updated'] = datetime.utcnow().replace(
                     microsecond=0)
                 break
@@ -797,7 +803,7 @@ def update_videos(conn: sqlite3.Connection, api_auth,
                         add_topic_to_video(conn, topic,
                                            video_id, verbosity_level_2)
 
-        if update_video(conn, record):
+        if update_video(conn, record, verbosity_level_3):
             updated += 1
 
         commit_interval_counter += 1
