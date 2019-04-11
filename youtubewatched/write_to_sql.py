@@ -606,7 +606,7 @@ def insert_videos(conn, records: dict, api_auth, verbosity=1):
         else:
             record['status'] = 'inactive'
 
-        if 'title' not in record:
+        if record.get('title', 'Deleted video') == 'Deleted video':
             record['title'] = 'unknown'
             add_dead_video(conn, video_id)
         if 'channel_id' not in record:
