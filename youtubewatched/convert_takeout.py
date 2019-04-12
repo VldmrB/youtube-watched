@@ -149,7 +149,7 @@ def get_all_records(takeout_path: str = '.',
     watch_files_amount = len(watch_files)
     for ind, watch_file_path in enumerate(watch_files):
         yield ind, watch_files_amount
-        with open(watch_file_path, 'r') as watch_file:
+        with open(watch_file_path, 'r', encoding='utf-8') as watch_file:
             content = watch_file.read()
             original_content = content
         if not content.startswith(done_):  # cleans out all the junk for faster
