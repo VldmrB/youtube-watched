@@ -79,7 +79,7 @@ comments, etc. Combined with the timestamps from Takeout, the records are then i
 project directory under the default name of yt.sqlite. Those without any identifying info are collectively inserted as a
  single 'unknown'.
 
-Each successful query to the API uses 11 points, with the standard daily quota being 1M.
+Each successful query to the API uses 11 points, with the standard daily quota varying wildly, depending on some factors.
 The Quotas tab on Google's [Console](https://console.developers.google.com/apis/api/youtube.googleapis.com/overview)
 page will show how many have been used up.
 

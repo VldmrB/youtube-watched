@@ -15,7 +15,7 @@ when the video was opened, presumably when the video itself is no longer availab
 comments, etc. Combined with the timestamps from Takeout, the records are then inserted into a database, located in the
 project directory under the default name of yt.sqlite. Those without any identifying info are collectively inserted as a
  single &#39;unknown&#39;.</p>
-<p>Each successful query to the API uses 11 points, with the standard daily quota being 1M.
+<p>Each successful query to the API uses 11 points, with the standard daily quota varying wildly, depending on some factors.
 The Quotas tab on Google&#39;s <a href="https://console.developers.google.com/apis/api/youtube.googleapis.com/overview" target="_blank">Console</a>
 page will show how many have been used up.</p>
 <p>Should the process get interrupted for any reason, it&#39;s safe to restart it using the same Takeout files; no duplicates
