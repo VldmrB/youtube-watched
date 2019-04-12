@@ -26,15 +26,21 @@
     </div>
     <div id="takeout-section" data-full="{{ 'true' if db else 'false' }}">
         <div id="takeout-setup">
-            <h2>Add Takeout</h2>
+            <h2>Add data from Google Takeout</h2>
             <a href="#" id="takeout-instructions-toggle" >Instructions{{ ':' if description or not db else '' }}</a>
             <div id="takeout-instructions" class="{{ '' if description or not db else 'hidden' }}">
+                <p>If you don't yet have it, download it
+                    <a href="https://takeout.google.com/settings/takeout" target="_blank">here</a>.
+                    <b>Only files in English will work.</b> If yours are in another language, switching it to English
+                    <a href="https://myaccount.google.com/language?utm_source=google-account&amp;utm_medium=web"
+                       target="_blank">here</a> should make the Takeout archives created afterwards be in English.</p>
                 <p>
-                    Enter the path to one of the following (searching will become confined to one of these types after
-                    the first match):
+                    Once downloaded and extracted, enter the path to one of the following (searching will become
+                    confined to one of these types after the first match):
                 </p>
                 <ul>
-                    <li>a single watch-history.html, ex. &lt;root dir&gt;/Takeout/YouTube/history/watch-history.html</li>
+                    <li>a single watch-history.html from the extracted Takeout directory, ex. &lt;root dir&gt;
+                        /Takeout/YouTube/history/watch-history.html</li>
                     <li>a directory with watch-history file(s). Something may be appended at the
                         end of each file name for them to be unique, e.g. watch-history001.html</li>
                     <li>a directory with directories of the Takeout archives, extracted with their archive names, e.g.
@@ -42,13 +48,6 @@
                 </ul>
                 <p>
                     Processing will be slightly faster if the files are ordered chronologically.
-                </p>
-                <h4 id="limitations">Limitations</h4>
-                <p>
-                    Only Takeout files in English can be parsed by the app, though adjusting code in convert_takeout.py (functions
-                    get_watch_history_files and get_all_records) could get it to work with another language.<br>
-                    Alternatively, switching your <a href="https://myaccount.google.com/language?utm_source=google-account&amp;utm_medium=web" target="_blank">language</a>
-                to English should make the Takeout archives created afterwards be in English.
                 </p>
 
             </div>
