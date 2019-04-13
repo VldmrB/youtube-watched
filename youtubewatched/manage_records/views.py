@@ -3,7 +3,6 @@ import logging
 import os
 import sqlite3
 from os.path import join
-from textwrap import dedent
 from threading import Thread
 from time import sleep
 
@@ -244,13 +243,23 @@ def populate_db(takeout_path: str, project_path: str, logging_verbosity: int):
                 add_sse_event(DBProcessState.percent, 'takeout_progress')
             else:
                 records = f['videos']
-                if f['failed_entries']:
+                failed_entries = f['failed_entries']
+                if failed_entries:
                     unparsed_entries_json = join(project_path,
-                                                 'un_parsed_entries.json')
+                                                 'non_parsed_entries.json')
                     with open(unparsed_entries_json, 'w') as file:
-                        json.dump(f['failed_entries'], file, indent=4)
-                        logger.warning(dedent(f'''Non-parsed entries dumped to 
-                        {unparsed_entries_json}'''))
+                        json.dump(failed_entries, file, indent=4)
+                        unparsed_warning = (f'dumped to '
+                                            f'{unparsed_entries_json}')
+                        logger.warning(unparsed_warning)
+                        add_sse_event(f'Couldn\'t parse {len(failed_entries)} ' 
+                                      f'entries; {unparsed_warning}',
+                                      'warnings')
+                if records:
+                    total_ts = f['total_timestamps']
+                    total_v = f['total_videos']
+                    add_sse_event(f'Videos / timestamps in Takeout: '
+                                  f'{total_v} / {total_ts}', 'info')
 
     except FileNotFoundError:
         add_sse_event(f'Invalid/non-existent path for watch-history.html files',
@@ -280,7 +289,8 @@ def populate_db(takeout_path: str, project_path: str, logging_verbosity: int):
 
         DBProcessState.percent = '0.0'
         add_sse_event(f'{DBProcessState.percent} 1')
-        DBProcessState.stage = 'Inserting...'
+        DBProcessState.stage = ('Inserting video records/timestamps from '
+                                'Takeout...')
         add_sse_event(DBProcessState.stage, 'stage')
 
         for record in write_to_sql.insert_videos(
@@ -302,7 +312,10 @@ def populate_db(takeout_path: str, project_path: str, logging_verbosity: int):
         add_sse_event(f'Missing or invalid API key', 'errors')
         raise
     except youtube.ApiQuotaError:
-        add_sse_event(f'API quota exceeded', 'errors')
+        add_sse_event(f'API quota/rate limit exceeded, see '
+                      f'<a href="https://console.developers.google.com/apis/'
+                      f'api/youtube.googleapis.com/overview" target="_blank">'
+                      f'here</a>', 'errors')
         raise
 
     except (sqlite3.OperationalError, sqlite3.DatabaseError) as e:
@@ -320,7 +333,7 @@ def update_db(project_path: str, cutoff: int, logging_verbosity: int):
 
     progress.clear()
     DBProcessState.percent = '0.0'
-    DBProcessState.stage = 'Starting updating...'
+    DBProcessState.stage = 'Updating...'
     add_sse_event(DBProcessState.stage, 'stage')
     db_path = join(project_path, DB_NAME)
     conn = sqlite_connection(db_path)
@@ -333,8 +346,6 @@ def update_db(project_path: str, cutoff: int, logging_verbosity: int):
     try:
         api_auth = youtube.get_api_auth(
             load_file(join(project_path, 'api_key')).strip())
-        DBProcessState.stage = 'Updating...'
-        add_sse_event(DBProcessState.stage, 'stage')
         if DBProcessState.exit_thread_check():
             return
         for record in write_to_sql.update_videos(conn, api_auth, cutoff,
@@ -353,7 +364,10 @@ def update_db(project_path: str, cutoff: int, logging_verbosity: int):
         add_sse_event(f'{flash_err} Missing or invalid API key', 'errors')
         raise
     except youtube.ApiQuotaError:
-        add_sse_event(f'API quota exceeded', 'errors')
+        add_sse_event(f'API quota/rate limit exceeded, see '
+                      f'<a href="https://console.developers.google.com/apis/'
+                      f'api/youtube.googleapis.com/overview" target="_blank">'
+                      f'here</a>', 'errors')
         raise
     except (sqlite3.OperationalError, sqlite3.DatabaseError) as e:
         add_sse_event(f'{flash_err} Fatal database error - {e!r}', 'errors')

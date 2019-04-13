@@ -125,7 +125,7 @@ a, a:visited {
 }
 
 #db-progress {
-    height: 180px;
+    min-height: 220px;
     margin: 20px 0;
 }
 

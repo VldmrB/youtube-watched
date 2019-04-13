@@ -23,8 +23,8 @@ def _handle_api_key_error(e):
     reason = err_inf['errors'][0]['reason']
     if reason == 'keyInvalid':
         raise ApiKeyError(f'Invalid API key')
-    if reason == 'quotaExceeded':
-        raise ApiQuotaError(f'API quota exceeded')
+    if reason in ['quotaExceeded', 'dailyLimitExceeded', 'rateLimitExceeded']:
+        raise ApiQuotaError(f'API quota/rate limit exceeded')
     return err_inf, reason
 
 

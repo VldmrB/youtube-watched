@@ -23,6 +23,17 @@ visualizeButton.onclick = function() {
 };
 
 
+function addMsg(data, textColor = 'black', header = false){
+    let entry = document.createElement('div');
+    entry.style.color = textColor;
+    if (header) {
+        entry.style.fontWeight = 'bold';
+        entry.style.fontStyle = 'italic'
+    }
+    entry.innerHTML = (data);
+    progressMsg.appendChild(entry);
+}
+
 function disableOrEnableButtons(disable = true) {
     if (disable) {
         takeoutSubmitButton.disabled = true;
@@ -43,8 +54,6 @@ function wipeProgressIndicators(wipeResults = false) {
     document.querySelector("#progress-bar-container").style.visibility = "hidden";
     progressBar.style.width = "0%";
     progressBarPercentage.innerHTML = "0.0%";
-    progressMsg.innerHTML = "";
-    progressMsg.style.color = "black";
     if (wipeResults) {
         processResults.innerHTML = "";
         processResults.style.color = "black";
@@ -80,7 +89,7 @@ function retrieveActiveProcess () {
                 document.querySelector("#progress-bar-container").style.visibility = "visible";
                 takeoutCancelButton.style.visibility = "visible";
                 if (progressMsg.innerHTML === "") {
-                    progressMsg.innerHTML = response["stage"];
+                    addMsg(response["stage"]);
                     if (progressBarPercentage.innerHTML === ""){
                         if (response["percent"].includes(' ')) {
                             let progressVal = response["percent"].split(" ");
@@ -107,9 +116,14 @@ function retrieveActiveProcess () {
     AJAX.send();
 }
 
-
 // ------------------------ Event Source listeners for various event types {Start} ------------------------
-let onEventStage = function(event) {progressMsg.innerHTML = event.data;};
+let onEventStage = function(event) {
+    addMsg('<br>' + event.data, 'black', true);
+};
+
+let onEventInfo = function(event) {
+    addMsg(event.data);
+};
 
 let onEventStats = function(event) {
     let msgJSON = JSON.parse(event.data);
@@ -150,12 +164,19 @@ let onEventStop = function() {
 };
 
 let onEventError = function(event) {
+    let errorData;
     if (event.data !== undefined) {
-        processResults.innerHTML = event.data;
-        processResults.style.color = "red";
-        disableOrEnableButtons(false);
-        wipeProgressIndicators();
+        errorData = event.data;
+    } else {
+        errorData = 'Unspecified error';
     }
+    addMsg(errorData, 'red');
+    disableOrEnableButtons(false);
+    wipeProgressIndicators();
+};
+
+let onEventWarning = function(event) {
+    addMsg(event.data, 'red');
 };
 
 let onEventTakeoutProgress = function (event) {
@@ -170,8 +191,7 @@ let onEventMsg = function (event) {
     let msgData = event.data.split(" ");
     let progressVal = msgData[0] + "%";
     progressBar.style.width = progressVal;
-    progressBarPercentage.innerHTML = progressVal;
-    processResults.innerHTML = 'Processing #' + msgData[1];
+    progressBarPercentage.innerHTML = progressVal + ' / #' + msgData[1];
 
 };
 // ------------------------ Event Source listeners for various event types {End} ------------------------
@@ -179,10 +199,12 @@ let onEventMsg = function (event) {
 
 let progress = new EventSource("/db_progress_stream");
 
+progress.addEventListener("info", onEventInfo);
 progress.addEventListener("stage", onEventStage);
 progress.addEventListener("stats", onEventStats);
 progress.addEventListener("stop", onEventStop);
 progress.addEventListener("errors", onEventError);
+progress.addEventListener('warnings', onEventWarning);
 progress.addEventListener("takeout_progress", onEventTakeoutProgress);
 progress.addEventListener("message", onEventMsg);
 
@@ -194,7 +216,9 @@ function showProgress() {
                 setTimeout(function() {progressUnfinishedDBProcessWarning.innerHTML = "";}, 3000);
             }
         } else {
-            wipeProgressIndicators(true); // reset the progress bar/messages for a fresh round
+            // reset the progress bar/messages for a fresh round
+            progressMsg.innerHTML = "";
+            wipeProgressIndicators(true);
             document.querySelector("#progress-bar-container").style.visibility = "visible";
             takeoutCancelButton.style.visibility = "visible";
             disableOrEnableButtons(true);

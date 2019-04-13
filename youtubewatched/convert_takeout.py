@@ -240,17 +240,21 @@ def get_all_records(takeout_path: str = '.',
     remove_timestamps_from_one_list_from_another(all_known_timestamps,
                                                  unk_timestamps)
 
+    total_timestamps = len(all_known_timestamps + unk_timestamps)
+    total_videos = len(occ_dict["videos"]) - 1  # minus one for 'unknown' key
+
+    occ_dict['total_timestamps'] = total_timestamps
+    occ_dict['total_videos'] = total_videos
+
     if occ_dict['failed_entries']:
         logger.error(f'''Could not parse {failed_entries} entries from 
         Takeout. ''')
 
     if verbose:
-        timestamps_all = len(all_known_timestamps + unk_timestamps)
         logger.info(f'''
-        Total videos watched/opened: {timestamps_all})
+        Total videos watched/opened: {total_timestamps})
         Total unknown videos: {len(unk_timestamps)})
-        Unique videos with ids: {len(occ_dict["videos"]) - 1}''')
-        # ^ minus one for 'unknown' key
+        Unique videos with ids: {total_videos}''')
     if dump_json_to:
         import json
         with open(dump_json_to, 'w') as all_records_file:
