@@ -14,11 +14,17 @@ class ApiKeyError(ValueError):
     pass
 
 
+class ApiQuotaError(ValueError):
+    pass
+
+
 def _handle_api_key_error(e):
     err_inf = json.loads(e.content)['error']
     reason = err_inf['errors'][0]['reason']
     if reason == 'keyInvalid':
         raise ApiKeyError(f'Invalid API key')
+    if reason == 'quotaExceeded':
+        raise ApiQuotaError(f'API quota exceeded')
     return err_inf, reason
 
 

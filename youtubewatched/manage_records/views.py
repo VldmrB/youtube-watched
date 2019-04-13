@@ -294,6 +294,10 @@ def populate_db(takeout_path: str, project_path: str, logging_verbosity: int):
     except youtube.ApiKeyError:
         add_sse_event(f'Missing or invalid API key', 'errors')
         raise
+    except youtube.ApiQuotaError:
+        add_sse_event(f'API quota exceeded', 'errors')
+        raise
+
     except (sqlite3.OperationalError, sqlite3.DatabaseError) as e:
         add_sse_event(f'Fatal database error - {e!r}', 'errors')
         raise
@@ -340,6 +344,9 @@ def update_db(project_path: str, cutoff: int, logging_verbosity: int):
         _show_front_end_data(front_end_data, conn)
     except youtube.ApiKeyError:
         add_sse_event(f'{flash_err} Missing or invalid API key', 'errors')
+        raise
+    except youtube.ApiQuotaError:
+        add_sse_event(f'API quota exceeded', 'errors')
         raise
     except (sqlite3.OperationalError, sqlite3.DatabaseError) as e:
         add_sse_event(f'{flash_err} Fatal database error - {e!r}', 'errors')
