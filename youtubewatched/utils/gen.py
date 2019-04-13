@@ -11,7 +11,8 @@ def logging_config(log_file_path: str,
                    file_level: int = logging.DEBUG,
                    console_out_level: int = logging.DEBUG,
                    console_err_level: int = logging.WARNING,
-                   log_server_requests_info=False):
+                   log_server_requests=True,
+                   log_server_requests_to_file=False):
     """
     Configures logging to file and to stdout/err
 
@@ -19,7 +20,8 @@ def logging_config(log_file_path: str,
     :param file_level: logging threshold for the file handler
     :param console_out_level: logging threshold for the console std handler
     :param console_err_level: logging threshold for the console err handler
-    :param log_server_requests_info: show/log werkzeug's logger messages
+    :param log_server_requests: show/log werkzeug's logger messages
+    :param log_server_requests_to_file: show/log werkzeug's logger messages
     :return:
     """
 
@@ -61,10 +63,10 @@ def logging_config(log_file_path: str,
     for handler in (file_handler, console_out_handler, console_err_handler):
         app_logger.addHandler(handler)
 
-    if log_server_requests_info:
-        logging.getLogger('werkzeug').addHandler(file_handler)
-    else:
+    if not log_server_requests:
         logging.getLogger('werkzeug').disabled = True
+    if log_server_requests_to_file:
+        logging.getLogger('werkzeug').addHandler(file_handler)
 
     return app_logger
 
