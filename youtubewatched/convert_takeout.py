@@ -201,13 +201,15 @@ def get_all_records(takeout_path: str = '.',
                 if url['href'] != video_title:  # some videos have the url as
                     # the title. They're usually not available through YT or
                     # its API
-                    default_values['title'] = video_title
-                    channel = div.find(href=channel_url_re)
-                    channel_url = channel['href']
-                    channel_id = channel_url[channel_url.rfind('/') + 1:]
-                    channel_title = channel.get_text(strip=True)
-                    default_values['channel_id'] = channel_id
-                    default_values['channel_title'] = channel_title
+                    try:
+                        channel = div.find(href=channel_url_re)
+                        channel_url = channel['href']
+                        channel_id = channel_url[channel_url.rfind('/') + 1:]
+                        channel_title = channel.get_text(strip=True)
+                        default_values['channel_id'] = channel_id
+                        default_values['channel_title'] = channel_title
+                    except TypeError:
+                        pass
 
                 watched_at = all_text.splitlines()[-1].strip()
 
