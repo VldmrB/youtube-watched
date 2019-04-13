@@ -2,6 +2,7 @@ import itertools
 import logging
 import os
 import re
+import unicodedata
 
 from datetime import datetime
 from typing import Union
@@ -44,6 +45,8 @@ as divs with the same class also wrap every video entry individually.
 
 watch_url_re = re.compile(r'watch\?v=')
 channel_url_re = re.compile(r'youtube\.com/channel')
+dt_re = re.compile(
+    r'[a-zA-Z]{3} \d{1,2}, \d{4}, \d{1,2}:\d{1,2}:\d{1,2} [APM]{2} ')
 
 
 def extract_video_id_from_url(url):
@@ -150,7 +153,8 @@ def get_all_records(takeout_path: str = '.',
     for ind, watch_file_path in enumerate(watch_files):
         yield ind, watch_files_amount
         with open(watch_file_path, 'r', encoding='utf-8') as watch_file:
-            content = watch_file.read()
+
+            content = unicodedata.normalize('NFKD', watch_file.read())
             original_content = content
         if not content.startswith(done_):  # cleans out all the junk for faster
             # BSoup parsing, in addition to fixing an out-of-place-tag which
@@ -175,7 +179,11 @@ def get_all_records(takeout_path: str = '.',
             default_values = {'timestamps': []}
             video_id = 'unknown'
             all_text = div.get_text().strip()
-            if all_text.startswith(removed_string):  # only timestamp present
+            if all_text.startswith('Visited YouTube Music'):
+                watched_at = dt_re.search(all_text).group()
+                video_id = 'youtube_music'
+
+            elif all_text.startswith(removed_string):  # only timestamp present
                 watched_at = all_text[removed_string_len:]
             elif all_text.startswith(story_string):
                 watched_at = all_text.splitlines()[-1].strip()

@@ -484,7 +484,29 @@ def insert_videos(conn, records: dict, api_auth, verbosity=1):
     if verbosity_level_1:
         logger.info(f'\nStarting records\' insertion...\n' + '-'*100)
 
-    # due to its made up ID, the unknown record is best handled outside the loop
+    # due to their made up IDs, the youtube_music and unknown records are best
+    # handled outside the loop
+
+    youtube_music_id = 'youtube_music'
+    yt_music_record = records.pop(youtube_music_id, None)
+    yt_music_db_timestamps = db_timestamps.setdefault(youtube_music_id, [])
+    if yt_music_record:
+        yt_music_record['id'] = youtube_music_id
+        yt_music_record['title'] = 'YouTube Music'
+        yt_music_record['channel_id'] = youtube_music_id
+        yt_music_record['status'] = 'active'
+        yt_music_timestamps = yt_music_record.pop('timestamps')
+        # clean possible new unknowns of known ones already in the database
+        if youtube_music_id not in channels:
+            add_channel(conn, youtube_music_id, 'YouTube Music',
+                        verbosity_level_2)
+        if youtube_music_id not in video_ids:
+            add_video(conn, yt_music_record, verbosity_level_2)
+            inserted += 1
+        for candidate in yt_music_timestamps:
+            if timestamp_is_unique_in_list(candidate, yt_music_db_timestamps):
+                add_time(conn, candidate, youtube_music_id, verbosity_level_3)
+
     unknown_record = records.pop('unknown', None)
     unk_db_timestamps = db_timestamps.setdefault('unknown', [])
     if unknown_record:
@@ -672,9 +694,9 @@ def update_videos(conn: sqlite3.Connection, api_auth,
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
     cur.execute("""SELECT id, last_updated FROM videos
-                   WHERE title != ? AND NOT status = ?
+                   WHERE title NOT IN (?, ?) AND NOT status = ?
                    ORDER BY last_updated;""",
-                ('unknown', 'deleted'))
+                ('unknown', 'YouTube Music', 'deleted'))
     records = {k: v for k, v in cur.fetchall()}
     cur.execute("""SELECT * FROM channels WHERE title is not NULL;""")
     channels = {k: v for k, v in cur.fetchall()}
