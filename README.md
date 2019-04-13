@@ -19,9 +19,7 @@ pip install youtubewatched
 ```
 
 you'll need two things:
- - From your [Google Takeout](https://takeout.google.com/settings/takeout) YouTube data - the watch-history.html
- file(s), in **English**. If yours aren't, switching your 
- [language](https://myaccount.google.com/language?utm_source=google-account&utm_medium=web)
+ - Your [Google Takeout](https://takeout.google.com/settings/takeout) YouTube data, in **English**. If yours isn't, switching your [language](https://myaccount.google.com/language?utm_source=google-account&utm_medium=web)
  to English should make the Takeout archives created afterwards be in English.  
  - have YouTube Data API enabled and an **API key** for the app to make requests for information on 
 each video. The first part from **Before you start** section from 
