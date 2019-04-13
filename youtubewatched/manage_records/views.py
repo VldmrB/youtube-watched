@@ -3,6 +3,7 @@ import logging
 import os
 import sqlite3
 from os.path import join
+from textwrap import dedent
 from threading import Thread
 from time import sleep
 
@@ -241,9 +242,15 @@ def populate_db(takeout_path: str, project_path: str, logging_verbosity: int):
             if isinstance(f, tuple):
                 DBProcessState.percent = f'{f[0]} {f[1]}'
                 add_sse_event(DBProcessState.percent, 'takeout_progress')
-
             else:
-                records = f
+                records = f['videos']
+                if f['failed_entries']:
+                    unparsed_entries_json = join(project_path,
+                                                 'un_parsed_entries.json')
+                    with open(unparsed_entries_json, 'w') as file:
+                        json.dump(f['failed_entries'], file, indent=4)
+                        logger.warning(dedent(f'''Non-parsed entries dumped to 
+                        {unparsed_entries_json}'''))
 
     except FileNotFoundError:
         add_sse_event(f'Invalid/non-existent path for watch-history.html files',

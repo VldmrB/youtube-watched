@@ -147,7 +147,9 @@ def get_all_records(takeout_path: str = '.',
         logger.warning('Found no watch-history files.')
         return False
 
-    occ_dict = {'videos': {'unknown': {'timestamps': []}}}
+    occ_dict = {'videos': {'unknown': {'timestamps': []}},
+                'failed_entries': []}
+    failed_entries = 0
 
     watch_files_amount = len(watch_files)
     for ind, watch_file_path in enumerate(watch_files):
@@ -182,7 +184,6 @@ def get_all_records(takeout_path: str = '.',
             if all_text.startswith('Visited YouTube Music'):
                 watched_at = dt_re.search(all_text).group()
                 video_id = 'youtube_music'
-
             elif all_text.startswith(removed_string):  # only timestamp present
                 watched_at = all_text[removed_string_len:]
             elif all_text.startswith(story_string):
@@ -191,21 +192,23 @@ def get_all_records(takeout_path: str = '.',
                     watched_at = watched_at[57:]
             else:
                 url = div.find(href=watch_url_re)
+                if url is None:
+                    occ_dict['failed_entries'].append(str(div))
+                    failed_entries += 1
+                    continue
                 video_id = extract_video_id_from_url(url['href'])
                 video_title = url.get_text(strip=True)
                 if url['href'] != video_title:  # some videos have the url as
                     # the title. They're usually not available through YT or
                     # its API
                     default_values['title'] = video_title
-                    try:
-                        channel = div.find(href=channel_url_re)
-                        channel_url = channel['href']
-                        channel_id = channel_url[channel_url.rfind('/') + 1:]
-                        channel_title = channel.get_text(strip=True)
-                        default_values['channel_id'] = channel_id
-                        default_values['channel_title'] = channel_title
-                    except TypeError:
-                        pass
+                    channel = div.find(href=channel_url_re)
+                    channel_url = channel['href']
+                    channel_id = channel_url[channel_url.rfind('/') + 1:]
+                    channel_title = channel.get_text(strip=True)
+                    default_values['channel_id'] = channel_id
+                    default_values['channel_title'] = channel_title
+
                 watched_at = all_text.splitlines()[-1].strip()
 
             watched_at = datetime.strptime(watched_at[:watched_at.rfind(' ')],
@@ -237,6 +240,10 @@ def get_all_records(takeout_path: str = '.',
     remove_timestamps_from_one_list_from_another(all_known_timestamps,
                                                  unk_timestamps)
 
+    if occ_dict['failed_entries']:
+        logger.error(f'''Could not parse {failed_entries} entries from 
+        Takeout. ''')
+
     if verbose:
         timestamps_all = len(all_known_timestamps + unk_timestamps)
         logger.info(f'''
@@ -247,9 +254,9 @@ def get_all_records(takeout_path: str = '.',
     if dump_json_to:
         import json
         with open(dump_json_to, 'w') as all_records_file:
-            json.dump(occ_dict['videos'], all_records_file, indent=4,
+            json.dump(occ_dict, all_records_file, indent=4,
                       default=lambda o: str(o))  # for dt objects
             if verbose:
                 logger.info('Dumped JSON to', dump_json_to)
 
-    yield occ_dict['videos']
+    yield occ_dict
