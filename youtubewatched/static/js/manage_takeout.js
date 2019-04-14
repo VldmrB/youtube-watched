@@ -128,8 +128,8 @@ let onEventInfo = function(event) {
 let onEventStats = function(event) {
     let msgJSON = JSON.parse(event.data);
     let msgString = "";
-    if (msgJSON.hasOwnProperty("inserted") && msgJSON["inserted"] !== 0) {
-        msgString += "Inserted video records: " + msgJSON["inserted"] + "<br>";
+    if (msgJSON.hasOwnProperty("inserted")) {
+        msgString += "Video records inserted: " + msgJSON["inserted"] + "<br>";
     }
     if (msgJSON["updated"] !== 0) {
         msgString += "Updated: " + msgJSON["updated"] + "<br>";

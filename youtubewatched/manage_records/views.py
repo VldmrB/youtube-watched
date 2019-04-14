@@ -275,7 +275,7 @@ def populate_db(takeout_path: str, project_path: str, logging_verbosity: int):
 
                 total_ts = f['total_timestamps']
                 total_v = f['total_videos']
-                add_sse_event(f'Videos / timestamps in Takeout: '
+                add_sse_event(f'Videos / timestamps found: '
                               f'{total_v} / {total_ts}', 'info')
 
     except FileNotFoundError:
