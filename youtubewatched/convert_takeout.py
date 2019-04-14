@@ -145,19 +145,25 @@ def get_all_records(takeout_path: str = '.',
     watch_files = get_watch_history_files(takeout_path)
     if not watch_files:
         logger.warning('Found no watch-history files.')
-        return False
+        return {}
 
     occ_dict = {'videos': {'unknown': {'timestamps': []}},
-                'failed_entries': []}
+                'failed_entries': [],
+                'failed_files': []}
+
     failed_entries = 0
 
     watch_files_amount = len(watch_files)
     for ind, watch_file_path in enumerate(watch_files):
         yield ind, watch_files_amount
-        with open(watch_file_path, 'r', encoding='utf-8') as watch_file:
-
-            content = unicodedata.normalize('NFKD', watch_file.read())
-            original_content = content
+        try:
+            with open(watch_file_path, 'r', encoding='utf-8') as watch_file:
+                content = unicodedata.normalize('NFKD', watch_file.read())
+                original_content = content
+        except UnicodeDecodeError:
+            occ_dict['failed_files'].append(watch_file_path)
+            logger.error(f'Failed to decode {watch_file_path}')
+            continue
         if not content.startswith(done_):  # cleans out all the junk for faster
             # BSoup parsing, in addition to fixing an out-of-place-tag which
             # stops BSoup from parsing more than a couple dozen records
@@ -170,13 +176,17 @@ def get_all_records(takeout_path: str = '.',
             with open(watch_file_path, 'w') as new_file:
                 new_file.write(content)
             logger.info('Rewrote', watch_file_path, '(trimmed junk HTML).')
+
         soup = BSoup(content, 'lxml')
         divs = soup.find_all('div', class_='awesome_class')
+
         if len(divs) == 0:
-            raise ValueError(f'Could not find any records in '
-                             f'{watch_file_path} while processing Takeout '
-                             f'data.\nThe file is either corrupt or its '
-                             f'format is different from the expected.')
+            occ_dict['failed_files'].append(watch_file_path)
+            logger.error(f'Could not find any records in {watch_file_path}.'
+                         f'\nThe file is either corrupt or its format is '
+                         f'different from the expected.')
+            continue
+
         for div in divs:
             default_values = {'timestamps': []}
             video_id = 'unknown'

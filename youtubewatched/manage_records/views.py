@@ -242,7 +242,18 @@ def populate_db(takeout_path: str, project_path: str, logging_verbosity: int):
                 DBProcessState.percent = f'{f[0]} {f[1]}'
                 add_sse_event(DBProcessState.percent, 'takeout_progress')
             else:
-                records = f['videos']
+                try:
+                    records = f['videos']
+                    if len(records) == 1:  # 1 because of the empty unknown rec
+                        add_sse_event('No records found in the provided '
+                                      'watch-history.html file(s). '
+                                      'Something is very wrong.', 'errors')
+                        return
+                except KeyError:
+                    add_sse_event(f'No watch-history.html files found in '
+                                  f'{takeout_path!r}', 'errors')
+                    return
+
                 failed_entries = f['failed_entries']
                 if failed_entries:
                     unparsed_entries_json = join(project_path,
@@ -255,11 +266,17 @@ def populate_db(takeout_path: str, project_path: str, logging_verbosity: int):
                         add_sse_event(f'Couldn\'t parse {len(failed_entries)} ' 
                                       f'entries; {unparsed_warning}',
                                       'warnings')
-                if records:
-                    total_ts = f['total_timestamps']
-                    total_v = f['total_videos']
-                    add_sse_event(f'Videos / timestamps in Takeout: '
-                                  f'{total_v} / {total_ts}', 'info')
+                failed_files = f['failed_files']
+                if failed_files:
+                    add_sse_event('The following files could not be '
+                                  'processed:', 'warnings')
+                    for ff in failed_files:
+                        add_sse_event(ff, 'warnings')
+
+                total_ts = f['total_timestamps']
+                total_v = f['total_videos']
+                add_sse_event(f'Videos / timestamps in Takeout: '
+                              f'{total_v} / {total_ts}', 'info')
 
     except FileNotFoundError:
         add_sse_event(f'Invalid/non-existent path for watch-history.html files',
@@ -269,10 +286,6 @@ def populate_db(takeout_path: str, project_path: str, logging_verbosity: int):
     if DBProcessState.exit_thread_check():
         return
 
-    if not records:
-        add_sse_event(f'No watch-history.html files found in "{takeout_path}"',
-                      'errors')
-        raise ValueError('No watch-history files found')
     db_path = join(project_path, DB_NAME)
     conn = sqlite_connection(db_path, types=True)
     front_end_data = {'updated': 0}
