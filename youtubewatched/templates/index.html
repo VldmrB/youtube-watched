@@ -27,28 +27,29 @@
     <div id="takeout-section" data-full="{{ 'true' if db else 'false' }}">
         <div id="takeout-setup">
             <h2>Add data from Google Takeout</h2>
-            <a href="#" id="takeout-instructions-toggle" >Instructions{{ ':' if description or not db else '' }}</a>
-            <div id="takeout-instructions" class="{{ '' if description or not db else 'hidden' }}">
+            <div>
                 <p>If you don't yet have it, download it
                     <a href="https://takeout.google.com/settings/takeout" target="_blank">here</a>.
-                    <b>Only files in English will work.</b> If yours are in another language, switching it to English
+                    Only files in <b>English</b> will work. If yours are in another language, switching it to English
                     <a href="https://myaccount.google.com/language?utm_source=google-account&amp;utm_medium=web"
-                       target="_blank">here</a> should make the Takeout archives created afterwards be in English.</p>
-                <p>
-                    Once downloaded and extracted, enter the path to one of the following (searching will become
-                    confined to one of these types after the first match):
+                       target="_blank">here</a> should make the Takeout archives created afterwards be in English as
+                    well.
                 </p>
+                <p>
+                    Once downloaded and extracted, enter the path to the <b>watch-history.html</b> file located in
+                    Takeout/YouTube/history.
+                </p>
+            </div>
+            <a href="#" id="multiple-files-toggle">For multiple archives{{ ':' if description or not db else '...'}}</a>
+            <div id="multiple-files-instructions" class="{{ '' if description or not db else 'hidden' }}">
+                Enter the path to either of the following (searching will become confined to one kind after the first
+                match):
                 <ul>
-                    <li>a single watch-history.html from the extracted Takeout directory, ex. &lt;root dir&gt;
-                        /Takeout/YouTube/history/watch-history.html</li>
                     <li>a directory with watch-history file(s). Something may be appended at the
                         end of each file name for them to be unique, e.g. watch-history001.html</li>
                     <li>a directory with directories of the Takeout archives, extracted with their archive names, e.g.
                         takeout-20181120T163352Z-001</li>
                 </ul>
-                <p>
-                    Processing will be slightly faster if the files are ordered chronologically.
-                </p>
 
             </div>
 
@@ -95,7 +96,7 @@
     {% include "help/takeout_help.html" %}
     <script src="{{ url_for('static', filename='js/manage_takeout.js') }}"></script>
     <script>
-        toggleElementVisibility("takeout-instructions-toggle", "takeout-instructions",
-            "Instructions{{ '' if description or not db else ':' }}");
+        toggleElementVisibility("multiple-files-toggle", "multiple-files-instructions",
+            "For multiple archives{{ '...' if description or not db else ':' }}");
     </script>
 {% endblock %}
