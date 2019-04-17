@@ -235,7 +235,7 @@ def populate_db(takeout_path: str, project_path: str, logging_verbosity: int):
     add_sse_event(DBProcessState.stage, 'stage')
     records = {}
     try:
-        for f in get_all_records(takeout_path):
+        for f in get_all_records(takeout_path, project_path):
             if DBProcessState.exit_thread_check():
                 return
             if isinstance(f, tuple):
@@ -256,16 +256,9 @@ def populate_db(takeout_path: str, project_path: str, logging_verbosity: int):
 
                 failed_entries = f['failed_entries']
                 if failed_entries:
-                    unparsed_entries_json = join(project_path,
-                                                 'non_parsed_entries.json')
-                    with open(unparsed_entries_json, 'w') as file:
-                        json.dump(failed_entries, file, indent=4)
-                        unparsed_warning = (f'dumped to '
-                                            f'{unparsed_entries_json}')
-                        logger.warning(unparsed_warning)
-                        add_sse_event(f'Couldn\'t parse {len(failed_entries)} ' 
-                                      f'entries; {unparsed_warning}',
-                                      'warnings')
+                    add_sse_event(f'Couldn\'t parse {len(failed_entries)} ' 
+                                  f'entries; dumped to parse_fails.json '
+                                  f'in project directory', 'warnings')
                 failed_files = f['failed_files']
                 if failed_files:
                     add_sse_event('The following files could not be '

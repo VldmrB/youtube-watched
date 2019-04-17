@@ -5,6 +5,7 @@ import re
 import unicodedata
 
 from datetime import datetime
+from os.path import join
 from typing import Union
 
 from bs4 import BeautifulSoup as BSoup
@@ -128,14 +129,15 @@ story_string = 'Watched story'
 
 
 def get_all_records(takeout_path: str = '.',
-                    dump_json_to: str = None, prune_html=False,
+                    dump_json_to_dir: str = None, prune_html=False,
                     verbose=True) -> Union[dict, bool]:
     """
     Accumulates records from all found watch-history.html files and returns
     them in a dict.
 
     :param takeout_path: directory containing Takeout directories
-    :param dump_json_to: saves the dict with accumulated records to a json file
+    :param dump_json_to_dir: saves the dict with accumulated records to a
+    json file
     :param prune_html: prunes HTML that doesn't allow or slows down the
     processing of files with BeautifulSoup
     :param verbose:
@@ -278,12 +280,22 @@ def get_all_records(takeout_path: str = '.',
         Total videos watched/opened: {total_timestamps})
         Total unknown videos: {len(unk_timestamps)})
         Unique videos with ids: {total_videos}''')
-    if dump_json_to:
+    if dump_json_to_dir:
         import json
-        with open(dump_json_to, 'w') as all_records_file:
-            json.dump(occ_dict, all_records_file, indent=4,
+        with open(
+                join(dump_json_to_dir, 'parsed_watch_history.json'),
+                'w') as all_records_file:
+            json.dump(occ_dict['videos'], all_records_file, indent=4,
                       default=lambda o: str(o))  # for dt objects
+            if failed_entries or occ_dict['failed_files']:
+                fails = {'failed_files': occ_dict['failed_files'],
+                         'failed_entries': occ_dict['failed_entries']}
+                parse_fails_path = join(dump_json_to_dir, 'parse_fails.json')
+                with open(parse_fails_path, 'w') as parse_fails_file:
+                    json.dump(fails, parse_fails_file, indent=4)
+                    logger.warning(f'Dumped failed parse data '
+                                   f'in {parse_fails_path}')
             if verbose:
-                logger.info('Dumped JSON to', dump_json_to)
+                logger.info(f'Dumped JSON to {dump_json_to_dir}')
 
     yield occ_dict
