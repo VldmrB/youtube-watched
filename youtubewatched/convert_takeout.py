@@ -153,6 +153,11 @@ def get_all_records(takeout_path: str = '.',
 
     failed_entries = 0
 
+    def add_failed_parse_entry_to_list(div_text):
+        nonlocal failed_entries
+        occ_dict['failed_entries'].append(div_text)
+        failed_entries += 1
+
     watch_files_amount = len(watch_files)
     for ind, watch_file_path in enumerate(watch_files):
         yield ind, watch_files_amount
@@ -203,8 +208,7 @@ def get_all_records(takeout_path: str = '.',
             else:
                 url = div.find(href=watch_url_re)
                 if url is None:
-                    occ_dict['failed_entries'].append(str(div))
-                    failed_entries += 1
+                    add_failed_parse_entry_to_list(all_text)
                     continue
                 video_id = extract_video_id_from_url(url['href'])
                 video_title = url.get_text(strip=True)
@@ -222,9 +226,16 @@ def get_all_records(takeout_path: str = '.',
                         pass
 
                 watched_at = all_text.splitlines()[-1].strip()
-
-            watched_at = datetime.strptime(watched_at[:watched_at.rfind(' ')],
-                                           '%b %d, %Y, %I:%M:%S %p')
+            try:
+                watched_at = datetime.strptime(
+                    watched_at[:watched_at.rfind(' ')],
+                    '%b %d, %Y, %I:%M:%S %p')
+            except (ValueError, TypeError):
+                # TypeError for potential regex mismatches
+                # ValueError for a potential, unaccounted, for difference in
+                # the string itself
+                add_failed_parse_entry_to_list(all_text)
+                continue
 
             occ_dict['videos'].setdefault(video_id, default_values)
             default_keys = list(default_values.keys())
