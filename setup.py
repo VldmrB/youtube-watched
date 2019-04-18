@@ -57,7 +57,7 @@ class UploadCommand(Command):
 
 setup(
     name=NAME,
-    version='0.1.3',
+    version='0.1.4',
     author='Vladimir Belitskiy',
     author_email='belitskiy@gmail.com',
     description='Visualization of Youtube watch history from Google Takeout',

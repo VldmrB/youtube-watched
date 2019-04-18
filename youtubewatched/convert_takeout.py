@@ -18,7 +18,8 @@ logger = logging.getLogger(__name__)
 """
 In addition to seemingly only returning an oddly even number of records 
 (20300 the first time, 18300 the second), Takeout also seems to only return 
-from no farther back than 2014.
+from no farther back than 2014. (update: seems to go farther for accounts with 
+less videos watched)
 When compared to the list you'd get from scraping your YouTube history web page 
 directly (which seems to go back to the very start of your account), 
 it's missing a number of videos from every year, even the current. The 
@@ -40,7 +41,7 @@ just fine, but maybe not or not in all cases.
 
 Update:
 Perhaps the above tag is not out of place, but is paired with a </div> at the 
-every end of the file. Its presence still doesn't make sense 
+very end of the file. Its presence still doesn't make sense 
 as divs with the same class also wrap every video entry individually.
 """
 
@@ -133,11 +134,12 @@ def get_all_records(takeout_path: str = '.',
     Accumulates records from all found watch-history.html files and returns
     them in a dict.
 
-    :param takeout_path: directory containing Takeout directories
+    :param takeout_path: directory containing Takeout directories or
+    watch-history.html files, or a path to one of those files directly
     :param dump_json_to_dir: saves the dict with accumulated records to a
     json file
     :param prune_html: prunes HTML that doesn't allow or slows down the
-    processing of files with BeautifulSoup
+    processing of files with Beautiful Soup
     :param verbose:
     :return:
     """
@@ -209,9 +211,11 @@ def get_all_records(takeout_path: str = '.',
                     continue
                 video_id = extract_video_id_from_url(url['href'])
                 video_title = url.get_text(strip=True)
-                if url['href'] != video_title:  # some videos have the url as
-                    # the title. They're usually not available through YT or
-                    # its API
+                if (url['href'] != video_title and 
+                        video_title != 'Deleted video'):
+                    # Some videos have the url as the title.
+                    # They're usually not available through YT or its API
+                    default_values['title'] = video_title
                     try:
                         channel = div.find(href=channel_url_re)
                         channel_url = channel['href']
