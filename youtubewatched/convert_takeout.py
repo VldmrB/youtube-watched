@@ -117,14 +117,12 @@ fluff = [  # the order should not be changed
       'class="content-cell mdl-cell mdl-cell--12-col mdl-typography'
       '--caption"><b>Products:</b><br>&emsp;YouTube'
       '<br></div></div></div>'), ''),
-    ('<br>', ''),
     ('<', '\n<'),
     ('>', '>\n')
 ]
 done_ = '<span id="Done">'
 
 removed_string = 'Watched a video that has been removed'
-removed_string_len = len(removed_string)
 story_string = 'Watched story'
 
 
@@ -193,20 +191,17 @@ def get_all_records(takeout_path: str = '.',
                          f'\nThe file is either corrupt or its format is '
                          f'different from the expected.')
             continue
-
         for div in divs:
             default_values = {'timestamps': []}
             video_id = 'unknown'
             all_text = div.get_text().strip()
-            if all_text.startswith('Visited YouTube Music'):
-                watched_at = dt_re.search(all_text).group()
+            watched_at = all_text.splitlines()[-1].strip()
+
+            if (all_text.startswith(removed_string) or
+                    all_text.startswith(story_string)):
+                pass
+            elif all_text.startswith('Visited YouTube Music'):
                 video_id = 'youtube_music'
-            elif all_text.startswith(removed_string):  # only timestamp present
-                watched_at = all_text[removed_string_len:]
-            elif all_text.startswith(story_string):
-                watched_at = all_text.splitlines()[-1].strip()
-                if '/watch?v=' in watched_at:
-                    watched_at = watched_at[57:]
             else:
                 url = div.find(href=watch_url_re)
                 if url is None:
@@ -227,15 +222,11 @@ def get_all_records(takeout_path: str = '.',
                     except TypeError:
                         pass
 
-                watched_at = all_text.splitlines()[-1].strip()
             try:
                 watched_at = datetime.strptime(
                     watched_at[:watched_at.rfind(' ')],
                     '%b %d, %Y, %I:%M:%S %p')
-            except (ValueError, TypeError):
-                # TypeError for potential regex mismatches
-                # ValueError for a potential, unaccounted, for difference in
-                # the string itself
+            except ValueError:
                 add_failed_parse_entry_to_list(all_text)
                 continue
 
