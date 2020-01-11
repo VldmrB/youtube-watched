@@ -1,3 +1,27 @@
+# This app is not being maintained (2020-01-11).
+I'm unsure of the exact state it's in, though it appears to be usable,
+with some caveats. 
+
+- This is not anywhere near in usability to a mainstream app and is really
+only aimed at someone who can code a bit and potentially doesn't mind
+spending some time debugging.
+
+- New projects come with a default quota of 10000 for the YouTube Data API.
+That's enough for about ~800 records per day, which is a far cry from what
+I operated with when developing it in an older Google Cloud project (a
+million). That's annoying.
+
+- The app doesn't log problems to the webpage that occur prior to the start 
+of inserting records into the database (and perhaps after, in some cases). Look for errors in 
+the app's terminal output if it gets stuck at some point without reason.
+
+- Don't set logging above level 1. It no longer handles unicode well,
+for some reason and will keep throwing decode errors throughout the process.
+
+- There's a few minor bugs here and there that can be gotten around by
+restarting the server.
+
+
 ## The goal of the app
 is to gather some data about your YouTube watch history (available via Google Takeout) and do some light visualization
 of it. There's a few built-in interactive graphs and tables, delivered via a web page, and then there's the 
