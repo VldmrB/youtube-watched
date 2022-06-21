@@ -13,7 +13,7 @@ requires = [
     'Flask==1.0.2',
     'google-api-python-client==1.7.8',
     'lxml==4.6.5',
-    'numpy==1.16.2',
+    'numpy==1.22.0',
     'pandas==0.24.2',
     'plotly==3.7.1'
 ]
